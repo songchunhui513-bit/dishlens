@@ -10,6 +10,7 @@ interface LoadingPageProps {
   useMock?: boolean;
   onComplete: () => void;
   onCancel: () => void;
+  onResult?: (result: Record<string, unknown>) => void;
 }
 
 const basePhases = [
@@ -37,6 +38,7 @@ export default function LoadingPage({
   useMock,
   onComplete,
   onCancel,
+  onResult,
 }: LoadingPageProps) {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState(0);
@@ -79,6 +81,7 @@ export default function LoadingPage({
         if (t.status === "done" || t.status === "partial" || t.status === "failed") {
           if (!completedRef.current) {
             completedRef.current = true;
+            if (t.result && onResult) onResult(t.result as unknown as Record<string, unknown>);
             setTimeout(() => onComplete(), 500);
           }
         } else {

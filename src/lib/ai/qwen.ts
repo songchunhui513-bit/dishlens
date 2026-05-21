@@ -61,7 +61,7 @@ Output format:
         ],
       },
     ],
-    max_tokens: 4096,
+    max_tokens: 2048,
     temperature: 0.1,
   });
 
@@ -95,7 +95,7 @@ Return ONLY JSON: { "name_translated": "...", "description": "..." }`,
         content: `Original: ${dish.name_original}\nDraft translation: ${dish.name_translated}\nDraft description: ${dish.description}`,
       },
     ],
-    max_tokens: 512,
+    max_tokens: 256,
     temperature: 0.3,
   });
 

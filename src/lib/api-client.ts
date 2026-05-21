@@ -41,6 +41,25 @@ async function compressImage(file: File, maxDim = 2048, quality = 0.8): Promise<
 
 // ── Translation ────────────────────────────────────────────────────
 
+export async function createTranslation(images: File[]): Promise<{ task_id: string; status: string }> {
+  const formData = new FormData();
+  const compressed = await Promise.all(images.map((img) => compressImage(img)));
+  compressed.forEach((img) => formData.append("images", img));
+  formData.append("target_lang", "zh");
+
+  const res = await fetch("/api/v1/translate/menu", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function translateMenu(images: File[]): Promise<TranslationResult> {
   const formData = new FormData();
   const compressed = await Promise.all(images.map((img) => compressImage(img)));

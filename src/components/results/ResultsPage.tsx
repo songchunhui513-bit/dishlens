@@ -4,19 +4,50 @@ import type { Dish, TranslationResult } from "@/types";
 
 // ── Fallback mock images (only used when no real images) ──────────────
 
-const FALLBACK_IMG: Record<string, string> = {
-  boeuf: "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=136&h=136&fit=crop&auto=format",
+const FOOD_IMG: Record<string, string> = {
+  pasta: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=136&h=136&fit=crop&auto=format",
+  pizza: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=136&h=136&fit=crop&auto=format",
+  salad: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=136&h=136&fit=crop&auto=format",
+  soup: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=136&h=136&fit=crop&auto=format",
+  beef: "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=136&h=136&fit=crop&auto=format",
+  chicken: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=136&h=136&fit=crop&auto=format",
   fish: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=136&h=136&fit=crop&auto=format",
+  seafood: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=136&h=136&fit=crop&auto=format",
+  rice: "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=136&h=136&fit=crop&auto=format",
+  noodle: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=136&h=136&fit=crop&auto=format",
+  bread: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=136&h=136&fit=crop&auto=format",
+  burger: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=136&h=136&fit=crop&auto=format",
   dessert: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=136&h=136&fit=crop&auto=format",
+  cake: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=136&h=136&fit=crop&auto=format",
+  icecream: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=136&h=136&fit=crop&auto=format",
+  drink: "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=136&h=136&fit=crop&auto=format",
+  coffee: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=136&h=136&fit=crop&auto=format",
+  curry: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=136&h=136&fit=crop&auto=format",
+  cheese: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=136&h=136&fit=crop&auto=format",
+  appetizer: "https://images.unsplash.com/photo-1541524324135-9f2a0c4e5466?w=136&h=136&fit=crop&auto=format",
   default: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=136&h=136&fit=crop&auto=format",
 };
 
 function guessImg(dish: Dish): string {
-  const name = (dish.name_original || "").toLowerCase();
-  if (name.includes("boeuf") || name.includes("beef")) return FALLBACK_IMG.boeuf;
-  if (name.includes("sole") || name.includes("fish") || name.includes("poisson")) return FALLBACK_IMG.fish;
-  if (name.includes("tarte") || name.includes("dessert") || name.includes("crème")) return FALLBACK_IMG.dessert;
-  return FALLBACK_IMG.default;
+  const text = [
+    dish.name_original || "",
+    typeof dish.name_translated === "string" ? dish.name_translated : "",
+    ...(dish.ingredients || []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  for (const [key, url] of Object.entries(FOOD_IMG)) {
+    if (key === "default") continue;
+    if (text.includes(key)) return url;
+  }
+
+  // Fallback by category
+  const taste = (dish.taste_profile || []).join(" ").toLowerCase();
+  if (taste.includes("sweet")) return FOOD_IMG.dessert;
+  if (taste.includes("rich")) return FOOD_IMG.beef;
+
+  return FOOD_IMG.default;
 }
 
 // ── Pill component ────────────────────────────────────────────────────

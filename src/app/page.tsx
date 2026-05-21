@@ -13,7 +13,7 @@ import HistoryPage from "@/components/history/HistoryPage";
 import FavoritesPage from "@/components/favorites/FavoritesPage";
 import SettingsPage from "@/components/settings/SettingsPage";
 import type { CapturedPhoto, Dish, TranslationResult } from "@/types";
-import { translateMenu } from "@/lib/api-client";
+import { createTranslation } from "@/lib/api-client";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ export default function Page() {
   const handleAnalyze = useCallback(
     async (photos: CapturedPhoto[]) => {
       setCapturedPhotos(photos);
-      setTranslationResult(null);
+      setUseMockFallback(false);
       navigate("loading");
 
       const files: File[] = [];
@@ -111,14 +111,18 @@ export default function Page() {
       }
 
       try {
-        const result = await translateMenu(files);
-        setTranslationResult(result);
+        const preliminary = await createTranslation(files);
+        setTranslationResult(preliminary as unknown as TranslationResult);
       } catch {
         setUseMockFallback(true);
       }
     },
     [navigate]
   );
+
+  const handleResultReceived = useCallback((result: Record<string, unknown>) => {
+    setTranslationResult(result as unknown as TranslationResult);
+  }, []);
 
   const handleLoadingComplete = useCallback(() => {
     navigate("results");
@@ -178,6 +182,7 @@ export default function Page() {
           useMock={useMockFallback}
           onComplete={handleLoadingComplete}
           onCancel={handleCancelLoading}
+          onResult={handleResultReceived}
         />
       );
       break;
@@ -280,7 +285,7 @@ export default function Page() {
 
   return (
     <div className="w-full flex justify-center" style={{ minHeight: "100dvh", background: "#F0EBE3" }}>
-      <div className="w-full relative flex flex-col" style={{ maxWidth: 430, minHeight: "100dvh", height: "100dvh", background: "var(--bg)" }}>
+      <div className="w-full relative flex flex-col overflow-hidden" style={{ maxWidth: 430, height: "100dvh", background: "var(--bg)" }}>
         {ScreenComponent}
       </div>
     </div>
