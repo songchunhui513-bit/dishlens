@@ -90,6 +90,7 @@ export default function Page() {
   const handleAnalyze = useCallback(
     async (photos: CapturedPhoto[]) => {
       setCapturedPhotos(photos);
+      setTranslationResult(null);
       setUseMockFallback(false);
       navigate("loading");
 

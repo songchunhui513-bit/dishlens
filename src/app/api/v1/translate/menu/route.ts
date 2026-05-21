@@ -23,8 +23,20 @@ export async function POST(req: NextRequest) {
     await createTask(taskId, images.length);
 
     // Fire background processing — don't await
-    processImages(taskId, images, targetLang, startTime).catch((err) => {
+    processImages(taskId, images, targetLang, startTime).catch(async (err) => {
       console.error("Background processing failed:", err);
+      // Mark task as failed so client stops polling
+      const { updateTask, getTask } = await import("@/lib/cache/task-store");
+      const task = await getTask(taskId);
+      if (task) {
+        task.status = "failed";
+        task.failedPages = images.map((_, i) => ({
+          page_index: i,
+          error: err instanceof Error ? err.message : "Processing error",
+          retry_allowed: true,
+        }));
+        await updateTask(taskId, task);
+      }
     });
 
     return NextResponse.json(

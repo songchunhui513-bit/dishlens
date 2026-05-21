@@ -47,11 +47,15 @@ export default function LoadingPage({
 
   const isPending = !useMock && !taskId;
   const isPolling = !useMock && !!taskId && initialTaskStatus !== "done" && initialTaskStatus !== "partial" && initialTaskStatus !== "failed";
-  const isDone = initialTaskStatus === "done" || initialTaskStatus === "partial" || initialTaskStatus === "failed";
+  const isDone = initialTaskStatus === "done" || initialTaskStatus === "partial";
+  const isFailed = initialTaskStatus === "failed";
   const isMock = !!useMock;
 
   const [pendingStart] = useState(() => Date.now());
   const [pendingElapsed, setPendingElapsed] = useState(0);
+
+  // Track previous status text for animation key
+  const [statusKey, setStatusKey] = useState(0);
 
   // Pending progress: exponential approach to 95%, never hard-stops
   useEffect(() => {
@@ -59,7 +63,6 @@ export default function LoadingPage({
     const interval = setInterval(() => {
       const elapsed = Date.now() - pendingStart;
       setPendingElapsed(elapsed);
-      // Exponential approach: 63% at 20s, 86% at 40s, 93% at 60s, 95% asymptote
       const pct = Math.min(95, Math.round(5 + 90 * (1 - Math.exp(-elapsed / 25000))));
       setProgress(pct);
     }, 500);
@@ -127,7 +130,7 @@ export default function LoadingPage({
     return () => timers.forEach(clearTimeout);
   }, [isMock, phaseList, onComplete]);
 
-  // Done effect
+  // Done effect — only for success states, not failed
   useEffect(() => {
     if (isDone && !completedRef.current) {
       completedRef.current = true;
@@ -136,16 +139,23 @@ export default function LoadingPage({
     }
   }, [isDone, onComplete]);
 
+  // Failed effect — show error state, don't auto-navigate
+  useEffect(() => {
+    if (isFailed && !completedRef.current) {
+      completedRef.current = true;
+      setProgress(0);
+    }
+  }, [isFailed]);
+
   // Phase-aware status text
   function getStatusText(): string {
+    if (isFailed) return "识别失败，请重试";
     if (isPolling) {
-      const donePages = initialTaskStatus ? 1 : 0;
       if (phase > 0) return `AI 正在分析...（${Math.floor(phase / basePhases.length) + 1}/${photoCount} 页）`;
       return "AI 正在分析菜单...";
     }
     if (isDone) return "分析完成";
     if (isMock) return phaseList[Math.min(phase, phaseList.length - 1)];
-    // Pending: phase text based on elapsed time
     const sec = pendingElapsed / 1000;
     if (sec < 3) return "正在压缩图片...";
     if (sec < 8) return "正在上传...";
@@ -155,6 +165,15 @@ export default function LoadingPage({
 
   const statusText = getStatusText();
 
+  // Bump status key whenever text changes → re-triggers fadeIn animation
+  const prevStatusRef = useRef(statusText);
+  useEffect(() => {
+    if (prevStatusRef.current !== statusText) {
+      prevStatusRef.current = statusText;
+      setStatusKey((k) => k + 1);
+    }
+  }, [statusText]);
+
   const pctNum = Math.min(Math.round(progress), 100);
   const isNearDone = pctNum > 90;
 
@@ -163,85 +182,154 @@ export default function LoadingPage({
       className="h-full flex flex-col items-center justify-center flex-1"
       style={{ background: "var(--bg)", padding: "30px 20px" }}
     >
-      {/* Pulsing dots */}
-      <div className="flex" style={{ gap: 10, marginBottom: 24 }}>
-        {[0, 1, 2].map((i) => (
+      {/* Failed state */}
+      {isFailed ? (
+        <>
           <div
-            key={i}
-            className="rounded-full"
+            className="flex items-center justify-center"
             style={{
-              width: 12,
-              height: 12,
-              background: "var(--rule)",
-              animation: `pulse-dot 1.4s infinite ${i * 0.2}s`,
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              background: "var(--allergen-bg)",
+              marginBottom: 20,
+              animation: "popIn 0.3s ease-out",
             }}
-          />
-        ))}
-      </div>
-
-      {/* Progress bar */}
-      <div style={{ width: 200, marginBottom: 12 }}>
-        <div
-          className="w-full overflow-hidden"
-          style={{ height: 4, borderRadius: 2, background: "var(--rule)" }}
-        >
+          >
+            <svg viewBox="0 0 24 24" style={{ width: 24, height: 24, stroke: "var(--accent)", fill: "none", strokeWidth: 2, strokeLinecap: "round" }}>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v4M12 16h0" />
+            </svg>
+          </div>
           <div
-            className="h-full transition-all duration-300"
+            key={`status-${statusKey}`}
             style={{
-              width: `${Math.max(pctNum, 3)}%`,
-              borderRadius: 2,
-              background: isNearDone
-                ? "linear-gradient(90deg, var(--accent), var(--accent-soft))"
-                : "linear-gradient(90deg, var(--primary), var(--primary-soft))",
+              fontFamily: "var(--font-body)",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--ink)",
+              marginBottom: 4,
+              animation: "fadeIn 0.5s ease-out",
             }}
-          />
-        </div>
-      </div>
+          >
+            {statusText}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontSize: 9,
+              color: "var(--muted)",
+              marginBottom: 18,
+              animation: "fadeIn 0.5s ease-out",
+            }}
+          >
+            请检查图片是否清晰，或稍后再试
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="transition-opacity hover:opacity-70"
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 10,
+                fontWeight: 600,
+                color: "var(--muted)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              返回首页
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Pulsing dots */}
+          <div className="flex" style={{ gap: 10, marginBottom: 24 }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="rounded-full"
+                style={{
+                  width: 12,
+                  height: 12,
+                  background: "var(--rule)",
+                  animation: `pulse-dot 1.4s infinite ${i * 0.2}s`,
+                }}
+              />
+            ))}
+          </div>
 
-      {/* Status text */}
-      <div
-        className="animate-[fadeIn_0.5s]"
-        style={{
-          fontFamily: "var(--font-body)",
-          fontSize: 11,
-          fontWeight: 600,
-          color: "var(--ink)",
-          marginBottom: 4,
-        }}
-      >
-        {statusText}
-      </div>
+          {/* Progress bar */}
+          <div style={{ width: 200, marginBottom: 12 }}>
+            <div
+              className="w-full overflow-hidden"
+              style={{ height: 4, borderRadius: 2, background: "var(--rule)" }}
+            >
+              <div
+                className="h-full"
+                style={{
+                  width: `${Math.max(pctNum, 3)}%`,
+                  borderRadius: 2,
+                  background: isNearDone
+                    ? "linear-gradient(90deg, var(--accent), var(--accent-soft))"
+                    : "linear-gradient(90deg, var(--primary), var(--primary-soft))",
+                  transition: "width 300ms ease-out",
+                }}
+              />
+            </div>
+          </div>
 
-      {/* Percentage */}
-      <div
-        style={{
-          fontFamily: "var(--font-body)",
-          fontSize: 40,
-          fontWeight: 800,
-          color: isNearDone ? "var(--primary)" : "var(--ink)",
-          letterSpacing: "-0.02em",
-          marginBottom: 18,
-        }}
-      >
-        {pctNum}%
-      </div>
+          {/* Status text — key forces re-mount on text change → fadeIn replays */}
+          <div
+            key={`status-${statusKey}`}
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--ink)",
+              marginBottom: 4,
+              animation: "fadeIn 0.5s ease-out",
+            }}
+          >
+            {statusText}
+          </div>
 
-      {/* Cancel */}
-      <button
-        onClick={onCancel}
-        className="transition-opacity hover:opacity-70"
-        style={{
-          fontFamily: "var(--font-ui)",
-          fontSize: 10,
-          fontWeight: 600,
-          color: "var(--muted)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        取消
-      </button>
+          {/* Percentage — re-animate when crossing 90% threshold */}
+          <div
+            key={`pct-${isNearDone ? "near" : "far"}-${Math.floor(pctNum / 10)}`}
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 40,
+              fontWeight: 800,
+              color: isNearDone ? "var(--primary)" : "var(--ink)",
+              letterSpacing: "-0.02em",
+              marginBottom: 18,
+              animation: "fadeIn 0.5s ease-out",
+            }}
+          >
+            {pctNum}%
+          </div>
+
+          {/* Cancel */}
+          <button
+            onClick={onCancel}
+            className="transition-opacity hover:opacity-70"
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            取消
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -1,8 +1,11 @@
 import OpenAI from "openai";
 
+const API_TIMEOUT = 45_000; // 45s timeout for vision calls
+
 const qwen = new OpenAI({
   baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
   apiKey: process.env.QWEN_API_KEY || "",
+  timeout: API_TIMEOUT,
 });
 
 const VL_MODEL = "qwen-vl-max";
