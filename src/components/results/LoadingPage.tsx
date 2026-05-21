@@ -54,6 +54,10 @@ export default function LoadingPage({
   const [pendingStart] = useState(() => Date.now());
   const [pendingElapsed, setPendingElapsed] = useState(0);
 
+  // Track when polling started for sub-phase text
+  const pollingStartRef = useRef(0);
+  const [pollingElapsed, setPollingElapsed] = useState(0);
+
   // Track previous status text for animation key
   const [statusKey, setStatusKey] = useState(0);
 
@@ -68,6 +72,17 @@ export default function LoadingPage({
     }, 500);
     return () => clearInterval(interval);
   }, [isPending, pendingStart]);
+
+  // Polling elapsed timer (for sub-phase status text)
+  useEffect(() => {
+    if (!isPolling) return;
+    pollingStartRef.current = Date.now();
+    setPollingElapsed(0);
+    const interval = setInterval(() => {
+      setPollingElapsed(Date.now() - pollingStartRef.current);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPolling, taskId]); // reset on new taskId
 
   // Polling progress: real data from API
   useEffect(() => {
@@ -151,8 +166,15 @@ export default function LoadingPage({
   function getStatusText(): string {
     if (isFailed) return "识别失败，请重试";
     if (isPolling) {
+      // Per-page phase from actual API progress
       if (phase > 0) return `AI 正在分析...（${Math.floor(phase / basePhases.length) + 1}/${photoCount} 页）`;
-      return "AI 正在分析菜单...";
+      // Sub-phase text based on elapsed time during polling
+      const sec = pollingElapsed / 1000;
+      if (sec < 5) return "AI 正在识别菜品...";
+      if (sec < 10) return "正在翻译菜名...";
+      if (sec < 18) return "正在优化描述...";
+      if (sec < 25) return "正在匹配图片...";
+      return "即将完成...";
     }
     if (isDone) return "分析完成";
     if (isMock) return phaseList[Math.min(phase, phaseList.length - 1)];

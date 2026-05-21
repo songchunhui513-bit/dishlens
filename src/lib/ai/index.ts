@@ -40,3 +40,6 @@ export async function summarizeReviews(
 export async function moderateReview(text: string) {
   return (await load()).moderateReview(text);
 }
+
+// Pure utility — works regardless of provider
+export { hasChinese } from "./qwen";

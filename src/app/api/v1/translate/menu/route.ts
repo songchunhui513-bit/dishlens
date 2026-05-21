@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeMenuImage, refineTranslation } from "@/lib/ai";
+import { analyzeMenuImage, refineTranslation, hasChinese } from "@/lib/ai";
 import { supabase } from "@/lib/db/supabase";
 import { createTask, updateTask } from "@/lib/cache/task-store";
 
@@ -77,7 +77,7 @@ async function processImages(
 
       const raw = await analyzeMenuImage(base64);
 
-      // Refine high-confidence dishes
+      // Refine translations — always run for dishes without Chinese, or low confidence
       const refinedDishes = await Promise.all(
         raw.dishes.map(
           async (dish: {
@@ -85,8 +85,10 @@ async function processImages(
             name_original: string;
             name_translated: string;
             description: string;
+            _needsRetranslate?: boolean;
           }) => {
-            if (dish.confidence < 0.5) return dish;
+            const needsRefine = dish.confidence < 0.5 || dish._needsRetranslate || !hasChinese(dish.name_translated || "");
+            if (!needsRefine) return dish;
             try {
               const refined = await refineTranslation({
                 name_original: dish.name_original,

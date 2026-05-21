@@ -11,6 +11,27 @@ const qwen = new OpenAI({
 const VL_MODEL = "qwen-vl-max";
 const TEXT_MODEL = "qwen-plus";
 
+// ── Helpers ────────────────────────────────────────────────────────
+
+/** Returns true if text contains at least one Chinese character */
+export function hasChinese(text: string): boolean {
+  return /[一-鿿]/.test(text);
+}
+
+function parseAIJson(text: string): any {
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+  }
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error(`AI JSON parse failed: ${cleaned.slice(0, 300)}`);
+  }
+}
+
 // ── Image → Structured extraction ──────────────────────────────────
 
 export async function analyzeMenuImage(base64Image: string): Promise<{
@@ -26,23 +47,29 @@ export async function analyzeMenuImage(base64Image: string): Promise<{
   page_label: string;
   source_language: string;
 }> {
-  const systemPrompt = `You are a professional menu translator for restaurants.
-Analyze the menu photo and output ONLY valid JSON. No markdown, no explanation.
+  const systemPrompt = `You are a professional menu translator. Your PRIMARY job is to translate ALL dish names and descriptions into CHINESE (中文).
 
-For each dish, return:
-- name_original: exact text from the menu
-- name_translated: culturally-adapted Chinese translation (NOT literal word-for-word)
-- description: 1-sentence Chinese description of what the dish is
-- ingredients: list of main ingredients
-- allergens: from [egg, dairy, peanut, tree_nut, soy, wheat, fish, shellfish, alcohol]
-- taste_profile: from [spicy, sweet, sour, salty, umami, bitter, fresh, rich]
-- confidence: 0.0-1.0
+CRITICAL RULES:
+1. name_original: copy the EXACT original text from the menu photo (can be any language)
+2. name_translated: MUST be in CHINESE characters (中文). NEVER output English, French, or any Latin script here. This is the most important rule.
+3. description: MUST be in CHINESE (中文). One sentence describing what the dish is.
+4. ingredients: list of main ingredients, in Chinese if possible
+5. allergens: from [egg, dairy, peanut, tree_nut, soy, wheat, fish, shellfish, alcohol]
+6. taste_profile: from [spicy, sweet, sour, salty, umami, bitter, fresh, rich]
+7. confidence: 0.0-1.0
 
 Also detect:
-- page_label: what section of the menu (e.g. "前菜", "主菜", "酒单", "甜点", "饮品", "混合")
-- source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, etc.)
+- page_label: menu section in Chinese (e.g. "前菜", "主菜", "酒单", "甜点", "饮品", "混合")
+- source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
-Output format:
+CORRECT OUTPUT EXAMPLES:
+- "Salmon Rillettes" → name_translated: "三文鱼酱配烤面包"
+- "Boeuf Bourguignon" → name_translated: "勃艮第红酒炖牛肉"
+- "Sole Meunière" → name_translated: "法式香煎比目鱼"
+- "Pâtes Carbonara" → name_translated: "培根蛋酱意面"
+- "Duck Confit" → name_translated: "法式油封鸭"
+
+Output ONLY valid JSON. No markdown, no explanation.
 {
   "dishes": [...],
   "page_label": "主菜",
@@ -60,7 +87,7 @@ Output format:
             type: "image_url",
             image_url: { url: `data:image/jpeg;base64,${base64Image}` },
           },
-          { type: "text", text: "Extract all dishes from this menu photo." },
+          { type: "text", text: "Extract all dishes from this menu photo. Remember: ALL translations must be in Chinese (中文)." },
         ],
       },
     ],
@@ -69,7 +96,16 @@ Output format:
   });
 
   const text = response.choices[0]?.message?.content || "";
-  return parseAIJson(text);
+  const result = parseAIJson(text);
+
+  // Post-validate: if name_translated has no Chinese, mark for re-translation
+  for (const dish of result.dishes || []) {
+    if (!hasChinese(dish.name_translated || "")) {
+      dish._needsRetranslate = true;
+    }
+  }
+
+  return result;
 }
 
 // ── Translation refinement ─────────────────────────────────────────
@@ -83,19 +119,28 @@ export async function refineTranslation(dish: {
   name_translated: string;
   description: string;
 }> {
+  const needsChinese = !hasChinese(dish.name_translated);
+  const instruction = needsChinese
+    ? `The current "translation" is NOT in Chinese. You MUST translate it to proper Chinese (中文).`
+    : `Refine the Chinese translation to sound more natural and appetizing.`;
+
   const response = await qwen.chat.completions.create({
     model: TEXT_MODEL,
     messages: [
       {
         role: "system",
-        content: `You are a bilingual food editor. Refine the Chinese translation of this dish to sound natural and appetizing. Keep the translation accurate but culturally adapted.
+        content: `You are a bilingual food editor. Your job is to produce the best CHINESE (中文) translation of dish names and descriptions.
+
+${instruction}
+
+CRITICAL: name_translated and description MUST be in Chinese characters (中文). Never output English or any other language.
 
 Source language: ${dish.source_language}
-Return ONLY JSON: { "name_translated": "...", "description": "..." }`,
+Return ONLY valid JSON: { "name_translated": "...", "description": "..." }`,
       },
       {
         role: "user",
-        content: `Original: ${dish.name_original}\nDraft translation: ${dish.name_translated}\nDraft description: ${dish.description}`,
+        content: `Original name: ${dish.name_original}\nCurrent translation (may be wrong or in wrong language): ${dish.name_translated}\nCurrent description: ${dish.description}\n\nPlease provide proper CHINESE translations.`,
       },
     ],
     max_tokens: 256,
@@ -166,21 +211,4 @@ export async function moderateReview(
 
   const text2 = response.choices[0]?.message?.content || "";
   return parseAIJson(text2);
-}
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function parseAIJson(text: string): any {
-  let cleaned = text.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
-  }
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    // Try to extract JSON object from surrounding text
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error(`AI JSON parse failed: ${cleaned.slice(0, 300)}`);
-  }
 }
