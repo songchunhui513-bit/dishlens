@@ -4,9 +4,9 @@ import type { TranslationResult, TaskProgress, Review, ReviewSubmission, UserPro
 
 // ── Image compression (for Vercel 4.5MB body limit) ───────────────
 
-async function compressImage(file: File, maxDim = 2048, quality = 0.8): Promise<File> {
-  // Skip if already small enough
-  if (file.size < 1024 * 1024) return file;
+async function compressImage(file: File, maxDim = 1600, quality = 0.7): Promise<File> {
+  // Skip if already small enough (under 300KB)
+  if (file.size < 300 * 1024) return file;
 
   return new Promise((resolve, reject) => {
     const img = new Image();

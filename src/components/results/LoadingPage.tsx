@@ -50,18 +50,23 @@ export default function LoadingPage({
   const isDone = initialTaskStatus === "done" || initialTaskStatus === "partial" || initialTaskStatus === "failed";
   const isMock = !!useMock;
 
+  const [pendingStart] = useState(() => Date.now());
+  const [pendingElapsed, setPendingElapsed] = useState(0);
+
+  // Pending progress: exponential approach to 95%, never hard-stops
   useEffect(() => {
     if (!isPending) return;
-    const start = Date.now();
     const interval = setInterval(() => {
-      const elapsed = Date.now() - start;
-      // Logarithmic growth: fast start, gradually slowing, approaching 85%
-      const pct = Math.min(85, Math.round(15 + 70 * Math.log10(1 + elapsed / 1000)));
+      const elapsed = Date.now() - pendingStart;
+      setPendingElapsed(elapsed);
+      // Exponential approach: 63% at 20s, 86% at 40s, 93% at 60s, 95% asymptote
+      const pct = Math.min(95, Math.round(5 + 90 * (1 - Math.exp(-elapsed / 25000))));
       setProgress(pct);
-    }, 400);
+    }, 500);
     return () => clearInterval(interval);
-  }, [isPending]);
+  }, [isPending, pendingStart]);
 
+  // Polling progress: real data from API
   useEffect(() => {
     if (!isPolling || !taskId) return;
     let cancelled = false;
@@ -95,6 +100,7 @@ export default function LoadingPage({
     return () => { cancelled = true; };
   }, [isPolling, taskId, onComplete]);
 
+  // Mock mode
   useEffect(() => {
     if (!isMock) return;
     const totalSteps = phaseList.length;
@@ -121,6 +127,7 @@ export default function LoadingPage({
     return () => timers.forEach(clearTimeout);
   }, [isMock, phaseList, onComplete]);
 
+  // Done effect
   useEffect(() => {
     if (isDone && !completedRef.current) {
       completedRef.current = true;
@@ -129,11 +136,24 @@ export default function LoadingPage({
     }
   }, [isDone, onComplete]);
 
-  const statusText = isPending ? "正在上传图片..."
-    : isPolling ? "AI 正在分析菜单..."
-    : isDone ? "分析完成"
-    : isMock ? phaseList[Math.min(phase, phaseList.length - 1)]
-    : "AI 正在分析菜单...";
+  // Phase-aware status text
+  function getStatusText(): string {
+    if (isPolling) {
+      const donePages = initialTaskStatus ? 1 : 0;
+      if (phase > 0) return `AI 正在分析...（${Math.floor(phase / basePhases.length) + 1}/${photoCount} 页）`;
+      return "AI 正在分析菜单...";
+    }
+    if (isDone) return "分析完成";
+    if (isMock) return phaseList[Math.min(phase, phaseList.length - 1)];
+    // Pending: phase text based on elapsed time
+    const sec = pendingElapsed / 1000;
+    if (sec < 3) return "正在压缩图片...";
+    if (sec < 8) return "正在上传...";
+    if (sec < 20) return "等待 AI 响应...";
+    return "AI 正在处理...";
+  }
+
+  const statusText = getStatusText();
 
   const pctNum = Math.min(Math.round(progress), 100);
   const isNearDone = pctNum > 90;
