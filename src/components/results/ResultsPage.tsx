@@ -188,6 +188,13 @@ export default function ResultsPage({
   const sourceLang = (result?.metadata?.source_language || "?").toUpperCase();
   const pageLabel = pages.length > 0 ? pages[0]?.page_label || "菜单" : "菜单";
 
+  const sourceLangNames: Record<string, string> = {
+    fr: "法语菜单", ja: "日语菜单", it: "意大利语菜单", es: "西班牙语菜单",
+    de: "德语菜单", ko: "韩语菜单", th: "泰语菜单", en: "英语菜单",
+    zh: "中文菜单", pt: "葡语菜单", vi: "越南语菜单",
+  };
+  const titleText = sourceLangNames[result?.metadata?.source_language || ""] || pageLabel;
+
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Header */}
@@ -200,7 +207,7 @@ export default function ResultsPage({
           ←
         </button>
         <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-          {isReal ? `${allDishes.length} 道菜` : pageLabel}
+          {isReal ? titleText : pageLabel}
         </span>
         <span
           className="text-[7px] font-bold px-2 py-1 rounded-xl"
@@ -338,15 +345,9 @@ export default function ResultsPage({
                   <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
                     {dish.name_original}
                   </div>
-                  {zhDesc ? (
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
-                      {zhDesc}
-                    </div>
-                  ) : (
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
-                      {(dish.ingredients || []).join(" · ")}
-                    </div>
-                  )}
+                  <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
+                    {(dish.ingredients || []).join(" · ") || zhDesc}
+                  </div>
                   <div className="flex gap-1 flex-wrap">
                     {tags.map((t, j) => (
                       <Pill key={j} label={t.label} type={t.type} />
