@@ -172,5 +172,12 @@ function parseAIJson(text: string): any {
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
   }
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Try to extract JSON object from surrounding text
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error(`AI JSON parse failed: ${cleaned.slice(0, 300)}`);
+  }
 }

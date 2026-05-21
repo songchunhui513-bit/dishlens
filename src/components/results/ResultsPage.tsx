@@ -2,58 +2,24 @@
 
 import type { Dish, TranslationResult } from "@/types";
 
-// ── v7 Unsplash image URLs ──────────────────────────────────────────
+// ── Fallback mock images (only used when no real images) ──────────────
 
-const FOOD_IMG: Record<string, string> = {
+const FALLBACK_IMG: Record<string, string> = {
   boeuf: "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=136&h=136&fit=crop&auto=format",
-  sole: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=136&h=136&fit=crop&auto=format",
-  tarte: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=136&h=136&fit=crop&auto=format",
+  fish: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=136&h=136&fit=crop&auto=format",
+  dessert: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=136&h=136&fit=crop&auto=format",
+  default: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=136&h=136&fit=crop&auto=format",
 };
 
-// ── Mock data matching v7 prototype ──────────────────────────────────
-
-interface MockDish {
-  id: string;
-  zh: string;
-  original: string;
-  ingredients: string;
-  stars: number;
-  tags: { label: string; type: "green" | "warm" | "allergen" | "veg" }[];
-  img: string;
-  isVeg: boolean;
-  page: number;
-  pageLabel: string;
+function guessImg(dish: Dish): string {
+  const name = (dish.name_original || "").toLowerCase();
+  if (name.includes("boeuf") || name.includes("beef")) return FALLBACK_IMG.boeuf;
+  if (name.includes("sole") || name.includes("fish") || name.includes("poisson")) return FALLBACK_IMG.fish;
+  if (name.includes("tarte") || name.includes("dessert") || name.includes("crème")) return FALLBACK_IMG.dessert;
+  return FALLBACK_IMG.default;
 }
 
-const mockDishes: MockDish[] = [
-  {
-    id: "1", zh: "勃艮第红酒炖牛肉", original: "Boeuf Bourguignon",
-    ingredients: "牛肩肉 · 勃艮第红酒 · 珍珠洋葱 · 蘑菇 · 百里香",
-    stars: 4.8, tags: [{ label: "牛肉", type: "green" }, { label: "红酒炖煮", type: "warm" }, { label: "法式经典", type: "warm" }],
-    img: FOOD_IMG.boeuf, isVeg: false, page: 1, pageLabel: "前菜/主菜",
-  },
-  {
-    id: "2", zh: "法式黄油煎鳎鱼", original: "Sole Meunière",
-    ingredients: "新鲜鳎鱼 · 澄清黄油 · 柠檬 · 欧芹 · 刺山柑",
-    stars: 4.5, tags: [{ label: "海鲜", type: "green" }, { label: "黄油", type: "warm" }, { label: "经典法式", type: "warm" }],
-    img: FOOD_IMG.sole, isVeg: false, page: 1, pageLabel: "前菜/主菜",
-  },
-  {
-    id: "3", zh: "反转焦糖苹果挞", original: "Tarte Tatin",
-    ingredients: "苹果 · 焦糖 · 千层酥皮 · 黄油 · 香草荚",
-    stars: 4.6, tags: [{ label: "素食", type: "veg" }, { label: "甜点", type: "warm" }, { label: "法式经典", type: "warm" }],
-    img: FOOD_IMG.tarte, isVeg: true, page: 1, pageLabel: "前菜/主菜",
-  },
-];
-
-function getAllergenTags(dish: MockDish): { label: string; type: "allergen" }[] {
-  if (dish.id === "1") return [{ label: "⚠ 酒精", type: "allergen" }, { label: "⚠ 亚硫酸盐", type: "allergen" }];
-  if (dish.id === "2") return [{ label: "⚠ 乳制品", type: "allergen" }, { label: "⚠ 鱼类", type: "allergen" }];
-  if (dish.id === "3") return [{ label: "⚠ 麸质", type: "allergen" }, { label: "⚠ 乳制品", type: "allergen" }];
-  return [];
-}
-
-// ── Pill ──────────────────────────────────────────────────────────────
+// ── Pill component ────────────────────────────────────────────────────
 
 function Pill({ label, type }: { label: string; type: "green" | "warm" | "allergen" | "veg" }) {
   const bgMap: Record<string, string> = {
@@ -68,14 +34,13 @@ function Pill({ label, type }: { label: string; type: "green" | "warm" | "allerg
     allergen: "var(--accent)",
     veg: "var(--primary)",
   };
-  const fw = type === "allergen" || type === "veg" ? 700 : 600;
   return (
     <span
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
         fontSize: "7.5px",
-        fontWeight: fw,
+        fontWeight: type === "allergen" || type === "veg" ? 700 : 600,
         padding: "3px 9px",
         borderRadius: 20,
         letterSpacing: "0.03em",
@@ -88,7 +53,7 @@ function Pill({ label, type }: { label: string; type: "green" | "warm" | "allerg
   );
 }
 
-// ── Skeleton Row ──────────────────────────────────────────────────────
+// ── Skeleton ──────────────────────────────────────────────────────────
 
 function SkeletonRow() {
   return (
@@ -101,10 +66,7 @@ function SkeletonRow() {
         marginBottom: 10,
       }}
     >
-      <div
-        className="skeleton-shimmer flex-shrink-0"
-        style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}
-      />
+      <div className="skeleton-shimmer flex-shrink-0" style={{ width: 68, height: 68, borderRadius: "var(--radius)" }} />
       <div className="flex-1 flex flex-col gap-1.5" style={{ paddingTop: 4 }}>
         <div className="skeleton-shimmer" style={{ height: 8, borderRadius: 4, width: "55%" }} />
         <div className="skeleton-shimmer" style={{ height: 8, borderRadius: 4, width: "38%" }} />
@@ -114,7 +76,7 @@ function SkeletonRow() {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────
 
 interface ResultsPageProps {
   result: TranslationResult | null;
@@ -128,6 +90,7 @@ interface ResultsPageProps {
 }
 
 export default function ResultsPage({
+  result,
   onBack,
   onDishDetail,
   loading,
@@ -141,7 +104,7 @@ export default function ResultsPage({
         <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
           <button onClick={onBack} className="text-[11px] cursor-pointer" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
           <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>加载中...</span>
-          <span className="text-[7px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>FR → 中文</span>
+          <span className="text-[7px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>AI 识别</span>
         </div>
         <div className="flex-1 overflow-auto" style={{ padding: "8px 16px 12px" }}>
           <SkeletonRow />
@@ -152,7 +115,19 @@ export default function ResultsPage({
     );
   }
 
-  // ── Normal / Mock Render ────────────────────────────────
+  // ── Build dish list from real result or empty ────────────
+  const pages = result?.pages || [];
+  const allDishes: { dish: Dish; pageIndex: number }[] = [];
+  for (const page of pages) {
+    for (const dish of (page.dishes || [])) {
+      allDishes.push({ dish, pageIndex: page.page_index });
+    }
+  }
+
+  const isReal = allDishes.length > 0;
+  const sourceLang = (result?.metadata?.source_language || "?").toUpperCase();
+  const pageLabel = pages.length > 0 ? pages[0]?.page_label || "菜单" : "菜单";
+
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Header */}
@@ -165,13 +140,13 @@ export default function ResultsPage({
           ←
         </button>
         <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-          法语菜单
+          {isReal ? `${allDishes.length} 道菜` : pageLabel}
         </span>
         <span
           className="text-[7px] font-bold px-2 py-1 rounded-xl"
           style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}
         >
-          FR → 中文
+          {sourceLang} → 中文
         </span>
       </div>
 
@@ -206,89 +181,150 @@ export default function ResultsPage({
           </div>
         )}
 
-        {/* Dish cards */}
-        {mockDishes.map((dish, i) => {
-          const allTags = showAllergens
-            ? [...dish.tags, ...getAllergenTags(dish)]
-            : dish.tags;
+        {/* Real AI dish cards */}
+        {isReal ? (
+          allDishes.map(({ dish }, i) => {
+            const zhName = typeof dish.name_translated === "object"
+              ? (dish.name_translated as Record<string, string>).zh || dish.name_original
+              : dish.name_original;
+            const zhDesc = typeof dish.description === "object"
+              ? (dish.description as Record<string, string>).zh || ""
+              : "";
+            const hasImage = !!dish.ai_image_url;
 
-          return (
-            <button
-              key={dish.id}
-              onClick={() => onDishDetail({
-                id: dish.id,
-                name_original: dish.original,
-                name_translated: { zh: dish.zh },
-                description: { zh: "" },
-                ingredients: dish.ingredients.split(" · "),
-                allergens: [],
-                taste_profile: [],
-                image_source: "ai" as const,
-              })}
-              className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
-              style={{
-                background: "var(--card)",
-                borderRadius: "var(--radius-lg)",
-                padding: 14,
-                marginBottom: 10,
-                boxShadow: "var(--shadow)",
-                cursor: "pointer",
-                border: "none",
-                fontFamily: "inherit",
-                animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both`,
-              }}
-            >
-              {/* Image */}
-              <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}>
-                <img src={dish.img} alt={dish.original} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                {showVeg && dish.isVeg && (
-                  <div
-                    className="absolute flex items-center justify-center"
-                    style={{
-                      bottom: 3, right: 3,
-                      width: 18, height: 18,
-                      background: "var(--primary)",
-                      borderRadius: "50%",
-                      animation: "popIn 0.3s ease-out",
-                      boxShadow: "0 1px 4px rgba(76,175,80,0.3)",
-                    }}
-                  >
-                    <svg viewBox="0 0 12 12" style={{ width: 11, height: 11, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
-                      <path d="M8 4C4 5 3 8 3.5 10c.5 1.8 2 2.5 3 1 .7-1.1.5-2.7-.5-4" />
-                      <path d="M6 2c0 0 1-1.5 3-1s2 2.5 0 4" />
-                    </svg>
-                  </div>
-                )}
-              </div>
+            const tags: { label: string; type: "green" | "warm" | "allergen" | "veg" }[] = [];
+            for (const ing of (dish.ingredients || []).slice(0, 2)) {
+              tags.push({ label: ing, type: "green" });
+            }
+            const isVeg = (dish.taste_profile || []).includes("vegetarian") ||
+              (dish.ingredients || []).every((ing) =>
+                !/肉|鱼|鸡|牛|猪|羊|虾|蟹|贝|蛋|lamb|beef|pork|chicken|fish|meat|seafood|egg/i.test(ing)
+              );
+            if (isVeg) tags.push({ label: "素食", type: "veg" });
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.04em", marginBottom: 2 }}>
-                  {String(i + 1).padStart(2, "0")}
-                  {dish.stars > 0 && (
-                    <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>
-                      ★ {dish.stars}
-                    </span>
+            if (showAllergens && dish.allergens?.length) {
+              for (const a of dish.allergens) {
+                const labels: Record<string, string> = {
+                  dairy: "⚠ 乳制品", egg: "⚠ 蛋", peanut: "⚠ 花生",
+                  tree_nut: "⚠ 坚果", soy: "⚠ 大豆", wheat: "⚠ 小麦",
+                  gluten: "⚠ 麸质", fish: "⚠ 鱼类", shellfish: "⚠ 贝类",
+                  alcohol: "⚠ 酒精", wine: "⚠ 酒精",
+                };
+                tags.push({ label: labels[a] || `⚠ ${a}`, type: "allergen" });
+              }
+            }
+
+            return (
+              <button
+                key={dish.id || `dish-${i}`}
+                onClick={() => onDishDetail(dish)}
+                className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                style={{
+                  background: "var(--card)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: 14,
+                  marginBottom: 10,
+                  boxShadow: "var(--shadow)",
+                  cursor: "pointer",
+                  border: "none",
+                  fontFamily: "inherit",
+                  animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both`,
+                }}
+              >
+                {/* Image */}
+                <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}>
+                  <img
+                    src={hasImage ? dish.ai_image_url! : guessImg(dish)}
+                    alt={dish.name_original}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                  {showVeg && isVeg && (
+                    <div
+                      className="absolute flex items-center justify-center"
+                      style={{
+                        bottom: 3, right: 3,
+                        width: 18, height: 18,
+                        background: "var(--primary)",
+                        borderRadius: "50%",
+                        animation: "popIn 0.3s ease-out",
+                        boxShadow: "0 1px 4px rgba(76,175,80,0.3)",
+                      }}
+                    >
+                      <svg viewBox="0 0 12 12" style={{ width: 11, height: 11, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                        <path d="M8 4C4 5 3 8 3.5 10c.5 1.8 2 2.5 3 1 .7-1.1.5-2.7-.5-4" />
+                        <path d="M6 2c0 0 1-1.5 3-1s2 2.5 0 4" />
+                      </svg>
+                    </div>
                   )}
                 </div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.01em", marginBottom: 2 }}>
-                  {dish.zh}
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.04em", marginBottom: 2 }}>
+                    {String(i + 1).padStart(2, "0")}
+                    {dish.rating_avg ? (
+                      <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>
+                        ★ {dish.rating_avg}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.01em", marginBottom: 2 }}>
+                    {zhName}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
+                    {dish.name_original}
+                  </div>
+                  {zhDesc ? (
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
+                      {zhDesc}
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
+                      {(dish.ingredients || []).join(" · ")}
+                    </div>
+                  )}
+                  <div className="flex gap-1 flex-wrap">
+                    {tags.map((t, j) => (
+                      <Pill key={j} label={t.label} type={t.type} />
+                    ))}
+                  </div>
                 </div>
-                <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
-                  {dish.original}
-                </div>
-                <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
-                  {dish.ingredients}
-                </div>
-                <div className="flex gap-1 flex-wrap">
-                  {allTags.map((t, j) => (
-                    <Pill key={j} label={t.label} type={t.type} />
-                  ))}
-                </div>
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })
+        ) : (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center text-center" style={{ padding: "40px 20px", opacity: 0.45 }}>
+            <div className="flex items-center justify-center" style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--card)", marginBottom: 10 }}>
+              <svg viewBox="0 0 24 24" style={{ width: 24, height: 24, stroke: "var(--muted)", fill: "none", strokeWidth: 1.5, strokeLinecap: "round" }}>
+                <circle cx="12" cy="12" r="9" /><path d="M8 12h8" />
+              </svg>
+            </div>
+            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 600, color: "var(--muted)", marginBottom: 2 }}>
+              没有识别到菜品
+            </h4>
+            <p style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", opacity: 0.7 }}>
+              请重新拍摄清晰的菜单照片
+            </p>
+          </div>
+        )}
+
+        {/* Failed pages warning */}
+        {result?.failed_pages && result.failed_pages.length > 0 && (
+          <div
+            style={{
+              padding: "8px 12px",
+              background: "var(--allergen-bg)",
+              borderRadius: "var(--radius-sm)",
+              fontFamily: "var(--font-ui)",
+              fontSize: 8,
+              color: "var(--accent)",
+              fontWeight: 600,
+            }}
+          >
+            部分页面识别失败（{result.failed_pages.map((p) => p.page_index + 1).join(", ")}），请重新拍摄
+          </div>
+        )}
       </div>
     </div>
   );

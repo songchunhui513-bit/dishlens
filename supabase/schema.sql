@@ -1,12 +1,12 @@
 -- ============================================================
 -- DishLens Database Schema
--- Supabase PostgreSQL
--- Run this in Supabase SQL Editor:
+-- Run in Supabase SQL Editor:
 --   https://supabase.com/dashboard → SQL Editor → New Query
 -- ============================================================
 
 -- 0. Extensions
 create extension if not exists "pgcrypto";
+create extension if not exists "postgis";
 
 -- ============================================================
 -- 1. profiles (extends auth.users)
@@ -43,15 +43,15 @@ create trigger on_auth_user_created
 create table if not exists public.dishes (
   id              uuid primary key default gen_random_uuid(),
   name_original   text not null,
-  name_translated jsonb not null default '{}',   -- { "zh": "xx", "en": "xx" }
+  name_translated jsonb not null default '{}',
   description     jsonb not null default '{}',
   ingredients     text[] not null default '{}',
   allergens       text[] not null default '{}',
   taste_profile   text[] not null default '{}',
   cuisine_region  text,
-  category        text,  -- appetizer | main | dessert | drink
+  category        text,
   ai_image_url    text,
-  image_source    text not null default 'ai',  -- ai | user | mixed
+  image_source    text not null default 'ai',
   rating_avg      numeric(2,1) check (rating_avg >= 0 and rating_avg <= 5),
   review_count    int not null default 0,
   created_at      timestamptz not null default now()
@@ -67,7 +67,7 @@ create table if not exists public.dish_images (
   id          uuid primary key default gen_random_uuid(),
   dish_id     uuid not null references public.dishes(id) on delete cascade,
   url         text not null,
-  source      text not null default 'ai',  -- ai | user
+  source      text not null default 'ai',
   width       int,
   height      int,
   created_at  timestamptz not null default now()
@@ -94,7 +94,7 @@ create index if not exists idx_restaurants_name on restaurants (name);
 -- ============================================================
 create table if not exists public.translations (
   id            uuid primary key default gen_random_uuid(),
-  user_id       uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  user_id       uuid not null references public.profiles(id) on delete cascade,
   restaurant_id uuid references public.restaurants(id) on delete set null,
   image_hashes  text[] not null default '{}',
   photo_count   int not null default 1,
@@ -102,7 +102,7 @@ create table if not exists public.translations (
   target_lang   text not null default 'zh',
   dish_count    int not null default 0,
   page_count    int not null default 1,
-  status        text not null default 'done',  -- done | partial | failed
+  status        text not null default 'done',
   result_json   jsonb,
   city          text,
   restaurant_name text,
@@ -117,7 +117,7 @@ create index if not exists idx_translations_created_at on translations (created_
 -- ============================================================
 create table if not exists public.reviews (
   id            uuid primary key default gen_random_uuid(),
-  user_id       uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  user_id       uuid not null references public.profiles(id) on delete cascade,
   dish_id       uuid not null references public.dishes(id) on delete cascade,
   rating        int not null check (rating >= 1 and rating <= 5),
   content       text not null check (char_length(content) between 10 and 500),
@@ -125,14 +125,14 @@ create table if not exists public.reviews (
   lang          text not null default 'zh',
   helpful_count int not null default 0,
   created_at    timestamptz not null default now(),
-  unique(user_id, dish_id)  -- one review per user per dish
+  unique(user_id, dish_id)
 );
 
 create index if not exists idx_reviews_dish_id on reviews (dish_id);
 create index if not exists idx_reviews_user_id on reviews (user_id);
 create index if not exists idx_reviews_created_at on reviews (created_at desc);
 
--- Trigger: update dish rating_avg and review_count on review insert/update/delete
+-- Trigger: update dish rating_avg and review_count
 create or replace function public.update_dish_rating()
 returns trigger as $$
 begin
@@ -162,7 +162,7 @@ create trigger on_review_change
 -- ============================================================
 create table if not exists public.user_favorites (
   id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  user_id     uuid not null references public.profiles(id) on delete cascade,
   dish_id     uuid not null references public.dishes(id) on delete cascade,
   created_at  timestamptz not null default now(),
   unique(user_id, dish_id)
@@ -171,20 +171,20 @@ create table if not exists public.user_favorites (
 create index if not exists idx_user_favorites_user_id on user_favorites (user_id);
 
 -- ============================================================
--- 8. review_votes (helpful / not-helpful)
+-- 8. review_votes
 -- ============================================================
 create table if not exists public.review_votes (
   id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  user_id     uuid not null references public.profiles(id) on delete cascade,
   review_id   uuid not null references public.reviews(id) on delete cascade,
-  vote        int not null check (vote in (-1, 1)),  -- 1 = helpful, -1 = not helpful
+  vote        int not null check (vote in (-1, 1)),
   created_at  timestamptz not null default now(),
   unique(user_id, review_id)
 );
 
 create index if not exists idx_review_votes_review_id on review_votes (review_id);
 
--- Trigger: update review helpful_count on vote
+-- Trigger: update review helpful_count
 create or replace function public.update_review_helpful()
 returns trigger as $$
 begin
@@ -208,7 +208,6 @@ create trigger on_review_vote
 -- Row Level Security
 -- ============================================================
 
--- profiles: users can read all, update only own
 alter table public.profiles enable row level security;
 
 drop policy if exists "Profiles are viewable by everyone" on profiles;
@@ -223,7 +222,6 @@ drop policy if exists "Users can insert own profile" on profiles;
 create policy "Users can insert own profile"
   on profiles for insert with check (auth.uid() = id);
 
--- dishes: anyone can read, authenticated can insert
 alter table public.dishes enable row level security;
 
 drop policy if exists "Dishes are viewable by everyone" on dishes;
@@ -234,7 +232,6 @@ drop policy if exists "Authenticated users can insert dishes" on dishes;
 create policy "Authenticated users can insert dishes"
   on dishes for insert with check (auth.role() = 'authenticated');
 
--- dish_images: anyone can read, authenticated can insert
 alter table public.dish_images enable row level security;
 
 drop policy if exists "Dish images are viewable by everyone" on dish_images;
@@ -245,7 +242,6 @@ drop policy if exists "Authenticated users can insert dish images" on dish_image
 create policy "Authenticated users can insert dish images"
   on dish_images for insert with check (auth.role() = 'authenticated');
 
--- restaurants: anyone can read, authenticated can insert
 alter table public.restaurants enable row level security;
 
 drop policy if exists "Restaurants are viewable by everyone" on restaurants;
@@ -256,7 +252,6 @@ drop policy if exists "Authenticated users can insert restaurants" on restaurant
 create policy "Authenticated users can insert restaurants"
   on restaurants for insert with check (auth.role() = 'authenticated');
 
--- translations: users see own only
 alter table public.translations enable row level security;
 
 drop policy if exists "Users can view own translations" on translations;
@@ -267,7 +262,6 @@ drop policy if exists "Users can insert own translations" on translations;
 create policy "Users can insert own translations"
   on translations for insert with check (auth.uid() = user_id);
 
--- reviews: anyone can read, authenticated can CRUD own
 alter table public.reviews enable row level security;
 
 drop policy if exists "Reviews are viewable by everyone" on reviews;
@@ -286,7 +280,6 @@ drop policy if exists "Users can delete own review" on reviews;
 create policy "Users can delete own review"
   on reviews for delete using (auth.uid() = user_id);
 
--- user_favorites: users see/manage own only
 alter table public.user_favorites enable row level security;
 
 drop policy if exists "Users can view own favorites" on user_favorites;
@@ -301,7 +294,6 @@ drop policy if exists "Users can delete own favorites" on user_favorites;
 create policy "Users can delete own favorites"
   on user_favorites for delete using (auth.uid() = user_id);
 
--- review_votes: authenticated can vote
 alter table public.review_votes enable row level security;
 
 drop policy if exists "Users can manage own votes" on review_votes;

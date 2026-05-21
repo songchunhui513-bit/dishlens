@@ -43,19 +43,20 @@ export default function LoadingPage({
   const completedRef = useRef(false);
   const phaseList = buildPhases(photoCount);
 
-  const isPending = !useMock && !taskId && initialTaskStatus !== "done";
-  const isPolling = !useMock && !!taskId && initialTaskStatus !== "done";
-  const isDone = initialTaskStatus === "done";
+  const isPending = !useMock && !taskId;
+  const isPolling = !useMock && !!taskId && initialTaskStatus !== "done" && initialTaskStatus !== "partial" && initialTaskStatus !== "failed";
+  const isDone = initialTaskStatus === "done" || initialTaskStatus === "partial" || initialTaskStatus === "failed";
   const isMock = !!useMock;
 
   useEffect(() => {
     if (!isPending) return;
+    const start = Date.now();
     const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 90) return 10;
-        return p + 5;
-      });
-    }, 500);
+      const elapsed = Date.now() - start;
+      // Logarithmic growth: fast start, gradually slowing, approaching 85%
+      const pct = Math.min(85, Math.round(15 + 70 * Math.log10(1 + elapsed / 1000)));
+      setProgress(pct);
+    }, 400);
     return () => clearInterval(interval);
   }, [isPending]);
 
