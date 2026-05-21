@@ -47,9 +47,12 @@ async function processImages(
   const results: Array<Record<string, unknown>> = [];
   const failedPages: Array<{ page_index: number; error: string; retry_allowed: boolean }> = [];
 
-  // Process sequentially to avoid overwhelming QWEN API and stay within rate limits
-  for (let i = 0; i < images.length; i++) {
-    const file = images[i];
+  // Process in batches of 2 for speed while staying within QWEN rate limits
+  for (let batch = 0; batch < images.length; batch += 2) {
+    const batchImages = images.slice(batch, batch + 2);
+    await Promise.all(
+      batchImages.map(async (file, batchIdx) => {
+        const i = batch + batchIdx;
     try {
       const task = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
       if (!task) return; // Task was deleted
@@ -134,6 +137,8 @@ async function processImages(
         retry_allowed: true,
       });
     }
+      })
+    );
   }
 
   // Finalize task

@@ -25,8 +25,36 @@ const FOOD_IMG: Record<string, string> = {
   curry: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=136&h=136&fit=crop&auto=format",
   cheese: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=136&h=136&fit=crop&auto=format",
   appetizer: "https://images.unsplash.com/photo-1541524324135-9f2a0c4e5466?w=136&h=136&fit=crop&auto=format",
-  default: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=136&h=136&fit=crop&auto=format",
+  dip: "https://images.unsplash.com/photo-1541524324135-9f2a0c4e5466?w=136&h=136&fit=crop&auto=format",
+  ball: "https://images.unsplash.com/photo-1541524324135-9f2a0c4e5466?w=136&h=136&fit=crop&auto=format",
+  fritter: "https://images.unsplash.com/photo-1541524324135-9f2a0c4e5466?w=136&h=136&fit=crop&auto=format",
+  grilled: "https://images.unsplash.com/photo-1558030006-450675393462?w=136&h=136&fit=crop&auto=format",
+  fried: "https://images.unsplash.com/photo-1541524324135-9f2a0c4e5466?w=136&h=136&fit=crop&auto=format",
+  tomato: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=136&h=136&fit=crop&auto=format",
+  pork: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=136&h=136&fit=crop&auto=format",
+  lamb: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=136&h=136&fit=crop&auto=format",
+  veg: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=136&h=136&fit=crop&auto=format",
 };
+
+// Deterministic fallback: hash dish name → pick from 8 diverse defaults
+const FALLBACKS = [
+  "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1432139555190-2e151ef32842?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=136&h=136&fit=crop&auto=format",
+  "https://images.unsplash.com/photo-1432139509613-5c4255a1d1a0?w=136&h=136&fit=crop&auto=format",
+];
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
 function guessImg(dish: Dish): string {
   const text = [
@@ -38,16 +66,17 @@ function guessImg(dish: Dish): string {
     .toLowerCase();
 
   for (const [key, url] of Object.entries(FOOD_IMG)) {
-    if (key === "default") continue;
     if (text.includes(key)) return url;
   }
 
-  // Fallback by category
+  // Fallback by taste profile
   const taste = (dish.taste_profile || []).join(" ").toLowerCase();
   if (taste.includes("sweet")) return FOOD_IMG.dessert;
   if (taste.includes("rich")) return FOOD_IMG.beef;
 
-  return FOOD_IMG.default;
+  // Deterministic diverse fallback
+  const idx = hashStr(dish.name_original || "") % FALLBACKS.length;
+  return FALLBACKS[idx];
 }
 
 // ── Pill component ────────────────────────────────────────────────────
@@ -215,10 +244,14 @@ export default function ResultsPage({
         {/* Real AI dish cards */}
         {isReal ? (
           allDishes.map(({ dish }, i) => {
-            const zhName = typeof dish.name_translated === "object"
+            const zhName = typeof dish.name_translated === "string"
+              ? dish.name_translated
+              : typeof dish.name_translated === "object"
               ? (dish.name_translated as Record<string, string>).zh || dish.name_original
               : dish.name_original;
-            const zhDesc = typeof dish.description === "object"
+            const zhDesc = typeof dish.description === "string"
+              ? dish.description
+              : typeof dish.description === "object"
               ? (dish.description as Record<string, string>).zh || ""
               : "";
             const hasImage = !!dish.ai_image_url;
