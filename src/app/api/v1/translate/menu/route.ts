@@ -46,31 +46,35 @@ export async function POST(req: NextRequest) {
 
             const raw = await analyzeMenuImage(base64);
 
-            const refinedDishes = await Promise.all(
-              raw.dishes.map(
-                async (dish: {
-                  confidence: number;
-                  name_original: string;
-                  name_translated: string;
-                  description: string;
-                  _needsRetranslate?: boolean;
-                }) => {
-                  const needsRefine = dish.confidence < 0.5 || dish._needsRetranslate || !hasChinese(dish.name_translated || "");
-                  if (!needsRefine) return dish;
-                  try {
-                    const refined = await refineTranslation({
-                      name_original: dish.name_original,
-                      name_translated: dish.name_translated,
-                      description: dish.description,
-                      source_language: raw.source_language,
-                    });
-                    return { ...dish, ...refined };
-                  } catch {
-                    return dish;
-                  }
-                }
-              )
-            );
+            // Skip per-dish refine for large menus to stay within timeout
+            const shouldRefine = raw.dishes.length <= 10;
+            const refinedDishes = shouldRefine
+              ? await Promise.all(
+                  raw.dishes.map(
+                    async (dish: {
+                      confidence: number;
+                      name_original: string;
+                      name_translated: string;
+                      description: string;
+                      _needsRetranslate?: boolean;
+                    }) => {
+                      const needsRefine = dish.confidence < 0.5 || dish._needsRetranslate || !hasChinese(dish.name_translated || "");
+                      if (!needsRefine) return dish;
+                      try {
+                        const refined = await refineTranslation({
+                          name_original: dish.name_original,
+                          name_translated: dish.name_translated,
+                          description: dish.description,
+                          source_language: raw.source_language,
+                        });
+                        return { ...dish, ...refined };
+                      } catch {
+                        return dish;
+                      }
+                    }
+                  )
+                )
+              : raw.dishes;
 
             const dishRecords = await Promise.all(
               refinedDishes.map(async (dish: { name_original: string }) => {
