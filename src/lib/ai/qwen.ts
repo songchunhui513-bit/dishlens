@@ -51,38 +51,47 @@ function parseAIJson<T>(text: string): T {
 
 // ── Image → Structured extraction ──────────────────────────────────
 
-const VL_SYSTEM_PROMPT = `You are a professional menu translator. Your PRIMARY job is to translate ALL dish names and descriptions into CHINESE (中文).
+const VL_SYSTEM_PROMPT = `You are a professional menu translator. Your PRIMARY job is to extract ALL dish names from a menu photo and translate them into CHINESE (中文).
+
+The photo may be:
+- A standard printed/typed menu
+- A handwritten or chalkboard menu
+- An illustrated/artistic menu with drawings and decorative elements
+- A menu with creative layouts, icons, or stylized fonts
+
+Focus on TEXT content — ignore illustrations, decorative elements, and background art. Extract dish names from any readable text.
 
 CRITICAL RULES:
-1. name_original: copy the EXACT original text from the menu photo (can be any language)
-2. name_translated: MUST be in CHINESE characters (中文). NEVER output English, French, or any Latin script here. This is the most important rule.
-3. description: MUST be in CHINESE (中文). One sentence describing what the dish is.
+1. name_original: copy the EXACT original text from the menu photo (can be any language). Include prices if visible.
+2. name_translated: MUST be in CHINESE characters (中文). NEVER output English, French, Italian, or any Latin script here. This is the most important rule.
+3. description: MUST be in CHINESE (中文). One sentence describing what the dish is, its main ingredients and cooking style.
 4. ingredients: list of main ingredients, in Chinese if possible
 5. allergens: from [egg, dairy, peanut, tree_nut, soy, wheat, fish, shellfish, alcohol]
 6. taste_profile: from [spicy, sweet, sour, salty, umami, bitter, fresh, rich]
 7. confidence: 0.0-1.0
 
 Also detect:
-- page_label: menu section in Chinese (e.g. "前菜", "主菜", "酒单", "甜点", "饮品", "混合")
+- page_label: menu section in Chinese (e.g. "前菜", "主菜", "酒单", "甜点", "饮品", "披萨", "沙拉", "混合")
 - source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 CORRECT OUTPUT EXAMPLES:
 - "Salmon Rillettes" → name_translated: "三文鱼酱配烤面包"
 - "Boeuf Bourguignon" → name_translated: "勃艮第红酒炖牛肉"
-- "Sole Meunière" → name_translated: "法式香煎比目鱼"
+- "Bruschetta" → name_translated: "意式烤面包配番茄"
+- "Margherita Pizza" → name_translated: "玛格丽特披萨"
+- "Tiramisu" → name_translated: "提拉米苏"
 - "Pâtes Carbonara" → name_translated: "培根蛋酱意面"
-- "Duck Confit" → name_translated: "法式油封鸭"
 
-IMPORTANT: Even if the photo is blurry, poorly lit, or partially obscured, do your best to extract any visible dishes. Return an empty dishes array ONLY if there is genuinely nothing resembling a menu in the image.
+IMPORTANT: Even if the photo is blurry, poorly lit, or partially obscured, do your best to extract any visible dishes. Illustrated menus still have readable text — find and extract it. Return an empty dishes array ONLY if there is genuinely nothing resembling a menu in the image.
 
 Output ONLY valid JSON. No markdown, no explanation.
 {
   "dishes": [...],
   "page_label": "主菜",
-  "source_language": "fr"
+  "source_language": "it"
 }`;
 
-export async function analyzeMenuImage(base64Image: string): Promise<MenuImageAnalysis> {
+export async function analyzeMenuImage(base64Image: string, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
   let lastError: Error | null = null;
   const MAX_RETRIES = 2;
 
@@ -97,7 +106,7 @@ export async function analyzeMenuImage(base64Image: string): Promise<MenuImageAn
             content: [
               {
                 type: "image_url",
-                image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+                image_url: { url: `data:${mimeType};base64,${base64Image}` },
               },
               { type: "text", text: "Extract all dishes from this menu photo. Remember: ALL translations must be in Chinese (中文)." },
             ],

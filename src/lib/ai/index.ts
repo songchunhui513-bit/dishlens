@@ -17,8 +17,8 @@ async function load() {
   return _mod;
 }
 
-export async function analyzeMenuImage(base64Image: string) {
-  return (await load()).analyzeMenuImage(base64Image);
+export async function analyzeMenuImage(base64Image: string, mimeType = "image/jpeg") {
+  return (await load()).analyzeMenuImage(base64Image, mimeType);
 }
 
 export async function refineTranslation(dish: {

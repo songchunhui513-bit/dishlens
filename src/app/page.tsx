@@ -112,10 +112,14 @@ export default function Page() {
       }
 
       try {
-        const preliminary = await createTranslation(files);
-        setTranslationResult(preliminary as unknown as TranslationResult);
-      } catch {
+        const result = await createTranslation(files);
+        setTranslationResult(result);
+        // Navigate to results after a brief delay for the loading animation
+        setTimeout(() => navigate("results"), 800);
+      } catch (err) {
+        console.error("Translation failed:", err);
         setUseMockFallback(true);
+        setTimeout(() => navigate("results"), 800);
       }
     },
     [navigate]
