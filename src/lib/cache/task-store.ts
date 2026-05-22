@@ -1,4 +1,5 @@
-import { Redis } from "@upstash/redis";
+import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface TaskState {
   status: "pending" | "processing" | "done" | "partial" | "failed";
@@ -9,27 +10,15 @@ export interface TaskState {
   estimatedRemaining?: number;
 }
 
-const TASK_TTL = 1800; // 30 minutes
+let _db: SupabaseClient | null = null;
 
-let _redis: Redis | null = null;
-
-function getRedis(): Redis | null {
-  if (_redis !== null) return _redis;
-  const url = process.env.UPSTASH_REDIS_URL;
-  const token = process.env.UPSTASH_REDIS_TOKEN;
-  if (!url || !token) {
-    _redis = false as unknown as null;
-    return null;
-  }
-  _redis = new Redis({ url, token });
-  return _redis;
-}
-
-// In-memory fallback for dev
-const memStore = new Map<string, { data: TaskState; expiresAt: number }>();
-
-function key(id: string) {
-  return `task:${id}`;
+function db(): SupabaseClient {
+  if (_db) return _db;
+  _db = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!
+  );
+  return _db;
 }
 
 export async function createTask(
@@ -45,12 +34,13 @@ export async function createTask(
     })),
   };
 
-  const redis = getRedis();
-  if (redis) {
-    await redis.set(key(id), task, { ex: TASK_TTL });
-  } else {
-    memStore.set(id, { data: task, expiresAt: Date.now() + TASK_TTL * 1000 });
-  }
+  await db().from("tasks").insert({
+    id,
+    status: task.status,
+    progress: task.progress,
+    per_page_status: task.perPageStatus,
+    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  });
 
   return task;
 }
@@ -58,19 +48,22 @@ export async function createTask(
 export async function getTask(
   id: string
 ): Promise<TaskState | undefined> {
-  const redis = getRedis();
-  if (redis) {
-    const data = await redis.get<TaskState>(key(id));
-    return data ?? undefined;
-  }
+  const { data, error } = await db()
+    .from("tasks")
+    .select("*")
+    .eq("id", id)
+    .single();
 
-  const entry = memStore.get(id);
-  if (!entry) return undefined;
-  if (Date.now() > entry.expiresAt) {
-    memStore.delete(id);
-    return undefined;
-  }
-  return entry.data;
+  if (error || !data) return undefined;
+
+  return {
+    status: data.status,
+    progress: data.progress,
+    perPageStatus: data.per_page_status,
+    result: data.result,
+    failedPages: data.failed_pages,
+    estimatedRemaining: data.estimated_remaining,
+  };
 }
 
 export async function updateTask(
@@ -82,19 +75,18 @@ export async function updateTask(
 
   const merged = { ...existing, ...updates };
 
-  const redis = getRedis();
-  if (redis) {
-    await redis.set(key(id), merged, { ex: TASK_TTL });
-  } else {
-    memStore.set(id, { data: merged, expiresAt: Date.now() + TASK_TTL * 1000 });
-  }
+  const row: Record<string, unknown> = {
+    status: merged.status,
+    progress: merged.progress,
+    per_page_status: merged.perPageStatus,
+  };
+  if (merged.result) row.result = merged.result;
+  if (merged.failedPages) row.failed_pages = merged.failedPages;
+  if (merged.estimatedRemaining !== undefined) row.estimated_remaining = merged.estimatedRemaining;
+
+  await db().from("tasks").update(row).eq("id", id);
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const redis = getRedis();
-  if (redis) {
-    await redis.del(key(id));
-  } else {
-    memStore.delete(id);
-  }
+  await db().from("tasks").delete().eq("id", id);
 }
