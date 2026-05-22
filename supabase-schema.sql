@@ -1,4 +1,4 @@
--- DishLens Supabase Schema
+-- DishLens Supabase Schema (idempotent)
 -- Run this in Supabase SQL Editor (https://supabase.com/dashboard)
 -- Requires: RLS enabled, auth.users table exists (built-in)
 
@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -36,10 +35,12 @@ CREATE TRIGGER on_auth_user_created
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS public.restaurants (
 );
 
 ALTER TABLE public.restaurants ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read restaurants" ON public.restaurants;
 CREATE POLICY "Anyone can read restaurants" ON public.restaurants FOR SELECT USING (true);
 
 -- ── Dishes ──────────────────────────────────────────────────────────
@@ -81,6 +83,7 @@ CREATE TABLE IF NOT EXISTS public.dishes (
 
 CREATE INDEX IF NOT EXISTS idx_dishes_name_original ON public.dishes(name_original);
 ALTER TABLE public.dishes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read dishes" ON public.dishes;
 CREATE POLICY "Anyone can read dishes" ON public.dishes FOR SELECT USING (true);
 
 -- ── Dish Images ────────────────────────────────────────────────────
@@ -97,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.dish_images (
 
 CREATE INDEX IF NOT EXISTS idx_dish_images_dish ON public.dish_images(dish_id);
 ALTER TABLE public.dish_images ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read dish images" ON public.dish_images;
 CREATE POLICY "Anyone can read dish images" ON public.dish_images FOR SELECT USING (true);
 
 -- ── Reviews ─────────────────────────────────────────────────────────
@@ -116,8 +120,11 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 CREATE INDEX IF NOT EXISTS idx_reviews_dish ON public.reviews(dish_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON public.reviews(user_id);
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read reviews" ON public.reviews;
 CREATE POLICY "Anyone can read reviews" ON public.reviews FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can create reviews" ON public.reviews;
 CREATE POLICY "Authenticated users can create reviews" ON public.reviews FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own reviews" ON public.reviews;
 CREATE POLICY "Users can update own reviews" ON public.reviews FOR UPDATE USING (auth.uid() = user_id);
 
 -- ── Review Votes ────────────────────────────────────────────────────
@@ -132,7 +139,9 @@ CREATE TABLE IF NOT EXISTS public.review_votes (
 );
 
 ALTER TABLE public.review_votes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated users can vote" ON public.review_votes;
 CREATE POLICY "Authenticated users can vote" ON public.review_votes FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can read votes" ON public.review_votes;
 CREATE POLICY "Users can read votes" ON public.review_votes FOR SELECT USING (true);
 
 -- ── Translations (history) ────────────────────────────────────────
@@ -156,7 +165,9 @@ CREATE TABLE IF NOT EXISTS public.translations (
 CREATE INDEX IF NOT EXISTS idx_translations_user ON public.translations(user_id);
 CREATE INDEX IF NOT EXISTS idx_translations_created ON public.translations(created_at DESC);
 ALTER TABLE public.translations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own translations" ON public.translations;
 CREATE POLICY "Users can read own translations" ON public.translations FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
+DROP POLICY IF EXISTS "Authenticated users can create translations" ON public.translations;
 CREATE POLICY "Authenticated users can create translations" ON public.translations FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
 
 -- ── User Favorites ──────────────────────────────────────────────────
@@ -171,6 +182,9 @@ CREATE TABLE IF NOT EXISTS public.user_favorites (
 
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON public.user_favorites(user_id);
 ALTER TABLE public.user_favorites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own favorites" ON public.user_favorites;
 CREATE POLICY "Users can read own favorites" ON public.user_favorites FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create favorites" ON public.user_favorites;
 CREATE POLICY "Users can create favorites" ON public.user_favorites FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own favorites" ON public.user_favorites;
 CREATE POLICY "Users can delete own favorites" ON public.user_favorites FOR DELETE USING (auth.uid() = user_id);
