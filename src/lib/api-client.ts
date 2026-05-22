@@ -41,7 +41,7 @@ async function compressImage(file: File, maxDim = 2000, quality = 0.85): Promise
 
 // ── Translation ────────────────────────────────────────────────────
 
-export async function createTranslation(images: File[]): Promise<{ task_id: string; status: string }> {
+export async function createTranslation(images: File[]): Promise<TranslationResult> {
   const formData = new FormData();
   const compressed = await Promise.all(images.map((img) => compressImage(img)));
   compressed.forEach((img) => formData.append("images", img));
