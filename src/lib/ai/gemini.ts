@@ -7,9 +7,7 @@ const gemini = new OpenAI({
 
 const MODEL = "gemini-2.5-flash";
 
-// ── Image → Structured extraction ──────────────────────────────────
-
-export async function analyzeMenuImage(base64Image: string): Promise<{
+interface MenuImageAnalysis {
   dishes: Array<{
     name_original: string;
     name_translated: string;
@@ -21,7 +19,11 @@ export async function analyzeMenuImage(base64Image: string): Promise<{
   }>;
   page_label: string;
   source_language: string;
-}> {
+}
+
+// ── Image → Structured extraction ──────────────────────────────────
+
+export async function analyzeMenuImage(base64Image: string): Promise<MenuImageAnalysis> {
   const systemPrompt = `You are a professional menu translator for restaurants.
 Analyze the menu photo and output ONLY valid JSON. No markdown, no explanation.
 
@@ -65,7 +67,7 @@ Output format:
   });
 
   const text = response.choices[0]?.message?.content || "";
-  return parseAIJson(text);
+  return parseAIJson<MenuImageAnalysis>(text);
 }
 
 // ── Translation refinement ─────────────────────────────────────────
@@ -99,7 +101,7 @@ Return ONLY JSON: { "name_translated": "...", "description": "..." }`,
   });
 
   const text = response.choices[0]?.message?.content || "";
-  return parseAIJson(text);
+  return parseAIJson<{ name_translated: string; description: string }>(text);
 }
 
 // ── Review summarization ───────────────────────────────────────────
@@ -138,7 +140,12 @@ Return ONLY JSON.`,
   });
 
   const text = response.choices[0]?.message?.content || "";
-  return parseAIJson(text);
+  return parseAIJson<{
+    summary: string;
+    praised: string[];
+    criticized: string[];
+    bestFor: string;
+  }>(text);
 }
 
 // ── Content moderation ─────────────────────────────────────────────
@@ -161,21 +168,21 @@ export async function moderateReview(
   });
 
   const text2 = response.choices[0]?.message?.content || "";
-  return parseAIJson(text2);
+  return parseAIJson<{ safe: boolean; reason?: string }>(text2);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function parseAIJson(text: string): any {
+function parseAIJson<T>(text: string): T {
   let cleaned = text.trim();
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
   }
   try {
-    return JSON.parse(cleaned);
+    return JSON.parse(cleaned) as T;
   } catch {
     const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
+    if (match) return JSON.parse(match[0]) as T;
     throw new Error(`AI JSON parse failed: ${cleaned.slice(0, 300)}`);
   }
 }

@@ -11,6 +11,23 @@ const qwen = new OpenAI({
 const VL_MODEL = "qwen-vl-max";
 const TEXT_MODEL = "qwen-plus";
 
+interface MenuDishAnalysis {
+  name_original: string;
+  name_translated: string;
+  description: string;
+  ingredients: string[];
+  allergens: string[];
+  taste_profile: string[];
+  confidence: number;
+  _needsRetranslate?: boolean;
+}
+
+interface MenuImageAnalysis {
+  dishes: MenuDishAnalysis[];
+  page_label: string;
+  source_language: string;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────
 
 /** Returns true if text contains at least one Chinese character */
@@ -18,36 +35,23 @@ export function hasChinese(text: string): boolean {
   return /[一-鿿]/.test(text);
 }
 
-function parseAIJson(text: string): any {
+function parseAIJson<T>(text: string): T {
   let cleaned = text.trim();
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
   }
   try {
-    return JSON.parse(cleaned);
+    return JSON.parse(cleaned) as T;
   } catch {
     const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
+    if (match) return JSON.parse(match[0]) as T;
     throw new Error(`AI JSON parse failed: ${cleaned.slice(0, 300)}`);
   }
 }
 
 // ── Image → Structured extraction ──────────────────────────────────
 
-export async function analyzeMenuImage(base64Image: string): Promise<{
-  dishes: Array<{
-    name_original: string;
-    name_translated: string;
-    description: string;
-    ingredients: string[];
-    allergens: string[];
-    taste_profile: string[];
-    confidence: number;
-  }>;
-  page_label: string;
-  source_language: string;
-}> {
-  const systemPrompt = `You are a professional menu translator. Your PRIMARY job is to translate ALL dish names and descriptions into CHINESE (中文).
+const VL_SYSTEM_PROMPT = `You are a professional menu translator. Your PRIMARY job is to translate ALL dish names and descriptions into CHINESE (中文).
 
 CRITICAL RULES:
 1. name_original: copy the EXACT original text from the menu photo (can be any language)
@@ -69,6 +73,8 @@ CORRECT OUTPUT EXAMPLES:
 - "Pâtes Carbonara" → name_translated: "培根蛋酱意面"
 - "Duck Confit" → name_translated: "法式油封鸭"
 
+IMPORTANT: Even if the photo is blurry, poorly lit, or partially obscured, do your best to extract any visible dishes. Return an empty dishes array ONLY if there is genuinely nothing resembling a menu in the image.
+
 Output ONLY valid JSON. No markdown, no explanation.
 {
   "dishes": [...],
@@ -76,36 +82,69 @@ Output ONLY valid JSON. No markdown, no explanation.
   "source_language": "fr"
 }`;
 
-  const response = await qwen.chat.completions.create({
-    model: VL_MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      {
-        role: "user",
-        content: [
+export async function analyzeMenuImage(base64Image: string): Promise<MenuImageAnalysis> {
+  let lastError: Error | null = null;
+  const MAX_RETRIES = 2;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await qwen.chat.completions.create({
+        model: VL_MODEL,
+        messages: [
+          { role: "system", content: VL_SYSTEM_PROMPT },
           {
-            type: "image_url",
-            image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+              },
+              { type: "text", text: "Extract all dishes from this menu photo. Remember: ALL translations must be in Chinese (中文)." },
+            ],
           },
-          { type: "text", text: "Extract all dishes from this menu photo. Remember: ALL translations must be in Chinese (中文)." },
         ],
-      },
-    ],
-    max_tokens: 2048,
-    temperature: 0.1,
-  });
+        max_tokens: 2048,
+        temperature: 0.1,
+      });
 
-  const text = response.choices[0]?.message?.content || "";
-  const result = parseAIJson(text);
+      const text = response.choices[0]?.message?.content || "";
 
-  // Post-validate: if name_translated has no Chinese, mark for re-translation
-  for (const dish of result.dishes || []) {
-    if (!hasChinese(dish.name_translated || "")) {
-      dish._needsRetranslate = true;
+      if (!text || text.trim().length < 10) {
+        throw new Error("AI returned empty or too-short response");
+      }
+
+      const result = parseAIJson<MenuImageAnalysis>(text);
+
+      if (!result.dishes || !Array.isArray(result.dishes)) {
+        throw new Error("AI response missing dishes array");
+      }
+
+      if (result.dishes.length === 0 && attempt < MAX_RETRIES - 1) {
+        // Empty dishes — might be a model hiccup, retry
+        lastError = new Error("AI found no dishes in the image");
+        continue;
+      }
+
+      // Post-validate: if name_translated has no Chinese, mark for re-translation
+      for (const dish of result.dishes) {
+        if (!hasChinese(dish.name_translated || "")) {
+          dish._needsRetranslate = true;
+        }
+      }
+
+      return result;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < MAX_RETRIES - 1) {
+        // Brief backoff before retry
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
   }
 
-  return result;
+  throw new Error(
+    `Menu analysis failed after ${MAX_RETRIES} attempts: ${lastError?.message || "unknown error"}`
+  );
 }
 
 // ── Translation refinement ─────────────────────────────────────────
@@ -148,7 +187,7 @@ Return ONLY valid JSON: { "name_translated": "...", "description": "..." }`,
   });
 
   const text = response.choices[0]?.message?.content || "";
-  return parseAIJson(text);
+  return parseAIJson<{ name_translated: string; description: string }>(text);
 }
 
 // ── Review summarization ───────────────────────────────────────────
@@ -187,7 +226,12 @@ Return ONLY JSON.`,
   });
 
   const text = response.choices[0]?.message?.content || "";
-  return parseAIJson(text);
+  return parseAIJson<{
+    summary: string;
+    praised: string[];
+    criticized: string[];
+    bestFor: string;
+  }>(text);
 }
 
 // ── Content moderation ─────────────────────────────────────────────
@@ -210,5 +254,5 @@ export async function moderateReview(
   });
 
   const text2 = response.choices[0]?.message?.content || "";
-  return parseAIJson(text2);
+  return parseAIJson<{ safe: boolean; reason?: string }>(text2);
 }

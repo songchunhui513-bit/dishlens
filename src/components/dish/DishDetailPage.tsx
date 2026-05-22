@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import type { Dish } from "@/types";
 import { getReviews } from "@/lib/api-client";
@@ -170,7 +171,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
         <div style={{ padding: "0 16px 16px" }}>
           {/* Hero image */}
           <div className="relative overflow-hidden" style={{ width: "100%", height: 200, borderRadius: "var(--radius-lg)", marginBottom: 16 }}>
-            <img src={heroImg} alt={zhName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <Image src={heroImg} alt={zhName} fill sizes="(max-width: 430px) 100vw, 430px" style={{ objectFit: "cover" }} />
             {isVeg && (
               <div className="absolute flex items-center justify-center" style={{ bottom: 8, right: 8, width: 24, height: 24, background: "var(--primary)", borderRadius: "50%", animation: "popIn 0.3s ease-out", boxShadow: "0 1px 4px rgba(76,175,80,0.3)" }}>
                 <svg viewBox="0 0 12 12" style={{ width: 14, height: 14, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>

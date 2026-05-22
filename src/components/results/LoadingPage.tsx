@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { pollTask } from "@/lib/api-client";
+import { FoodCharacters, FOOD_CHARACTER_HINTS } from "./FoodCharacters";
 
 interface LoadingPageProps {
   photoCount: number;
@@ -19,6 +20,8 @@ const basePhases = [
   "生成菜品描述...",
   "匹配参考图片...",
 ];
+
+const FOOD_CHARACTER_ROTATE_MS = 4000;
 
 function buildPhases(count: number): string[] {
   if (count <= 1) return basePhases;
@@ -60,6 +63,15 @@ export default function LoadingPage({
 
   // Track previous status text for animation key
   const [statusKey, setStatusKey] = useState(0);
+  const [foodCharacterIndex, setFoodCharacterIndex] = useState(0);
+
+  useEffect(() => {
+    if (isFailed) return;
+    const interval = setInterval(() => {
+      setFoodCharacterIndex((index) => (index + 1) % FOOD_CHARACTER_HINTS.length);
+    }, FOOD_CHARACTER_ROTATE_MS);
+    return () => clearInterval(interval);
+  }, [isFailed]);
 
   // Pending progress: exponential approach to 95%, never hard-stops
   useEffect(() => {
@@ -77,25 +89,34 @@ export default function LoadingPage({
   useEffect(() => {
     if (!isPolling) return;
     pollingStartRef.current = Date.now();
-    setPollingElapsed(0);
     const interval = setInterval(() => {
       setPollingElapsed(Date.now() - pollingStartRef.current);
     }, 1000);
     return () => clearInterval(interval);
   }, [isPolling, taskId]); // reset on new taskId
 
-  // Polling progress: real data from API
+  // Polling progress: real data from API, with time-based floor so bar never stalls at 0%
   useEffect(() => {
     if (!isPolling || !taskId) return;
+    const pollStartTime = Date.now();
     let cancelled = false;
+
+    // Time-driven floor: slowly approaches 85% over ~60s, never drops below it
+    const floorInterval = setInterval(() => {
+      if (cancelled) return;
+      const elapsed = Date.now() - pollStartTime;
+      const floor = Math.min(85, Math.round(3 + 82 * (1 - Math.exp(-elapsed / 30000))));
+      setProgress((prev) => Math.max(prev, floor));
+    }, 800);
+
     const poll = async () => {
       try {
         const t = await pollTask(taskId);
         if (cancelled) return;
-        const pct = t.progress.total > 0
+        const apiPct = t.progress.total > 0
           ? Math.round((t.progress.current / t.progress.total) * 100)
           : 0;
-        setProgress(pct);
+        setProgress((prev) => Math.max(prev, apiPct));
         if (t.per_page_status) {
           const doneCount = t.per_page_status.filter((s) => s.status === "done").length;
           const total = t.per_page_status.length;
@@ -105,6 +126,11 @@ export default function LoadingPage({
           if (!completedRef.current) {
             completedRef.current = true;
             if (t.result && onResult) onResult(t.result as unknown as Record<string, unknown>);
+            if (t.status === "failed") {
+              setProgress(0);
+            } else {
+              setProgress(100);
+            }
             setTimeout(() => onComplete(), 500);
           }
         } else {
@@ -115,8 +141,11 @@ export default function LoadingPage({
       }
     };
     poll();
-    return () => { cancelled = true; };
-  }, [isPolling, taskId, onComplete]);
+    return () => {
+      cancelled = true;
+      clearInterval(floorInterval);
+    };
+  }, [isPolling, taskId, onComplete, onResult]);
 
   // Mock mode
   useEffect(() => {
@@ -268,19 +297,8 @@ export default function LoadingPage({
       ) : (
         <>
           {/* Pulsing dots */}
-          <div className="flex" style={{ gap: 10, marginBottom: 24 }}>
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="rounded-full"
-                style={{
-                  width: 12,
-                  height: 12,
-                  background: "var(--rule)",
-                  animation: `pulse-dot 1.4s infinite ${i * 0.2}s`,
-                }}
-              />
-            ))}
+          <div data-testid="loading-food-character">
+            <FoodCharacters activeIndex={foodCharacterIndex} />
           </div>
 
           {/* Progress bar */}
@@ -318,6 +336,19 @@ export default function LoadingPage({
             {statusText}
           </div>
 
+          <div
+            key={`food-hint-${foodCharacterIndex}`}
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontSize: 9,
+              color: "var(--muted)",
+              marginBottom: 14,
+              animation: "fadeIn 0.5s ease-out",
+            }}
+          >
+            {FOOD_CHARACTER_HINTS[foodCharacterIndex]}
+          </div>
+
           {/* Percentage — re-animate when crossing 90% threshold */}
           <div
             key={`pct-${isNearDone ? "near" : "far"}-${Math.floor(pctNum / 10)}`}
@@ -326,7 +357,7 @@ export default function LoadingPage({
               fontSize: 40,
               fontWeight: 800,
               color: isNearDone ? "var(--primary)" : "var(--ink)",
-              letterSpacing: "-0.02em",
+              letterSpacing: 0,
               marginBottom: 18,
               animation: "fadeIn 0.5s ease-out",
             }}

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 interface FavoriteDish {
   id: string;
   name_original: string;
@@ -121,9 +123,9 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites }: Favor
                 borderRight: "none",
               }}
             >
-              <div className="flex-shrink-0 overflow-hidden" style={{ width: 56, height: 56, borderRadius: "var(--radius-sm)" }}>
+              <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 56, height: 56, borderRadius: "var(--radius-sm)" }}>
                 {dish.image_url ? (
-                  <img src={dish.image_url} alt={dish.name_zh} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src={dish.image_url} alt={dish.name_zh} fill sizes="56px" style={{ objectFit: "cover" }} />
                 ) : (
                   <div style={{ width: "100%", height: "100%", background: "var(--card)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)" }}>
                     {dish.name_zh[0]}

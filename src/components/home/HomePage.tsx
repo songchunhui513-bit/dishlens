@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 
 interface RecentItem {
   zh: string;
@@ -21,14 +21,12 @@ const defaultRecent: RecentItem[] = [
 ];
 
 export default function HomePage({ onNavigate, onCapture, recentHistory }: HomePageProps) {
-  const [toastVisible, setToastVisible] = useState(false);
   const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : defaultRecent;
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
 
   const handleAlbumPick = () => {
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 2000);
+    onCapture?.();
   };
 
   return (
@@ -153,13 +151,15 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
             </div>
           </div>
           <div
-            className="flex-shrink-0 overflow-hidden"
+            className="relative flex-shrink-0 overflow-hidden"
             style={{ width: 100, height: 100, borderRadius: "var(--radius-lg)" }}
           >
-            <img
+            <Image
               src="https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=200&h=200&fit=crop&auto=format"
               alt="Boeuf"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              fill
+              sizes="100px"
+              style={{ objectFit: "cover" }}
             />
           </div>
         </div>
@@ -285,13 +285,15 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
               }}
             >
               <div
-                className="overflow-hidden"
+                className="relative overflow-hidden"
                 style={{ width: 60, height: 60, borderRadius: "var(--radius-sm)" }}
               >
-                <img
+                <Image
                   src={item.img}
                   alt={item.zh}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  fill
+                  sizes="60px"
+                  style={{ objectFit: "cover" }}
                 />
               </div>
               <span
@@ -401,26 +403,6 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
         ))}
       </nav>
 
-      {/* Toast */}
-      <div
-        className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-250"
-        style={{
-          transform: toastVisible ? "translateY(60px)" : "translateY(-60px)",
-          opacity: toastVisible ? 1 : 0,
-        }}
-      >
-        <div
-          className="px-6 py-3 text-sm font-medium shadow-lg"
-          style={{
-            background: "var(--ink)",
-            color: "#FFF",
-            fontFamily: "var(--font-body)",
-            borderRadius: 8,
-          }}
-        >
-          相册选择功能即将上线
-        </div>
-      </div>
     </div>
   );
 }

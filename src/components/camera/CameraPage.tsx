@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useRef } from "react";
 import type { CapturedPhoto } from "@/types";
 
@@ -36,7 +37,6 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
     setFlash(true);
     setTimeout(() => setFlash(false), 150);
 
-    const newPhotos: CapturedPhoto[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const reader = new FileReader();
@@ -132,7 +132,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
               <div className="flex flex-wrap gap-2">
                 {photos.map((p, i) => (
                   <div key={p.id} className="relative rounded overflow-hidden" style={{ width: 60, height: 80, border: "1px solid #DDD" }}>
-                    <img src={p.dataUrl} alt={`第${i + 1}页`} className="w-full h-full object-cover" />
+                    <Image src={p.dataUrl} alt={`第${i + 1}页`} fill sizes="60px" unoptimized style={{ objectFit: "cover" }} />
                     <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] py-0.5" style={{ background: "rgba(0,0,0,0.6)", color: "#FFF", fontFamily: "var(--font-body)" }}>
                       {pageLabels[i] || `第${i + 1}页`}
                     </div>
@@ -197,7 +197,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
                 border: i === justCaptured ? "2px solid var(--primary)" : "1px solid #555",
               }}
             >
-              <img src={p.dataUrl} alt={`第${i + 1}页`} className="w-full h-full object-cover" />
+              <Image src={p.dataUrl} alt={`第${i + 1}页`} fill sizes="48px" unoptimized style={{ objectFit: "cover" }} />
               <div className="absolute bottom-0 left-0 right-0 text-center text-[7px] py-px" style={{ background: "rgba(0,0,0,0.5)", color: "#FFF", fontFamily: "var(--font-body)" }}>
                 {pageLabels[i] || `第${i + 1}页`}
               </div>
@@ -246,6 +246,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
         )}
         <button
           onClick={handleShoot}
+          aria-label="拍摄菜单照片"
           className="flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-[0.92]"
           style={{
             width: 48,

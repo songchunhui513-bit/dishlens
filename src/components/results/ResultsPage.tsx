@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { Dish, TranslationResult } from "@/types";
 
 // ── Fallback mock images (only used when no real images) ──────────────
@@ -304,10 +305,12 @@ export default function ResultsPage({
               >
                 {/* Image */}
                 <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}>
-                  <img
+                  <Image
                     src={hasImage ? dish.ai_image_url! : guessImg(dish)}
                     alt={dish.name_original}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    fill
+                    sizes="68px"
+                    style={{ objectFit: "cover" }}
                   />
                   {showVeg && isVeg && (
                     <div

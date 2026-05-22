@@ -7,8 +7,18 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.includes("multipart/form-data") && !contentType.includes("application/x-www-form-urlencoded")) {
+      return NextResponse.json(
+        { error: "Request must be multipart/form-data" },
+        { status: 400 }
+      );
+    }
+
     const formData = await req.formData();
-    const images = formData.getAll("images") as File[];
+    const images = formData
+      .getAll("images")
+      .filter((item): item is File => item instanceof File && item.size > 0);
     const targetLang = (formData.get("target_lang") as string) || "zh";
 
     if (!images || images.length === 0) {

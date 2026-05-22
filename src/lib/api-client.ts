@@ -1,6 +1,6 @@
 // Client-side API calls for DishLens
 
-import type { TranslationResult, TaskProgress, Review, ReviewSubmission, UserProfile, TranslationRecord, Dish, UserSettings } from "@/types";
+import type { TranslationResult, TaskProgress, Review, UserProfile, TranslationRecord, Dish } from "@/types";
 
 // ── Image compression (for Vercel 4.5MB body limit) ───────────────
 

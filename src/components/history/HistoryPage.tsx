@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 // ── Mock data matching v7 prototype ──────────────────────────────────
 
 const cuisineImages: Record<string, string> = {
@@ -141,10 +143,10 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
                 }}
               >
                 <div
-                  className="flex-shrink-0 flex items-center justify-center overflow-hidden"
+                  className="relative flex-shrink-0 flex items-center justify-center overflow-hidden"
                   style={{ width: 40, height: 40, borderRadius: "var(--radius-sm)", background: "var(--card)" }}
                 >
-                  <img src={item.img} alt={item.restaurant} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src={item.img} alt={item.restaurant} fill sizes="40px" style={{ objectFit: "cover" }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div style={{ fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>
