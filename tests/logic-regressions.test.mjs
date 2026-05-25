@@ -67,6 +67,7 @@ test("pizza variants do not collapse to the same generic fallback image", async 
     `${ROOT}/src/lib/dish-image-match.ts`,
   );
 
+  assert.equal(matchDishKnowledgeImage({ name_original: "LA JARDIN", description: "seasonal vegetables and mozzarella" })?.id, "pizza-quattro-stagioni");
   assert.equal(matchDishKnowledgeImage({ name_original: "LA REINE", description: "ham mushrooms and olives" })?.id, "pizza-prosciutto-funghi");
   assert.equal(matchDishKnowledgeImage({ name_original: "LA GENOVESE", description: "Pesto Genovese, Fior di latte mozzarella and Grana Padano" })?.id, "pizza-genovese");
   assert.equal(matchDishKnowledgeImage({ name_original: "LA TROIS FROMAGES", description: "aged Comté, mozzarella and fresh goat cheese" })?.id, "pizza-quattro-formaggi");
@@ -111,7 +112,7 @@ test("generated menu images use stable storage ids even for temporary dishes", a
   assert.equal(storageIdForGeneratedDishImage({ id: "db-dish-1" }), "db-dish-1");
   assert.equal(
     storageIdForGeneratedDishImage({ id: "temp-123", name_original: "LA MARINARA 11,50€" }),
-    "generated-la-marinara-11-50",
+    "generated-la-marinara",
   );
   assert.equal(
     storageIdForGeneratedDishImage({ name_original: "Crème brûlée" }),
@@ -188,14 +189,36 @@ test("missing dish images are treated as pending instead of real food placeholde
     }),
     true,
   );
+  assert.equal(
+    isDishImagePending({
+      id: "expired-1",
+      name_original: "Uncached Temporary Dish",
+      name_translated: { zh: "未缓存临时菜" },
+      description: { zh: "过期的临时生图地址" },
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      category: "main",
+      image_source: "ai",
+      ai_image_url: "https://dashscope-result-wlcb-acdr-1.oss-cn-wulanchabu-acdr-1.aliyuncs.com/temporary.png",
+    }),
+    true,
+  );
 });
 
 test("dish image loading animation chooses category-specific food characters", async () => {
   const component = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
   assert.match(component, /function selectLoadingCharacter/);
+  assert.match(component, /pizza|披萨/);
+  assert.match(component, /seafood|fish|海鲜|鱼/);
+  assert.match(component, /steak|beef|meat|牛排|牛肉/);
+  assert.match(component, /salad|沙拉|vegetable|蔬菜/);
+  assert.match(component, /egg|breakfast|benedict|早餐|鸡蛋/);
   assert.match(component, /dessert|cake|甜点|蛋糕/);
   assert.match(component, /soup|stew|汤|羹/);
   assert.match(component, /drink|beverage|coffee|tea|饮品|咖啡|茶/);
+  assert.match(component, /onError/);
+  assert.match(component, /dish-image-loading--card/);
   assert.doesNotMatch(component, /skeleton-shimmer/);
 });
 
@@ -213,6 +236,7 @@ test("AI image generation prompt uses category-specific framing for drinks and s
   });
   assert.match(drinkPrompt, /single beverage/i);
   assert.match(drinkPrompt, /cup|glass/i);
+  assert.match(drinkPrompt, /distinct beverage texture|foam|ice|garnish/i);
   assert.doesNotMatch(drinkPrompt, /white ceramic plate/i);
 
   const soupPrompt = buildDishImagePrompt({
@@ -224,6 +248,7 @@ test("AI image generation prompt uses category-specific framing for drinks and s
   });
   assert.match(soupPrompt, /bowl/i);
   assert.match(soupPrompt, /broth|soup/i);
+  assert.match(soupPrompt, /visible individual ingredients|surface detail/i);
   assert.doesNotMatch(soupPrompt, /white ceramic plate/i);
 });
 
@@ -236,4 +261,6 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(route, /localMatch\?\.card \|\| cachedGeneratedImageUrl \|\| existingImageUrl/);
   assert.match(storage, /public", "generated-dishes/);
   assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
+  assert.match(storage, /return localUrl/);
+  assert.doesNotMatch(route, /generateImagesForDishes\([\s\S]*,\s*1,\s*\)/);
 });

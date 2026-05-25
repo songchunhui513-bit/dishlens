@@ -175,7 +175,7 @@ export function isDishImagePending(dish: Dish): boolean {
 
   const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;
   if (!existingImage) return true;
-  if (/images\.unsplash\.com|image\.pollinations\.ai/i.test(existingImage)) return true;
+  if (/images\.unsplash\.com|image\.pollinations\.ai|dashscope-result.*aliyuncs\.com/i.test(existingImage)) return true;
   return false;
 }
 

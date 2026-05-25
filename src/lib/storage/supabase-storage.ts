@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const BUCKET = "dishes";
 const LOCAL_GENERATED_DIR = join(process.cwd(), "public", "generated-dishes");
+const ENABLE_REMOTE_CACHE_HEAD = process.env.ENABLE_REMOTE_IMAGE_CACHE_HEAD === "true";
 
 function localDishImagePath(dishId: string): string {
   return join(LOCAL_GENERATED_DIR, `${dishId}.png`);
@@ -68,6 +69,11 @@ export async function getCachedDishImageUrl(dishId: string): Promise<string | nu
   if (existsSync(localDishImagePath(dishId))) {
     return localDishImageUrl(dishId);
   }
+
+  // Keep the translation result fast: the DB row already carries stable remote URLs.
+  // Remote Storage HEAD checks are opt-in because one network request per missing dish
+  // noticeably delays dense menus.
+  if (!ENABLE_REMOTE_CACHE_HEAD) return null;
 
   const client = getSupabaseAdminClient() || getSupabaseClient();
   if (!client) return null;

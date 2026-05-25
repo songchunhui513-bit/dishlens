@@ -99,14 +99,30 @@ body {
   justify-content: center;
   flex-direction: column;
   gap: 4px;
-  background: #FFF5E9;
-  border: 1px solid rgba(212, 165, 116, 0.35);
+  background: rgba(255, 245, 233, 0.62);
+  border: 1px solid rgba(212, 165, 116, 0.34);
   color: var(--muted);
   font-family: var(--font-ui);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0;
   animation: fadeIn var(--dur-normal) ease-out both;
+}
+
+.dish-image-loading--card {
+  background:
+    linear-gradient(135deg, rgba(255, 159, 28, 0.07), rgba(76, 175, 80, 0.045)),
+    rgba(255, 245, 233, 0.18);
+  border: 0.75px solid rgba(212, 165, 116, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.dish-image-loading--hero {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 245, 233, 0.9), rgba(254, 230, 203, 0.72) 62%, rgba(240, 235, 227, 0.72)),
+    var(--bg);
+  border: 1px solid rgba(212, 165, 116, 0.3);
+  justify-content: center;
 }
 
 .dish-image-loading::after {
@@ -119,6 +135,13 @@ body {
   border-radius: 50%;
   background: var(--accent);
   animation: sparkleA 1.8s ease-out infinite;
+}
+
+.dish-image-loading--card::after {
+  width: 4px;
+  height: 4px;
+  right: 8px;
+  top: 8px;
 }
 
 .dish-image-ready {

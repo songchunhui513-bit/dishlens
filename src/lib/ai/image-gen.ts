@@ -56,10 +56,10 @@ export function buildDishImagePrompt(dish: DishImagePromptInput): string {
   const ings = dish.ingredients?.length ? dish.ingredients.join("、") : "";
   const kind = classifyDishImageKind(dish);
   const framing = {
-    drink: "Professional beverage photography of a single beverage served in an appropriate cup, mug, or clear glass. The drink is the only subject, with visible foam, ice, garnish, steam, or liquid texture when relevant. No plate.",
-    soup: "Professional food photography of a single bowl of soup or stew, with visible broth surface, ingredients, garnish, and a warm ceramic bowl. Bowl centered on a neutral table. Not plated flat.",
-    dessert: "Professional dessert photography of one finished dessert portion, showing cream, pastry, fruit, sauce, crumb, or glaze details clearly on a small dessert plate or bowl.",
-    main: "Professional food photography of a single plated dish.",
+    drink: "Premium restaurant beverage photography of a single beverage served in an appropriate cup, mug, coupe, wine glass, or clear tumbler. The drink is the only subject, with distinct beverage texture: foam, ice, garnish, steam, condensation, bubbles, crema, or liquid color when relevant. No plate, no food platter.",
+    soup: "Premium restaurant food photography of a single bowl of soup, broth, noodle soup, chowder, or stew. The bowl is centered, with visible individual ingredients, broth surface detail, garnish, oil droplets or steam, and clear soup depth. Not plated flat.",
+    dessert: "Premium restaurant dessert photography of one finished dessert portion. Show precise pastry layers, cream texture, fruit, sauce, crumb, glaze, melted chocolate, or ice cream surface detail clearly on a small dessert plate or bowl.",
+    main: "Premium restaurant food photography of a single finished dish with accurate portion, cooking texture, sauce placement, garnish, and ingredient separation.",
   }[kind];
   const parts = [
     framing,
@@ -67,9 +67,10 @@ export function buildDishImagePrompt(dish: DishImagePromptInput): string {
     translated && translated !== dish.name_original ? `(${name})` : "",
     ings ? `Main ingredients visibly represented: ${ings}` : "",
     desc ? `Description: ${desc}` : "",
-    "Shot from 45-degree angle, natural window light, shallow depth of field.",
-    kind === "main" ? "Dish centered on a simple white ceramic plate, neutral table background." : "Neutral table background, clean editorial restaurant styling.",
-    "Photorealistic, high detail, appetizing colors. No text, no logos, no hands, no other dishes visible.",
+    "Shot from 45-degree angle with a close editorial crop, natural window light, shallow depth of field, soft shadows, realistic restaurant tableware.",
+    kind === "main" ? "Dish centered on a simple ceramic plate or appropriate serving dish, neutral table background." : "Neutral table background, clean editorial restaurant styling.",
+    "Photorealistic, high detail, appetizing colors, realistic ingredients, no invented garnish that conflicts with the dish.",
+    "No text, no logo, no watermark, no hands, no people, no menu, no extra dishes visible, no cartoon style.",
   ];
   return parts.filter(Boolean).join(" ");
 }

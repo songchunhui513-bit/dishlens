@@ -48,6 +48,13 @@ const LOCAL_IMAGE_OVERRIDES: Array<{
     hero: "/dishes/pizza-quattro-formaggi.png",
     names: ["Pizza Quattro Formaggi", "La Trois Fromages", "三奶酪披萨"],
   },
+  {
+    patterns: ["la jardin", "pizza jardin", "jardin", "seasonal vegetables", "legumes de saison", "花园披萨", "蔬菜披萨"],
+    id: "pizza-quattro-stagioni",
+    card: "/dishes/pizza-quattro-stagioni.png",
+    hero: "/dishes/pizza-quattro-stagioni.png",
+    names: ["Pizza Quattro Stagioni", "La Jardin", "花园披萨"],
+  },
 ];
 
 const DIRECT_ALIASES: Array<{ patterns: string[]; id: string }> = [

@@ -34,6 +34,10 @@ const FULL_PROMPT_PAGE_LIMIT = FAST_OCR_MODE
   : Number.parseInt(process.env.MENU_FULL_PROMPT_PAGE_LIMIT || "4", 10) || 4;
 const REFINE_LOW_CONFIDENCE = process.env.MENU_REFINE_LOW_CONFIDENCE === "true";
 const BACKGROUND_IMAGE_LIMIT = Number.parseInt(process.env.MENU_IMAGE_GENERATION_LIMIT || "16", 10) || 16;
+const IMAGE_GENERATION_CONCURRENCY = Math.max(
+  1,
+  Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "2", 10) || 2),
+);
 
 type MenuImageInput = {
   base64: string;
@@ -437,6 +441,6 @@ async function generateImagesInBackground(
         await updateTask(taskId, { result: resultPayload });
       }
     },
-    1,
+    IMAGE_GENERATION_CONCURRENCY,
   );
 }
