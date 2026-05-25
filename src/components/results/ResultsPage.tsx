@@ -72,6 +72,7 @@ interface ResultsPageProps {
   loading?: boolean;
   showAllergens?: boolean;
   showVeg?: boolean;
+  imageGenProgress?: { done: number; total: number };
 }
 
 export default function ResultsPage({
@@ -81,6 +82,7 @@ export default function ResultsPage({
   loading,
   showAllergens,
   showVeg,
+  imageGenProgress,
 }: ResultsPageProps) {
   // ── Loading / Skeleton ──────────────────────────────────
   if (loading) {
@@ -221,7 +223,7 @@ export default function ResultsPage({
                 }}
               >
                 {/* Image */}
-                <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName}>
+                <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName} pendingDone={imageGenProgress?.done} pendingTotal={imageGenProgress?.total}>
                   {showVeg && isVeg && (
                     <div
                       className="absolute flex items-center justify-center"

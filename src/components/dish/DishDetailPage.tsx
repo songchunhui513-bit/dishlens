@@ -49,9 +49,10 @@ interface DishDetailPageProps {
   showAllergens?: boolean;
   isFavorited?: boolean;
   onToggleFavorite?: (dishId: string, faved: boolean) => void;
+  imageGenProgress?: { done: number; total: number };
 }
 
-export default function DishDetailPage({ dish, onBack, onReview, showAllergens, isFavorited, onToggleFavorite }: DishDetailPageProps) {
+export default function DishDetailPage({ dish, onBack, onReview, showAllergens, isFavorited, onToggleFavorite, imageGenProgress }: DishDetailPageProps) {
   const [faved, setFaved] = useState(isFavorited ?? false);
   const [reviews, setReviews] = useState<Array<{ text: string; author: string; time: string }>>([]);
 
@@ -135,7 +136,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
         <div style={{ padding: "0 16px 16px" }}>
           {/* Hero image */}
           <div style={{ marginBottom: 16 }}>
-            <DishImageWithLoading dish={dish} size="hero" alt={dishText.translatedName}>
+            <DishImageWithLoading dish={dish} size="hero" alt={dishText.translatedName} pendingDone={imageGenProgress?.done} pendingTotal={imageGenProgress?.total}>
             {isVeg && (
               <div className="absolute flex items-center justify-center" style={{ bottom: 8, right: 8, width: 24, height: 24, background: "var(--primary)", borderRadius: "50%", animation: "popIn 0.3s ease-out", boxShadow: "0 1px 4px rgba(76,175,80,0.3)" }}>
                 <svg viewBox="0 0 12 12" style={{ width: 14, height: 14, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>

@@ -5,13 +5,15 @@ import { useState, type ReactNode } from "react";
 import type { Dish } from "@/types";
 import { getDishImageUrl, getDishText, isDishImagePending } from "@/lib/dish-presentation";
 
-type LoadingKind = "pizza" | "seafood" | "meat" | "salad" | "breakfast" | "dessert" | "soup" | "drink" | "pasta" | "main";
+type LoadingKind = "pizza" | "seafood" | "meat" | "salad" | "breakfast" | "dessert" | "soup" | "drink" | "pasta" | "burger" | "wrap" | "main";
 
 type DishImageWithLoadingProps = {
   dish: Dish;
   size: "card" | "hero";
   alt?: string;
   children?: ReactNode;
+  pendingDone?: number;
+  pendingTotal?: number;
 };
 
 function selectLoadingCharacter(dish: Dish): LoadingKind {
@@ -32,6 +34,8 @@ function selectLoadingCharacter(dish: Dish): LoadingKind {
   if (/soup|stew|broth|chowder|bisque|汤|羹|浓汤|清汤|炖/.test(text)) return "soup";
   if (/drink|beverage|coffee|tea|latte|cappuccino|espresso|juice|wine|beer|cocktail|饮品|饮料|咖啡|茶|果汁|酒/.test(text)) return "drink";
   if (/pasta|noodle|spaghetti|carbonara|意面|面|粉/.test(text)) return "pasta";
+  if (/burger|hamburger|cheeseburger|双层|汉堡|牛肉堡|鸡腿堡/.test(text)) return "burger";
+  if (/wrap|burrito|twister|卷饼|鸡肉卷|老北京|wrap meal/.test(text)) return "wrap";
   return "main";
 }
 
@@ -173,6 +177,36 @@ function PastaIcon({ compact }: { compact: boolean }) {
   );
 }
 
+function BurgerIcon({ compact }: { compact: boolean }) {
+  return (
+    <SvgFrame compact={compact}>
+      <g style={{ animation: "plateFloat 3.2s ease-in-out infinite" }}>
+        <ellipse cx="60" cy="84" rx="42" ry="8" fill="none" stroke="#D4A574" strokeWidth="2" />
+        <path d="M28 56 Q28 34 60 32 Q92 34 92 56 Q92 72 28 72Z" fill="#F5C06F" stroke="#D4A574" strokeWidth="2.5" />
+        <path d="M28 56 Q28 48 32 48 L88 48 Q92 48 92 56" fill="#C78142" stroke="#C78142" strokeWidth="1.5" />
+        <ellipse cx="60" cy="56" rx="30" ry="6" fill="#7E3F2C" />
+        <path d="M36 56 Q48 48 60 52 Q72 48 84 56" fill="none" stroke="#4CAF50" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="72" cy="58" r="3" fill="#C0392B" />
+      </g>
+    </SvgFrame>
+  );
+}
+
+function WrapIcon({ compact }: { compact: boolean }) {
+  return (
+    <SvgFrame compact={compact}>
+      <g style={{ animation: "wrapFloat 3s ease-in-out infinite" }}>
+        <ellipse cx="60" cy="84" rx="40" ry="7" fill="none" stroke="#D4A574" strokeWidth="2" />
+        <path d="M28 50 L28 78 Q28 82 32 82 L88 82 Q92 82 92 78 L92 46 Q76 42 64 48 Q52 42 36 48 Z" fill="#F5DEB3" stroke="#D4A574" strokeWidth="2.5" />
+        <ellipse cx="60" cy="48" rx="16" ry="6" fill="none" stroke="#D4A574" strokeWidth="2" />
+        <path d="M46 58 L56 42" stroke="#4CAF50" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M66 58 L62 44" stroke="#C0392B" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M54 66 L68 50" stroke="#FFB74D" strokeWidth="2" strokeLinecap="round" />
+      </g>
+    </SvgFrame>
+  );
+}
+
 function MainIcon({ compact }: { compact: boolean }) {
   return (
     <SvgFrame compact={compact}>
@@ -197,10 +231,12 @@ function LoadingIcon({ kind, compact }: { kind: LoadingKind; compact: boolean })
   if (kind === "soup") return <SoupIcon compact={compact} />;
   if (kind === "drink") return <DrinkIcon compact={compact} />;
   if (kind === "pasta") return <PastaIcon compact={compact} />;
+  if (kind === "burger") return <BurgerIcon compact={compact} />;
+  if (kind === "wrap") return <WrapIcon compact={compact} />;
   return <MainIcon compact={compact} />;
 }
 
-export default function DishImageWithLoading({ dish, size, alt, children }: DishImageWithLoadingProps) {
+export default function DishImageWithLoading({ dish, size, alt, children, pendingDone, pendingTotal }: DishImageWithLoadingProps) {
   const compact = size === "card";
   const kind = selectLoadingCharacter(dish);
   const imageUrl = getDishImageUrl(dish, size);
@@ -220,7 +256,14 @@ export default function DishImageWithLoading({ dish, size, alt, children }: Dish
           data-loading-kind={kind}
         >
           <LoadingIcon kind={kind} compact={compact} />
-          {!compact ? <span>AI 正在生成图片</span> : null}
+          {!compact ? (
+              <span>
+                AI 正在生成图片
+                {pendingDone !== undefined && pendingTotal !== undefined && pendingTotal > 0
+                  ? ` · ${Math.round((pendingDone / pendingTotal) * 100)}%`
+                  : ""}
+              </span>
+            ) : null}
         </div>
       ) : (
         <Image

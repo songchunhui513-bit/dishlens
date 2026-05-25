@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import HomePage from "@/components/home/HomePage";
 import CameraPage from "@/components/camera/CameraPage";
 import LoadingPage from "@/components/results/LoadingPage";
@@ -83,6 +83,19 @@ export default function Page() {
 
   // Daily recommendation
   const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation();
+
+  // Compute AI image generation progress
+  const imageGenProgress = useMemo(() => {
+    if (!translationResult?.pages) return undefined;
+    const allDishes = translationResult.pages.flatMap((p) => p.dishes || []);
+    const total = allDishes.length;
+    if (total === 0) return undefined;
+    const done = allDishes.filter((d) => {
+      const url = d.ai_image_url || (d as { image_url?: string }).image_url;
+      return url && !/images\.unsplash\.com|image\.pollinations\.ai|dashscope-result.*aliyuncs\.com/i.test(url);
+    }).length;
+    return { done, total };
+  }, [translationResult]);
 
   // Save translation to history when result comes in
   const saveToHistory = useCallback((result: TranslationResult) => {
@@ -409,6 +422,7 @@ export default function Page() {
           onDishDetail={handleDishDetail}
           showAllergens={settings.showAllergens}
           showVeg={settings.showVeg}
+          imageGenProgress={imageGenProgress}
         />
       );
       break;
@@ -422,6 +436,7 @@ export default function Page() {
           showAllergens={settings.showAllergens}
           isFavorited={selectedDish ? checkFavorited(selectedDish.id) : false}
           onToggleFavorite={handleToggleFavorite}
+          imageGenProgress={imageGenProgress}
         />
       );
       break;

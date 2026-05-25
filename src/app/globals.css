@@ -174,6 +174,7 @@ body {
 @keyframes plateFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes knifeBob { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-3px) rotate(-5deg); } }
 @keyframes pastaFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes wrapFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes noodleWiggle { 0% { transform: rotate(0deg); } 25% { transform: rotate(4deg); } 50% { transform: rotate(0deg); } 75% { transform: rotate(-3deg); } 100% { transform: rotate(0deg); } }
 @keyframes forkSpin { 0% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(10deg) translateY(-4px); } 100% { transform: rotate(0deg) translateY(0); } }
 @keyframes leafDrop { 0% { opacity: 1; transform: translateY(-4px) rotate(0); } 50% { opacity: .6; transform: translateY(0) rotate(15deg); } 100% { opacity: 1; transform: translateY(-4px) rotate(0); } }

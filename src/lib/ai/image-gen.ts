@@ -24,7 +24,7 @@ function localized(value: string | Record<string, string> | undefined): string {
   return value.zh || value.en || Object.values(value)[0] || "";
 }
 
-export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "soup" | "dessert" | "main" {
+export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "soup" | "dessert" | "burger" | "wrap" | "sandwich" | "salad" | "pizza" | "main" {
   const text = [
     dish.category || "",
     dish.name_original || "",
@@ -33,7 +33,7 @@ export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "so
     ...(dish.ingredients || []),
   ].join(" ").toLowerCase();
 
-  if (/drink|beverage|coffee|tea|latte|cappuccino|espresso|cocktail|juice|wine|beer|奶茶|咖啡|茶|饮品|饮料|酒|果汁/.test(text)) {
+  if (/drink|beverage|coffee|tea|latte|cappuccino|espresso|cocktail|juice|wine|beer|奶茶|咖啡|茶|饮品|饮料|酒|果汁|cola|coke|soda|soft drink/.test(text)) {
     return "drink";
   }
   if (/soup|stew|broth|chowder|bisque|consomm|汤|羹|浓汤|清汤|炖/.test(text)) {
@@ -41,6 +41,21 @@ export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "so
   }
   if (/dessert|cake|pie|tart|pudding|ice cream|gelato|sweet|甜点|蛋糕|布丁|冰淇淋|挞|派/.test(text)) {
     return "dessert";
+  }
+  if (/burger|hamburger|cheeseburger|双层|汉堡|牛肉堡|鸡腿堡|🍔/.test(text)) {
+    return "burger";
+  }
+  if (/wrap|burrito|wraps|twister|卷饼|卷|鸡肉卷|老北京/.test(text)) {
+    return "wrap";
+  }
+  if (/sandwich|sub|hoagie|panini|三明治|潜艇堡/.test(text)) {
+    return "sandwich";
+  }
+  if (/salad|沙拉|salade|insalata|ensalada|蔬菜沙拉/.test(text)) {
+    return "salad";
+  }
+  if (/pizza|披萨|pizzas|margherita|marinara|薄饼|🍕/.test(text)) {
+    return "pizza";
   }
   return "main";
 }
@@ -55,20 +70,27 @@ export function buildDishImagePrompt(dish: DishImagePromptInput): string {
     : (dish.description as Record<string, string>)?.zh || "";
   const ings = dish.ingredients?.length ? dish.ingredients.join("、") : "";
   const kind = classifyDishImageKind(dish);
-  const framing = {
+  const framing: Record<string, string> = {
     drink: "Premium restaurant beverage photography of a single beverage served in an appropriate cup, mug, coupe, wine glass, or clear tumbler. The drink is the only subject, with distinct beverage texture: foam, ice, garnish, steam, condensation, bubbles, crema, or liquid color when relevant. No plate, no food platter.",
     soup: "Premium restaurant food photography of a single bowl of soup, broth, noodle soup, chowder, or stew. The bowl is centered, with visible individual ingredients, broth surface detail, garnish, oil droplets or steam, and clear soup depth. Not plated flat.",
     dessert: "Premium restaurant dessert photography of one finished dessert portion. Show precise pastry layers, cream texture, fruit, sauce, crumb, glaze, melted chocolate, or ice cream surface detail clearly on a small dessert plate or bowl.",
+    burger: "Premium fast-food product photography of a single plated burger or hamburger. The burger is the only subject, shown whole or cut in half. Visible features: sesame seed bun top, layered patty, cheese, lettuce, tomato, onions, sauce dripping slightly. Served on a branded paper wrapper or simple plate. No fries unless specified in ingredients. No other dishes visible.",
+    wrap: "Premium food photography of a single wrap, burrito, or rolled tortilla. The wrap is the only subject, shown whole or diagonally cut showing filling layers. Visible: flour tortilla exterior with light grill marks, sliced cross-section revealing layered fillings (protein, vegetables, sauce, cheese). Served on simple plate or paper. No sides unless specified.",
+    sandwich: "Premium food photography of a single sandwich or sub. The sandwich is the only subject, shown whole or cut diagonally. Visible: bread slices or sub roll, layered fillings (protein, vegetables, cheese, spreads) between bread. Served on simple plate. No sides unless specified.",
+    salad: "Premium food photography of a single composed salad. The salad fills a bowl or plate, with visible fresh vegetables, greens, dressing drizzled on top, and distinct ingredient textures. Shot from above or 45-degree angle showing salad composition.",
+    pizza: "Premium food photography of a single pizza on a wooden board or metal tray. The pizza is the only subject, shown whole with visible crust, melted cheese, toppings evenly distributed. Possible slice pulled away showing cheese stretch. No other dishes visible.",
     main: "Premium restaurant food photography of a single finished dish with accurate portion, cooking texture, sauce placement, garnish, and ingredient separation.",
-  }[kind];
+  };
+  const kindFraming = framing[kind] || framing.main;
+  const isPlateFormat = kind === "main" || kind === "burger" || kind === "wrap" || kind === "sandwich" || kind === "salad";
   const parts = [
-    framing,
+    kindFraming,
     `Dish name: ${dish.name_original}`,
     translated && translated !== dish.name_original ? `(${name})` : "",
     ings ? `Main ingredients visibly represented: ${ings}` : "",
     desc ? `Description: ${desc}` : "",
     "Shot from 45-degree angle with a close editorial crop, natural window light, shallow depth of field, soft shadows, realistic restaurant tableware.",
-    kind === "main" ? "Dish centered on a simple ceramic plate or appropriate serving dish, neutral table background." : "Neutral table background, clean editorial restaurant styling.",
+    isPlateFormat ? "Dish centered on a simple ceramic plate or appropriate serving dish, neutral table background." : "Neutral table background, clean editorial restaurant styling.",
     "Photorealistic, high detail, appetizing colors, realistic ingredients, no invented garnish that conflicts with the dish.",
     "No text, no logo, no watermark, no hands, no people, no menu, no extra dishes visible, no cartoon style.",
   ];
