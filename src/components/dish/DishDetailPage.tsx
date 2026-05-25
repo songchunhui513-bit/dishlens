@@ -4,35 +4,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import type { Dish } from "@/types";
 import { getReviews } from "@/lib/api-client";
-
-// ── Image guess (same logic as ResultsPage) ────────────────────────
-
-const FOOD_IMG: Record<string, string> = {
-  pasta: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&auto=format",
-  beef: "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=600&h=400&fit=crop&auto=format",
-  chicken: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=600&h=400&fit=crop&auto=format",
-  fish: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&h=400&fit=crop&auto=format",
-  salad: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&h=400&fit=crop&auto=format",
-  soup: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=600&h=400&fit=crop&auto=format",
-  pizza: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=400&fit=crop&auto=format",
-  dessert: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=600&h=400&fit=crop&auto=format",
-  rice: "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=600&h=400&fit=crop&auto=format",
-  noodle: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&h=400&fit=crop&auto=format",
-  bread: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&h=400&fit=crop&auto=format",
-  seafood: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&h=400&fit=crop&auto=format",
-  curry: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&h=400&fit=crop&auto=format",
-  cheese: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=600&h=400&fit=crop&auto=format",
-  default: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&h=400&fit=crop&auto=format",
-};
-
-function guessHeroImg(dish: Dish): string {
-  const text = [dish.name_original || "", ...(dish.ingredients || [])].join(" ").toLowerCase();
-  for (const [key, url] of Object.entries(FOOD_IMG)) {
-    if (key === "default") continue;
-    if (text.includes(key)) return url;
-  }
-  return FOOD_IMG.default;
-}
+import { getDishImageUrl, getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
 
 // ── Pill ────────────────────────────────────────────────────────────
 
@@ -75,10 +47,12 @@ interface DishDetailPageProps {
   onBack: () => void;
   onReview: () => void;
   showAllergens?: boolean;
+  isFavorited?: boolean;
+  onToggleFavorite?: (dishId: string, faved: boolean) => void;
 }
 
-export default function DishDetailPage({ dish, onBack, onReview, showAllergens }: DishDetailPageProps) {
-  const [faved, setFaved] = useState(false);
+export default function DishDetailPage({ dish, onBack, onReview, showAllergens, isFavorited, onToggleFavorite }: DishDetailPageProps) {
+  const [faved, setFaved] = useState(isFavorited ?? false);
   const [reviews, setReviews] = useState<Array<{ text: string; author: string; time: string }>>([]);
 
   useEffect(() => {
@@ -104,20 +78,9 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
     );
   }
 
-  // Extract real dish data
-  const zhName = typeof dish.name_translated === "string"
-    ? dish.name_translated
-    : typeof dish.name_translated === "object"
-    ? (dish.name_translated as Record<string, string>).zh || dish.name_original
-    : dish.name_original;
-
-  const zhDesc = typeof dish.description === "string"
-    ? dish.description
-    : typeof dish.description === "object"
-    ? (dish.description as Record<string, string>).zh || ""
-    : "";
-
-  const heroImg = dish.ai_image_url || guessHeroImg(dish);
+  const dishText = getDishText(dish);
+  const insight = getDishInsight(dish);
+  const heroImg = getDishImageUrl(dish, "hero");
   const ingredients = (dish.ingredients || []).join("、");
 
   // Build tags
@@ -125,11 +88,9 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
   for (const ing of (dish.ingredients || []).slice(0, 3)) {
     tags.push({ label: ing, type: "green" });
   }
-  const isVeg = (dish.taste_profile || []).includes("vegetarian") ||
-    (dish.ingredients || []).every((ing) =>
-      !/肉|鱼|鸡|牛|猪|羊|虾|蟹|贝|蛋|lamb|beef|pork|chicken|fish|meat|seafood|egg/i.test(ing)
-    );
+  const isVeg = isVegetarianDish(dish);
   if (isVeg) tags.push({ label: "素食", type: "veg" });
+  tags.push({ label: insight.confidenceLabel, type: "warm" });
   if (showAllergens && dish.allergens?.length) {
     const labels: Record<string, string> = {
       dairy: "⚠ 乳制品", egg: "⚠ 蛋", peanut: "⚠ 花生", tree_nut: "⚠ 坚果",
@@ -155,7 +116,11 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
         <button onClick={onBack} className="text-[11px] cursor-pointer transition-opacity hover:opacity-50" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
         <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>菜品详情</span>
         <button
-          onClick={() => setFaved(!faved)}
+          onClick={() => {
+              const next = !faved;
+              setFaved(next);
+              if (dish?.id) onToggleFavorite?.(dish.id, next);
+            }}
           className="flex items-center gap-0.5 text-[9px] font-bold transition-all duration-200"
           style={{ fontFamily: "var(--font-body)", color: faved ? "var(--accent)" : "var(--primary)", background: "none", border: "none", cursor: "pointer" }}
         >
@@ -171,7 +136,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
         <div style={{ padding: "0 16px 16px" }}>
           {/* Hero image */}
           <div className="relative overflow-hidden" style={{ width: "100%", height: 200, borderRadius: "var(--radius-lg)", marginBottom: 16 }}>
-            <Image src={heroImg} alt={zhName} fill sizes="(max-width: 430px) 100vw, 430px" style={{ objectFit: "cover" }} />
+            <Image src={heroImg} alt={dishText.translatedName} fill sizes="(max-width: 430px) 100vw, 430px" style={{ objectFit: "cover" }} />
             {isVeg && (
               <div className="absolute flex items-center justify-center" style={{ bottom: 8, right: 8, width: 24, height: 24, background: "var(--primary)", borderRadius: "50%", animation: "popIn 0.3s ease-out", boxShadow: "0 1px 4px rgba(76,175,80,0.3)" }}>
                 <svg viewBox="0 0 12 12" style={{ width: 14, height: 14, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
@@ -184,10 +149,10 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
 
           {/* Title + sub */}
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.01em", marginBottom: 2 }}>
-            {zhName}
+            {dishText.translatedName}
           </div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--muted)", fontStyle: "italic", marginBottom: 8 }}>
-            {dish.name_original}
+            {dishText.originalName}
             {dish.rating_avg ? (
               <span> &nbsp;·&nbsp; <span style={{ color: "var(--accent)", fontWeight: 700, fontStyle: "normal" }}>★ {dish.rating_avg}</span></span>
             ) : null}
@@ -224,12 +189,14 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens }
           )}
 
           {/* Flavor description */}
-          {zhDesc ? (
-            <>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>风味特征</div>
-              <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{zhDesc}</div>
-            </>
-          ) : null}
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>风味特征</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{insight.summary}</div>
+
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>点单建议</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 8 }}>{insight.recommendation}</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+            {insight.goodFor} {insight.caution}
+          </div>
 
           {/* Reviews section */}
           <div style={{ marginBottom: 12 }}>

@@ -23,7 +23,7 @@ interface MenuImageAnalysis {
 
 // ── Image → Structured extraction ──────────────────────────────────
 
-export async function analyzeMenuImage(base64Image: string): Promise<MenuImageAnalysis> {
+export async function analyzeMenuImage(base64Image: string, _rich?: boolean, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
   const systemPrompt = `You are a professional menu translator for restaurants.
 Analyze the menu photo and output ONLY valid JSON. No markdown, no explanation.
 
@@ -56,7 +56,7 @@ Output format:
         content: [
           {
             type: "image_url",
-            image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+            image_url: { url: `data:${mimeType};base64,${base64Image}` },
           },
           { type: "text", text: "Extract all dishes from this menu photo." },
         ],

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | undefined;
 
-function initClient(): SupabaseClient | undefined {
+function getClient(): SupabaseClient | undefined {
   if (_client) return _client;
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
@@ -30,9 +30,10 @@ function noop(): any {
 }
 
 function from(table: string) {
-  const c = initClient();
+  const c = getClient();
   if (!c) return noop();
   return c.from(table);
 }
 
 export const supabase = { from } as unknown as SupabaseClient;
+export { getClient as getSupabaseClient };

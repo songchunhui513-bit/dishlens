@@ -10,7 +10,11 @@ export interface Dish {
   taste_profile: string[];
   cuisine_region?: string;
   category?: string; // 'appetizer' | 'main' | 'dessert' | 'drink'
+  recommendation?: string;
+  good_for?: string;
+  caution?: string;
   ai_image_url?: string;
+  image_url?: string;
   image_source: "ai" | "user" | "mixed";
   rating_avg?: number;
   review_count?: number;
@@ -101,6 +105,30 @@ export interface TranslationRecord {
   dish_count: number;
   page_count: number;
   created_at: string;
+}
+
+// ── Local Storage Types ────────────────────────────────────────────
+
+export interface HistoryEntry {
+  id: string;
+  restaurant_name: string;
+  city: string;
+  dish_count: number;
+  page_count: number;
+  date: string;
+  thumbnail: string;
+  source_lang: string;
+  target_lang: string;
+  result_summary?: TranslationResult;
+}
+
+export interface FavoriteDish {
+  id: string;
+  name_original: string;
+  name_zh: string;
+  cuisine: string;
+  image_url?: string;
+  saved_at: string;
 }
 
 // ── Camera Types ───────────────────────────────────────────────────

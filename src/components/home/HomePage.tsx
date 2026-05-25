@@ -3,24 +3,60 @@
 import Image from "next/image";
 
 interface RecentItem {
+  id: string;
   zh: string;
   en: string;
   img: string;
 }
 
+interface DailyDishData {
+  id: string;
+  name_en: string;
+  name_zh: string;
+  cuisine: string;
+  category: string;
+  image_url: string;
+  description_zh: string;
+  taste_profile: string[];
+  calories: number | null;
+  spice_level: number | null;
+  rating: number;
+}
+
 interface HomePageProps {
   onNavigate?: (screen: string) => void;
   onCapture?: () => void;
+  onDailyDishDetail?: () => void;
+  onRecentClick?: (id: string) => void;
   recentHistory?: RecentItem[];
+  dailyDish?: DailyDishData;
+  recommendationContext?: string;
+  recommendationReason?: string;
 }
 
 const defaultRecent: RecentItem[] = [
-  { zh: "马赛鱼汤", en: "Bouillabaisse", img: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=120&h=120&fit=crop&auto=format" },
-  { zh: "油封鸭腿", en: "Confit de Canard", img: "https://images.unsplash.com/photo-1544025162-d76694265947?w=120&h=120&fit=crop&auto=format" },
-  { zh: "焦糖苹果挞", en: "Tarte Tatin", img: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=120&h=120&fit=crop&auto=format" },
+  { id: "", zh: "马赛鱼汤", en: "Bouillabaisse", img: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=120&h=120&fit=crop&auto=format" },
+  { id: "", zh: "油封鸭腿", en: "Confit de Canard", img: "https://images.unsplash.com/photo-1544025162-d76694265947?w=120&h=120&fit=crop&auto=format" },
+  { id: "", zh: "焦糖苹果挞", en: "Tarte Tatin", img: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=120&h=120&fit=crop&auto=format" },
 ];
+const fallbackRecentImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
 
-export default function HomePage({ onNavigate, onCapture, recentHistory }: HomePageProps) {
+const CUISINE_LABELS: Record<string, string> = {
+  french: "法式料理", japanese: "日式料理", italian: "意式料理", chinese: "中式料理",
+  korean: "韩式料理", thai: "泰式料理", mexican: "墨西哥料理", spanish: "西班牙料理",
+  indian: "印度料理", turkish: "土耳其料理", vietnamese: "越南料理", american: "美式料理",
+};
+
+export default function HomePage({
+  onNavigate,
+  onCapture,
+  onDailyDishDetail,
+  onRecentClick,
+  recentHistory,
+  dailyDish,
+  recommendationContext,
+  recommendationReason,
+}: HomePageProps) {
   const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : defaultRecent;
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
@@ -32,7 +68,7 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       {/* ── Header ────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "14px 20px 8px" }}>
+      <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "44px 20px 8px" }}>
         <span
           style={{
             fontFamily: "var(--font-display)",
@@ -72,10 +108,54 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
         </div>
       </div>
 
+      <div
+        className="inline-flex items-center gap-1 flex-shrink-0"
+        style={{
+          alignSelf: "flex-start",
+          fontFamily: "var(--font-ui)",
+          fontSize: 8,
+          fontWeight: 600,
+          color: "var(--ink-soft)",
+          padding: "4px 10px",
+          borderRadius: 20,
+          background: "var(--card-alt)",
+          margin: "0 20px 4px",
+        }}
+      >
+        <svg viewBox="0 0 24 24" style={{ width: 12, height: 12, stroke: "currentColor", fill: "none", strokeWidth: 2 }}>
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+        </svg>
+        {recommendationContext || "按当前时段推荐"}
+      </div>
+
+      <div
+        className="flex-shrink-0"
+        style={{
+          margin: "0 20px 8px",
+          padding: "8px 14px",
+          background: "var(--card-alt)",
+          borderRadius: "var(--radius-sm)",
+          fontFamily: "var(--font-body)",
+          fontSize: 9,
+          color: "var(--ink-soft)",
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ fontWeight: 700 }}>今日推荐理由：</strong>
+        {recommendationReason || dailyDish?.description_zh || "根据当前时间，从本地知识库为你挑选一道适合现在点的菜。"}
+      </div>
+
       {/* ── Hero Carousel ─────────────────────────────────── */}
-      <div style={{ padding: "4px 20px 10px" }}>
+      <div style={{ padding: "0 20px 10px" }}>
         <div
           className="relative overflow-hidden"
+          onClick={onDailyDishDetail}
           style={{
             background: "var(--card)",
             borderRadius: "var(--radius-xl)",
@@ -85,6 +165,7 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
             alignItems: "center",
             gap: 16,
             animation: "fadeSlideUp 0.4s ease-out",
+            cursor: onDailyDishDetail ? "pointer" : "default",
           }}
         >
           <div
@@ -106,7 +187,7 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
           >
             今日推荐
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, paddingTop: 18 }}>
             <div
               style={{
                 fontFamily: "var(--font-body)",
@@ -118,7 +199,7 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
                 marginBottom: 4,
               }}
             >
-              法式料理 · 勃艮第
+                {CUISINE_LABELS[dailyDish?.cuisine || "french"] || dailyDish?.cuisine || "法式料理"} · {dailyDish?.category || "主菜"}
             </div>
             <h2
               style={{
@@ -131,7 +212,7 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
                 lineHeight: 1.2,
               }}
             >
-              Boeuf Bourguignon
+              {dailyDish?.name_en || "Boeuf Bourguignon"}
             </h2>
             <div
               style={{
@@ -142,12 +223,13 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
                 fontStyle: "italic",
               }}
             >
-              勃艮第红酒炖牛肉
+              {dailyDish?.name_zh || "勃艮第红酒炖牛肉"}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <Pill type="orange">★ 4.8</Pill>
-              <Pill type="green">牛肉</Pill>
-              <Pill type="warm">红酒炖煮</Pill>
+              <Pill type="orange">{`★ ${dailyDish?.rating ?? 4.8}`}</Pill>
+              {dailyDish?.taste_profile?.slice(0, 2).map((t, i) => (
+                <Pill key={i} type="green">{t}</Pill>
+              )) || (<><Pill type="green">牛肉</Pill><Pill type="warm">红酒炖煮</Pill></>)}
             </div>
           </div>
           <div
@@ -155,9 +237,10 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
             style={{ width: 100, height: 100, borderRadius: "var(--radius-lg)" }}
           >
             <Image
-              src="https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=200&h=200&fit=crop&auto=format"
-              alt="Boeuf"
+              src={dailyDish?.image_url || "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=200&h=200&fit=crop&auto=format"}
+              alt={dailyDish?.name_en || "Boeuf"}
               fill
+              loading="eager"
               sizes="100px"
               style={{ objectFit: "cover" }}
             />
@@ -268,7 +351,7 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
         </div>
       ) : (
         <div
-          className="flex gap-3 overflow-x-auto flex-shrink-0"
+          className="flex gap-2.5 overflow-x-auto flex-shrink-0"
           style={{ padding: "4px 20px 10px", scrollbarWidth: "none" }}
         >
           {recentItems.map((item, i) => (
@@ -276,22 +359,21 @@ export default function HomePage({ onNavigate, onCapture, recentHistory }: HomeP
               key={i}
               className="flex-shrink-0 flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-200"
               style={{
-                width: 100,
-                background: "var(--card)",
-                borderRadius: "var(--radius)",
-                padding: 10,
+                width: 88,
                 textAlign: "center",
-                boxShadow: "var(--shadow)",
+                animation: "popIn 0.3s ease-out",
               }}
+              onClick={() => onRecentClick?.(item.id)}
             >
               <div
                 className="relative overflow-hidden"
-                style={{ width: 60, height: 60, borderRadius: "var(--radius-sm)" }}
+                style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}
               >
                 <Image
-                  src={item.img}
+                  src={item.img || fallbackRecentImage}
                   alt={item.zh}
                   fill
+                  loading={i === 0 ? "eager" : "lazy"}
                   sizes="60px"
                   style={{ objectFit: "cover" }}
                 />

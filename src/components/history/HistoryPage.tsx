@@ -1,41 +1,36 @@
 "use client";
 
 import Image from "next/image";
+import type { HistoryEntry } from "@/types";
 
-// ── Mock data matching v7 prototype ──────────────────────────────────
+const fallbackHistoryImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
 
-const cuisineImages: Record<string, string> = {
-  french: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=80&h=80&fit=crop&auto=format",
-  sushi: "https://images.unsplash.com/photo-1553621042-f6e147245754?w=80&h=80&fit=crop&auto=format",
-  pasta: "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=80&h=80&fit=crop&auto=format",
-  paella: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=80&h=80&fit=crop&auto=format",
-};
+interface HistoryItem {
+  id: string;
+  restaurant: string;
+  city: string;
+  lang: string;
+  dishCount: number;
+  pageCount: number;
+  date: string;
+  img: string;
+}
 
-const mockHistory = [
-  {
-    id: "1", restaurant: "Le Comptoir du Marché",
-    city: "巴黎", lang: "法语", dishCount: 9, pageCount: 3,
-    date: "2026-05-20", img: cuisineImages.french,
-  },
-  {
-    id: "2", restaurant: "銀座 すきやばし 次郎",
-    city: "东京", lang: "日语", dishCount: 12, pageCount: 2,
-    date: "2026-05-18", img: cuisineImages.sushi,
-  },
-  {
-    id: "3", restaurant: "Trattoria da Mario",
-    city: "罗马", lang: "意大利语", dishCount: 8, pageCount: 2,
-    date: "2026-04-28", img: cuisineImages.pasta,
-  },
-  {
-    id: "4", restaurant: "Casa Paco",
-    city: "巴塞罗那", lang: "西班牙语", dishCount: 6, pageCount: 1,
-    date: "2026-04-15", img: cuisineImages.paella,
-  },
-];
+function toHistoryItems(entries: HistoryEntry[]): HistoryItem[] {
+  return entries.map((e) => ({
+    id: e.id,
+    restaurant: e.restaurant_name,
+    city: e.city,
+    lang: e.source_lang,
+    dishCount: e.dish_count,
+    pageCount: e.page_count,
+    date: e.date,
+    img: e.thumbnail,
+  }));
+}
 
-function groupByMonth(items: typeof mockHistory) {
-  const months: Record<string, typeof mockHistory> = {};
+function groupByMonth(items: HistoryItem[]) {
+  const months: Record<string, HistoryItem[]> = {};
   for (const item of items) {
     const key = item.date.slice(0, 7);
     if (!months[key]) months[key] = [];
@@ -53,9 +48,10 @@ interface HistoryPageProps {
   onBack: () => void;
   onSelect?: (id: string) => void;
   loading?: boolean;
+  history?: HistoryEntry[];
 }
 
-export default function HistoryPage({ onBack, onSelect, loading }: HistoryPageProps) {
+export default function HistoryPage({ onBack, onSelect, loading, history }: HistoryPageProps) {
   if (loading) {
     return (
       <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
@@ -72,12 +68,14 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
     );
   }
 
-  const groups = groupByMonth(mockHistory);
+  const items = toHistoryItems(history || []);
+  const groups = groupByMonth(items);
+  const isEmpty = items.length === 0;
 
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
+      <div className="flex items-center gap-2 flex-shrink-0" style={{ padding: "48px 20px 10px" }}>
         <button
           onClick={onBack}
           className="text-[11px] cursor-pointer transition-opacity hover:opacity-50"
@@ -85,13 +83,62 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
         >
           ←
         </button>
-        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
-          历史记录
+        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
+          翻译历史
         </h2>
+        <span style={{ fontFamily: "var(--font-ui)", fontSize: 7, fontWeight: 600, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "2px 8px", borderRadius: 10 }}>
+          本地存储
+        </span>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto" style={{ padding: "10px 16px" }}>
+      <div className="flex-1 overflow-auto" style={{ padding: "0 20px" }}>
+        {isEmpty ? (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center text-center" style={{ padding: "60px 30px" }}>
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                background: "var(--card)",
+                marginBottom: 18,
+              }}
+            >
+              <svg viewBox="0 0 48 48" style={{ width: 40, height: 40, stroke: "var(--muted)", fill: "none", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                <circle cx="24" cy="24" r="18" />
+                <line x1="24" y1="14" x2="24" y2="28" />
+                <circle cx="24" cy="34" r="1.5" fill="var(--muted)" stroke="none" />
+              </svg>
+            </div>
+            <h3 style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 }}>
+              还没有翻译记录
+            </h3>
+            <p style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", opacity: 0.7, marginBottom: 20, maxWidth: 200, lineHeight: 1.5 }}>
+              拍摄第一份菜单，AI 即刻为你翻译
+            </p>
+            <button
+              onClick={onBack}
+              className="transition-all duration-150 active:scale-[0.96]"
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#FFF",
+                background: "var(--primary)",
+                border: "none",
+                borderRadius: "var(--radius)",
+                padding: "10px 28px",
+                cursor: "pointer",
+                boxShadow: "0 4px 16px rgba(76,175,80,0.2)",
+              }}
+            >
+              开始翻译
+            </button>
+          </div>
+        ) : (
+        <>
         {/* Search hint */}
         <div
           className="flex items-center gap-1.5"
@@ -117,12 +164,14 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 10,
-                fontWeight: 700,
-                color: "var(--ink)",
-                marginBottom: 8,
-                paddingBottom: 4,
-                borderBottom: "1px solid var(--rule)",
+            fontSize: 9,
+            fontWeight: 700,
+            color: "var(--muted)",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            marginBottom: 6,
+            padding: "12px 0 6px",
+            borderBottom: "1px solid var(--rule)",
               }}
             >
               {group.label}
@@ -131,8 +180,9 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
               <button
                 key={item.id}
                 onClick={() => onSelect?.(item.id)}
-                className="flex items-center gap-3 w-full text-left py-3 transition-all duration-150 hover:pl-1 active:opacity-50"
+                className="flex items-center gap-2.5 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
                 style={{
+                  padding: "10px 0",
                   borderBottom: "1px solid var(--rule)",
                   cursor: "pointer",
                   background: "none",
@@ -144,12 +194,12 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
               >
                 <div
                   className="relative flex-shrink-0 flex items-center justify-center overflow-hidden"
-                  style={{ width: 40, height: 40, borderRadius: "var(--radius-sm)", background: "var(--card)" }}
+                  style={{ width: 44, height: 44, borderRadius: "var(--radius-sm)", background: "var(--card)" }}
                 >
-                  <Image src={item.img} alt={item.restaurant} fill sizes="40px" style={{ objectFit: "cover" }} />
+                  <Image src={item.img || fallbackHistoryImage} alt={item.restaurant} fill sizes="44px" style={{ objectFit: "cover" }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600, color: "var(--ink)", marginBottom: 2 }}>
                     {item.restaurant}
                   </div>
                   <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", fontWeight: 500 }}>
@@ -165,6 +215,8 @@ export default function HistoryPage({ onBack, onSelect, loading }: HistoryPagePr
             ))}
           </div>
         ))}
+        </>
+        )}
       </div>
     </div>
   );

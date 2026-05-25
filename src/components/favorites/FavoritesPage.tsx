@@ -10,35 +10,21 @@ interface FavoriteDish {
   image_url?: string;
 }
 
-const mockFavorites: FavoriteDish[] = [
-  {
-    id: "1", name_original: "Boeuf Bourguignon", name_zh: "勃艮第红酒炖牛肉", cuisine: "法式",
-    image_url: "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=112&h=112&fit=crop&auto=format",
-  },
-  {
-    id: "3", name_original: "Tarte Tatin", name_zh: "反转焦糖苹果挞", cuisine: "甜点",
-    image_url: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=112&h=112&fit=crop&auto=format",
-  },
-  {
-    id: "5", name_original: "Sole Meunière", name_zh: "法式黄油煎鳎鱼", cuisine: "海鲜",
-    image_url: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=112&h=112&fit=crop&auto=format",
-  },
-];
-
 interface FavoritesPageProps {
   onBack: () => void;
   onDishDetail?: (id: string) => void;
   favorites?: FavoriteDish[];
+  onRemoveFavorite?: (id: string) => void;
 }
 
-export default function FavoritesPage({ onBack, onDishDetail, favorites }: FavoritesPageProps) {
-  const items = favorites?.length ? favorites : mockFavorites;
+export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemoveFavorite }: FavoritesPageProps) {
+  const items = favorites?.length ? favorites : [];
   const isEmpty = items.length === 0;
 
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
+      <div className="flex items-center gap-2 flex-shrink-0" style={{ padding: "48px 20px 10px" }}>
         <button
           onClick={onBack}
           className="text-[11px] cursor-pointer transition-opacity hover:opacity-50"
@@ -46,7 +32,7 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites }: Favor
         >
           ←
         </button>
-        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
+        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
           我的收藏
         </h2>
         {!isEmpty && (
@@ -61,6 +47,9 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites }: Favor
             {items.length} 道
           </span>
         )}
+        <span style={{ fontFamily: "var(--font-ui)", fontSize: 7, fontWeight: 600, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "2px 8px", borderRadius: 10 }}>
+          本地
+        </span>
       </div>
 
       {isEmpty ? (
@@ -107,13 +96,14 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites }: Favor
         </div>
       ) : (
         /* Filled state */
-        <div className="flex-1 overflow-auto" style={{ padding: "10px 16px" }}>
+        <div className="flex-1 overflow-auto" style={{ padding: "0 20px" }}>
           {items.map((dish, i) => (
             <button
               key={dish.id}
               onClick={() => onDishDetail?.(dish.id)}
-              className="flex items-center gap-3 w-full text-left py-3 transition-all duration-150 hover:pl-1 active:opacity-50"
+              className="flex items-center gap-2.5 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
               style={{
+                padding: "10px 0",
                 borderBottom: i < items.length - 1 ? "1px solid var(--rule)" : "none",
                 cursor: "pointer",
                 background: "none",
@@ -141,9 +131,14 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites }: Favor
                   <span>· {dish.cuisine}</span>
                 </div>
               </div>
-              <svg viewBox="0 0 20 18" style={{ width: 18, height: 16, fill: "var(--accent)", stroke: "var(--accent)", strokeWidth: 0.8, flexShrink: 0 }}>
-                <path d="M10 16C4 12 2 10 2 7 2 4 4 2 6.5 2 8 2 9 3 10 5 11 3 12 2 13.5 2 16 2 18 4 18 7 18 10 16 12 10 16Z" />
-              </svg>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveFavorite?.(dish.id); }}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex" }}
+              >
+                <svg viewBox="0 0 20 18" style={{ width: 18, height: 16, fill: "var(--accent)", stroke: "var(--accent)", strokeWidth: 0.8 }}>
+                  <path d="M10 16C4 12 2 10 2 7 2 4 4 2 6.5 2 8 2 9 3 10 5 11 3 12 2 13.5 2 16 2 18 4 18 7 18 10 16 12 10 16Z" />
+                </svg>
+              </button>
             </button>
           ))}
         </div>
