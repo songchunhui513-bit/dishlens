@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | undefined;
+let _adminClient: SupabaseClient | undefined;
 
 function getClient(): SupabaseClient | undefined {
   if (_client) return _client;
@@ -11,6 +12,21 @@ function getClient(): SupabaseClient | undefined {
 
   _client = createClient(url, key);
   return _client;
+}
+
+function getAdminClient(): SupabaseClient | undefined {
+  if (_adminClient) return _adminClient;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return undefined;
+
+  _adminClient = createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+  return _adminClient;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,3 +53,4 @@ function from(table: string) {
 
 export const supabase = { from } as unknown as SupabaseClient;
 export { getClient as getSupabaseClient };
+export { getAdminClient as getSupabaseAdminClient };

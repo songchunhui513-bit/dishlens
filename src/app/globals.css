@@ -91,6 +91,40 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+.dish-image-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  background: #FFF5E9;
+  border: 1px solid rgba(212, 165, 116, 0.35);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+  animation: fadeIn var(--dur-normal) ease-out both;
+}
+
+.dish-image-loading::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  right: 9px;
+  top: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: sparkleA 1.8s ease-out infinite;
+}
+
+.dish-image-ready {
+  animation: fadeIn var(--dur-slow) ease-out both;
+}
+
 /* ── Micro-Animations ─────────────────────────────────────────────── */
 
 @keyframes fadeSlideUp {

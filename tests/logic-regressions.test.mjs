@@ -22,6 +22,10 @@ async function loadTsModule(file) {
     'import dishKnowledgeDb from "../../public/dish-knowledge-db.json";',
     'const dishKnowledgeDb = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("../../public/dish-knowledge-db.json", import.meta.url), "utf8"));',
   );
+  compiled = compiled.replace(
+    'import { matchDishKnowledgeImage } from "@/lib/dish-image-match";',
+    'import { matchDishKnowledgeImage } from "./dish-image-match.mjs";',
+  );
   const rel = relative(ROOT, file).replace(/\.ts$/, ".mjs");
   const outFile = join(TMP_ROOT, rel);
   await mkdir(dirname(outFile), { recursive: true });
@@ -118,4 +122,118 @@ test("generated menu images use stable storage ids even for temporary dishes", a
 test("next image config allows DashScope result hosts", async () => {
   const config = await readFile(`${ROOT}/next.config.ts`, "utf8");
   assert.match(config, /\*\*\.aliyuncs\.com/);
+});
+
+test("missing dish images are treated as pending instead of real food placeholders", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
+  const { isDishImagePending } = await loadTsModule(
+    `${ROOT}/src/lib/dish-presentation.ts`,
+  );
+
+  assert.equal(
+    isDishImagePending({
+      id: "temp-1",
+      name_original: "Imaginary Dessert Cloud",
+      name_translated: { zh: "云朵甜点" },
+      description: { zh: "一道还没有生成图片的甜点" },
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      category: "dessert",
+      image_source: "ai",
+    }),
+    true,
+  );
+  assert.equal(
+    isDishImagePending({
+      id: "local-1",
+      name_original: "LA MARINARA",
+      name_translated: { zh: "玛丽娜披萨" },
+      description: { zh: "番茄披萨" },
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      category: "main",
+      image_source: "mixed",
+    }),
+    false,
+  );
+  assert.equal(
+    isDishImagePending({
+      id: "cached-1",
+      name_original: "Rare Soup",
+      name_translated: { zh: "少见汤品" },
+      description: { zh: "已有 AI 图片" },
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      category: "soup",
+      image_source: "ai",
+      ai_image_url: "https://gbkallzbksmaahzvxezq.supabase.co/storage/v1/object/public/dishes/generated-rare-soup.png",
+    }),
+    false,
+  );
+  assert.equal(
+    isDishImagePending({
+      id: "dirty-1",
+      name_original: "Rare Soup",
+      name_translated: { zh: "少见汤品" },
+      description: { zh: "误存的占位图" },
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      category: "soup",
+      image_source: "ai",
+      ai_image_url: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+    }),
+    true,
+  );
+});
+
+test("dish image loading animation chooses category-specific food characters", async () => {
+  const component = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
+  assert.match(component, /function selectLoadingCharacter/);
+  assert.match(component, /dessert|cake|甜点|蛋糕/);
+  assert.match(component, /soup|stew|汤|羹/);
+  assert.match(component, /drink|beverage|coffee|tea|饮品|咖啡|茶/);
+  assert.doesNotMatch(component, /skeleton-shimmer/);
+});
+
+test("AI image generation prompt uses category-specific framing for drinks and soups", async () => {
+  const { buildDishImagePrompt } = await loadTsModule(
+    `${ROOT}/src/lib/ai/image-gen.ts`,
+  );
+
+  const drinkPrompt = buildDishImagePrompt({
+    name_original: "Cappuccino",
+    name_translated: { zh: "卡布奇诺" },
+    description: { zh: "热咖啡饮品" },
+    ingredients: ["espresso", "milk foam"],
+    category: "drink",
+  });
+  assert.match(drinkPrompt, /single beverage/i);
+  assert.match(drinkPrompt, /cup|glass/i);
+  assert.doesNotMatch(drinkPrompt, /white ceramic plate/i);
+
+  const soupPrompt = buildDishImagePrompt({
+    name_original: "Miso Soup",
+    name_translated: { zh: "味噌汤" },
+    description: { zh: "热汤" },
+    ingredients: ["miso", "tofu", "seaweed"],
+    category: "soup",
+  });
+  assert.match(soupPrompt, /bowl/i);
+  assert.match(soupPrompt, /broth|soup/i);
+  assert.doesNotMatch(soupPrompt, /white ceramic plate/i);
+});
+
+test("AI generated dish images are cached with deterministic keys before generating again", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const storage = await readFile(`${ROOT}/src/lib/storage/supabase-storage.ts`, "utf8");
+  assert.match(route, /getCachedDishImageUrl/);
+  assert.match(route, /getSupabaseAdminClient/);
+  assert.match(route, /storageIdForGeneratedDishImage/);
+  assert.match(route, /localMatch\?\.card \|\| cachedGeneratedImageUrl \|\| existingImageUrl/);
+  assert.match(storage, /public", "generated-dishes/);
+  assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
 });

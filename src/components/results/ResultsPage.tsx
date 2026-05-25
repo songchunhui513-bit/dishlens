@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import type { Dish, TranslationResult } from "@/types";
-import { getDishImageUrl, getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import { getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import DishImageWithLoading from "@/components/shared/DishImageWithLoading";
 
 // ── Pill component ────────────────────────────────────────────────────
 
@@ -221,14 +221,7 @@ export default function ResultsPage({
                 }}
               >
                 {/* Image */}
-                <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}>
-                  <Image
-                    src={getDishImageUrl(dish, "card")}
-                    alt={dishText.originalName}
-                    fill
-                    sizes="68px"
-                    style={{ objectFit: "cover" }}
-                  />
+                <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName}>
                   {showVeg && isVeg && (
                     <div
                       className="absolute flex items-center justify-center"
@@ -247,7 +240,7 @@ export default function ResultsPage({
                       </svg>
                     </div>
                   )}
-                </div>
+                </DishImageWithLoading>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">

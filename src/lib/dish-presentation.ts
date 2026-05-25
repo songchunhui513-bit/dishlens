@@ -169,6 +169,16 @@ export function getDishImageUrl(dish: Dish, size: "card" | "hero" = "card"): str
   return `${base}?${dimensions}&fit=crop&auto=format`;
 }
 
+export function isDishImagePending(dish: Dish): boolean {
+  const localImage = matchLocalImage(dish);
+  if (localImage) return false;
+
+  const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;
+  if (!existingImage) return true;
+  if (/images\.unsplash\.com|image\.pollinations\.ai/i.test(existingImage)) return true;
+  return false;
+}
+
 function matchLocalImage(dish: Dish): { card: string; hero: string } | null {
   const matched = matchDishKnowledgeImage(dish);
   return matched ? { card: matched.card, hero: matched.hero } : null;

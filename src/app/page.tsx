@@ -78,9 +78,10 @@ export default function Page() {
 
   // Save translation to history when result comes in
   const saveToHistory = useCallback((result: TranslationResult) => {
-    if (!result.pages?.length) return;
-    const firstDish = result.pages.find((page) => page.dishes?.length)?.dishes?.[0];
-    const totalDishes = result.pages.reduce((sum, p) => sum + (p.dishes?.length || 0), 0);
+    const pages = Array.isArray(result.pages) ? result.pages : [];
+    if (!pages.length) return;
+    const firstDish = pages.find((page) => page.dishes?.length)?.dishes?.[0];
+    const totalDishes = pages.reduce((sum, p) => sum + (p.dishes?.length || 0), 0);
     if (totalDishes === 0) return;
     const entry: HistoryEntry = {
       id: result.task_id,
@@ -89,7 +90,7 @@ export default function Page() {
         : "菜单翻译",
       city: "",
       dish_count: result.metadata?.total_dishes || 0,
-      page_count: result.pages.length,
+      page_count: pages.length,
       date: new Date().toISOString(),
       thumbnail: firstDish ? getDishImageUrl(firstDish) : "",
       source_lang: result.metadata?.source_language || "",
@@ -282,7 +283,7 @@ export default function Page() {
 
   // Poll for AI-generated images in background while on results screen
   useEffect(() => {
-    if (screen !== "results" || !translationResult?.task_id) return;
+    if ((screen !== "results" && screen !== "detail") || !translationResult?.task_id) return;
 
     const taskId = translationResult.task_id;
     let active = true;
@@ -312,6 +313,14 @@ export default function Page() {
               }
             }
             return changed ? newResult : prev;
+          });
+          setSelectedDish((prevDish) => {
+            if (!prevDish) return prevDish;
+            for (const page of newResult.pages || []) {
+              const matched = (page.dishes || []).find((dish) => dish.id === prevDish.id || dish.name_original === prevDish.name_original);
+              if (matched?.ai_image_url && matched.ai_image_url !== prevDish.ai_image_url) return matched;
+            }
+            return prevDish;
           });
         }
       } catch {}

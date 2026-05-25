@@ -10,12 +10,42 @@ function getApiKey(): string {
   return key;
 }
 
-function buildPrompt(dish: {
+type DishImagePromptInput = {
   name_original: string;
   name_translated?: string | Record<string, string>;
   description?: string | Record<string, string>;
   ingredients?: string[];
-}): string {
+  category?: string;
+};
+
+function localized(value: string | Record<string, string> | undefined): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.zh || value.en || Object.values(value)[0] || "";
+}
+
+export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "soup" | "dessert" | "main" {
+  const text = [
+    dish.category || "",
+    dish.name_original || "",
+    localized(dish.name_translated),
+    localized(dish.description),
+    ...(dish.ingredients || []),
+  ].join(" ").toLowerCase();
+
+  if (/drink|beverage|coffee|tea|latte|cappuccino|espresso|cocktail|juice|wine|beer|奶茶|咖啡|茶|饮品|饮料|酒|果汁/.test(text)) {
+    return "drink";
+  }
+  if (/soup|stew|broth|chowder|bisque|consomm|汤|羹|浓汤|清汤|炖/.test(text)) {
+    return "soup";
+  }
+  if (/dessert|cake|pie|tart|pudding|ice cream|gelato|sweet|甜点|蛋糕|布丁|冰淇淋|挞|派/.test(text)) {
+    return "dessert";
+  }
+  return "main";
+}
+
+export function buildDishImagePrompt(dish: DishImagePromptInput): string {
   const translated = typeof dish.name_translated === "string"
     ? dish.name_translated
     : (dish.name_translated as Record<string, string>)?.zh || "";
@@ -24,14 +54,21 @@ function buildPrompt(dish: {
     ? dish.description
     : (dish.description as Record<string, string>)?.zh || "";
   const ings = dish.ingredients?.length ? dish.ingredients.join("、") : "";
+  const kind = classifyDishImageKind(dish);
+  const framing = {
+    drink: "Professional beverage photography of a single beverage served in an appropriate cup, mug, or clear glass. The drink is the only subject, with visible foam, ice, garnish, steam, or liquid texture when relevant. No plate.",
+    soup: "Professional food photography of a single bowl of soup or stew, with visible broth surface, ingredients, garnish, and a warm ceramic bowl. Bowl centered on a neutral table. Not plated flat.",
+    dessert: "Professional dessert photography of one finished dessert portion, showing cream, pastry, fruit, sauce, crumb, or glaze details clearly on a small dessert plate or bowl.",
+    main: "Professional food photography of a single plated dish.",
+  }[kind];
   const parts = [
-    "Professional food photography of a single plated dish.",
+    framing,
     `Dish name: ${dish.name_original}`,
     translated && translated !== dish.name_original ? `(${name})` : "",
-    ings ? `Main ingredients visible on plate: ${ings}` : "",
+    ings ? `Main ingredients visibly represented: ${ings}` : "",
     desc ? `Description: ${desc}` : "",
     "Shot from 45-degree angle, natural window light, shallow depth of field.",
-    "Dish centered on a simple white ceramic plate, neutral table background.",
+    kind === "main" ? "Dish centered on a simple white ceramic plate, neutral table background." : "Neutral table background, clean editorial restaurant styling.",
     "Photorealistic, high detail, appetizing colors. No text, no logos, no hands, no other dishes visible.",
   ];
   return parts.filter(Boolean).join(" ");
@@ -51,7 +88,7 @@ function buildFreeImageUrl(dish: {
   description?: string | Record<string, string>;
   ingredients?: string[];
 }): string {
-  const prompt = `${buildPrompt(dish)}，realistic food photo, no text, no logo, no watermark`.slice(0, 420);
+  const prompt = `${buildDishImagePrompt(dish)} realistic food photo, no text, no logo, no watermark`.slice(0, 420);
   const params = new URLSearchParams({
     width: "1024",
     height: "1024",
@@ -139,7 +176,7 @@ export async function generateDishImage(dish: {
   }
 
   try {
-    const prompt = buildPrompt(dish);
+    const prompt = buildDishImagePrompt(dish);
     const taskId = await createTask(prompt);
     const result = await pollTask(taskId);
     return result?.url || buildFreeImageUrl(dish);
@@ -156,6 +193,7 @@ export async function generateImagesForDishes(
     name_translated?: string | Record<string, string>;
     description?: string | Record<string, string>;
     ingredients?: string[];
+    category?: string;
     ai_image_url?: string | null;
   }>,
   onImageReady?: (index: number, url: string) => void,

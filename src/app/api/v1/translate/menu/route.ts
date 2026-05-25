@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeMenuImage, refineTranslation, hasChinese } from "@/lib/ai";
 import type { Dish } from "@/types";
-import { supabase } from "@/lib/db/supabase";
+import { getSupabaseAdminClient, supabase } from "@/lib/db/supabase";
 import { createTask, updateTask } from "@/lib/cache/task-store";
 import { generateImagesForDishes } from "@/lib/ai/image-gen";
-import { uploadDishImage } from "@/lib/storage/supabase-storage";
+import { getCachedDishImageUrl, uploadDishImage } from "@/lib/storage/supabase-storage";
 import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
 import { MAX_MENU_IMAGES, normalizeImageMimeType } from "@/lib/image-input";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
@@ -41,6 +41,49 @@ type MenuImageInput = {
   name: string;
   size: number;
 };
+
+type ExistingDishImage = {
+  id: string;
+  ai_image_url?: string | null;
+  image_source?: string | null;
+};
+
+function cleanDishNameForLookup(name: string): string {
+  return name
+    .replace(/[.·•]{2,}.*$/g, "")
+    .replace(/\s+[€$£¥₹]\s*\d[\d.,]*/g, "")
+    .replace(/\s+\d+[\d.,]*\s*(€|eur|usd|gbp|元|円|₹)?$/i, "")
+    .replace(/[€$£¥₹]\s*\d[\d.,]*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isReusableExistingImageUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  if (/images\.unsplash\.com|image\.pollinations\.ai|aliyuncs\.com/i.test(url)) return false;
+  return true;
+}
+
+function dishNameLookupCandidates(name: string): string[] {
+  const cleaned = cleanDishNameForLookup(name);
+  return Array.from(new Set([name.trim(), cleaned].filter(Boolean)));
+}
+
+async function findExistingDishImage(name: string): Promise<ExistingDishImage | null> {
+  const client = getSupabaseAdminClient() || supabase;
+  const candidates = dishNameLookupCandidates(name);
+  if (candidates.length === 0) return null;
+
+  const { data } = await client
+    .from("dishes")
+    .select("id, ai_image_url, image_source")
+    .in("name_original", candidates)
+    .limit(1)
+    .maybeSingle()
+    .then((r) => r, () => ({ data: null }));
+
+  return data as ExistingDishImage | null;
+}
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -221,13 +264,15 @@ async function processImages(
             }, di: number) => {
               const localMatch = localMatches.get(di);
               try {
-                const { data: existing } = await supabase
-                  .from("dishes")
-                  .select("id, ai_image_url, image_source")
-                  .eq("name_original", dish.name_original)
-                  .single();
-                // Priority: local knowledge DB > Supabase cached AI image > null (triggers generation)
-                const imageUrl = localMatch?.card || existing?.ai_image_url || null;
+                const existing = await findExistingDishImage(dish.name_original);
+                const existingImageUrl = isReusableExistingImageUrl(existing?.ai_image_url)
+                  ? existing.ai_image_url
+                  : null;
+                const cachedGeneratedImageUrl = localMatch
+                  ? null
+                  : await getCachedDishImageUrl(storageIdForGeneratedDishImage(dish));
+                // Priority: local knowledge DB > deterministic generated-image cache > DB cached AI image > null
+                const imageUrl = localMatch?.card || cachedGeneratedImageUrl || existingImageUrl || null;
 
                 return {
                   ...dish,
@@ -365,7 +410,8 @@ async function generateImagesInBackground(
 
       if (isNewDish) {
         // Insert new dish row with generated image
-        const { data: inserted } = await supabase
+        const client = getSupabaseAdminClient() || supabase;
+        const { data: inserted } = await client
           .from("dishes")
           .insert(dishRow)
           .select("id")
@@ -374,7 +420,8 @@ async function generateImagesInBackground(
         if (inserted?.id) dish.id = inserted.id;
       } else {
         // Update existing dish row
-        await supabase
+        const client = getSupabaseAdminClient() || supabase;
+        await client
           .from("dishes")
           .update({ ai_image_url: finalUrl, image_source: "ai" })
           .eq("id", dish.id)

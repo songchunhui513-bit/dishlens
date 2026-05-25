@@ -33,6 +33,10 @@
 | 12 | 知识库图片空白 | 724 张 Pollinations 动态 URL 浏览器加载不稳定 | isLocalImageUrl 只接受 /dishes/ 本地路径 | `dish-image-match.ts` |
 | 13 | 图片持久化不工作 | 新菜品（temp- ID）生成图片后不写 dishes 表 | 新菜品 INSERT、已有菜品 UPDATE | `route.ts` |
 | 14 | AI 生图 prompt 不精确 | 中文 prompt 太泛 | 改英文 prompt + 菜名 + 食材 + 摄影参数 | `image-gen.ts` |
+| 15 | AI 生图等待时显示真实占位图 | 前端无“图片生成中”状态，直接走 Unsplash fallback | 新增 `DishImageWithLoading`，按甜点/汤/饮品/面/主菜显示品牌 SVG 动画 | `src/components/shared/DishImageWithLoading.tsx` |
+| 16 | 生成图复用不稳 | Supabase `dishes` 表 RLS 可能拦截匿名写入，且只按 `name_original` 精确查 | 先查本地知识库，再查确定性本地生成图缓存，再查 DB；生成后写入 `public/generated-dishes/`，有 service role 时同步 Supabase | `route.ts` + `supabase-storage.ts` |
+| 17 | 饮品/汤类生图不准 | prompt 固定要求“白瓷盘摆拍” | 新增 `classifyDishImageKind`，饮品用杯/玻璃杯构图，汤类用碗/汤面构图，甜点单独构图 | `src/lib/ai/image-gen.ts` |
+| 18 | 详情页打开后收不到后台生图更新 | 轮询只在 results 页运行 | results/detail 都轮询，并同步更新 `selectedDish` | `src/app/page.tsx` |
 
 ---
 
@@ -51,7 +55,7 @@
 
 3. AI 生图（Wan API / Pollinations）
    └─ 仅对没有本地图也没有缓存图的菜品触发生图
-   └─ 生成后 INSERT/UPDATE 到 dishes 表，下次复用
+   └─ 生成后先写 ECS 本地 public/generated-dishes，再尝试 INSERT/UPDATE dishes 表，下次复用
 ```
 
 代码位置 `route.ts` line 230：
@@ -97,7 +101,15 @@ const imageUrl = localMatch?.card || existing?.ai_image_url || null;
 
 ## ⚠️ P0 重点遗留：AI 生图加载状态
 
-### 问题描述
+### 状态：已完成
+
+已实现 `src/components/shared/DishImageWithLoading.tsx`：
+- 列表卡片 68×68 与详情页 200px Hero 都使用同一组件。
+- `isDishImagePending()` 判断没有本地图/稳定 AI 图时显示加载动画，不再显示 Unsplash 假食物图。
+- 动画按 `dessert` / `soup` / `drink` / `pasta` / `main` 分类选不同手绘 SVG。
+- AI 图片轮询回来后组件自然 fade in 真实图。
+
+### 原问题描述
 
 当菜品没有本地图片也没有缓存图片时，前端显示 imageRules 的 Unsplash 占位图（真实食物照片）。这会**误导用户以为是菜品实际图片**。AI 生图在后台完成后通过前端轮询替换，但初始展示不准确。
 
@@ -154,9 +166,9 @@ const imageUrl = localMatch?.card || existing?.ai_image_url || null;
 ## P1 遗留事项
 
 ### 1. 图片持久化验证
-- 确认新菜品 INSERT 到 dishes 表后 `name_original` 有索引
-- 确认 Supabase Storage 上传的图片 URL 公开可访问
-- 测试：第一次上传 → 生图 → 第二次上传同样菜单 → 复用图片
+- 已新增 ECS 本地确定性缓存：`public/generated-dishes/<storageId>.png`
+- `getCachedDishImageUrl()` 会先查本地文件，再查 Supabase Storage
+- 仍建议后续补齐 `SUPABASE_SERVICE_ROLE_KEY`，让 DB 行也能稳定写入
 
 ### 2. 知识库图片本地化（724 张）
 - 724/1022 道菜只有 Pollinations URL，需下载为 `/dishes/*.png`

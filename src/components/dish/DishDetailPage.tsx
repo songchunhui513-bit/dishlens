@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import type { Dish } from "@/types";
 import { getReviews } from "@/lib/api-client";
-import { getDishImageUrl, getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import { getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import DishImageWithLoading from "@/components/shared/DishImageWithLoading";
 
 // ── Pill ────────────────────────────────────────────────────────────
 
@@ -80,7 +80,6 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
 
   const dishText = getDishText(dish);
   const insight = getDishInsight(dish);
-  const heroImg = getDishImageUrl(dish, "hero");
   const ingredients = (dish.ingredients || []).join("、");
 
   // Build tags
@@ -135,8 +134,8 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
       <div className="flex-1 overflow-auto">
         <div style={{ padding: "0 16px 16px" }}>
           {/* Hero image */}
-          <div className="relative overflow-hidden" style={{ width: "100%", height: 200, borderRadius: "var(--radius-lg)", marginBottom: 16 }}>
-            <Image src={heroImg} alt={dishText.translatedName} fill sizes="(max-width: 430px) 100vw, 430px" style={{ objectFit: "cover" }} />
+          <div style={{ marginBottom: 16 }}>
+            <DishImageWithLoading dish={dish} size="hero" alt={dishText.translatedName}>
             {isVeg && (
               <div className="absolute flex items-center justify-center" style={{ bottom: 8, right: 8, width: 24, height: 24, background: "var(--primary)", borderRadius: "50%", animation: "popIn 0.3s ease-out", boxShadow: "0 1px 4px rgba(76,175,80,0.3)" }}>
                 <svg viewBox="0 0 12 12" style={{ width: 14, height: 14, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
@@ -145,6 +144,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                 </svg>
               </div>
             )}
+            </DishImageWithLoading>
           </div>
 
           {/* Title + sub */}
