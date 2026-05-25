@@ -58,7 +58,10 @@ const DIRECT_ALIASES: Array<{ patterns: string[]; id: string }> = [
   { patterns: ["burrata con pomodorini", "burrata e pomodorini", "burrata with tomato", "burrata番茄", "布里塔配小番茄"], id: "burrata-con-pomodorini" },
   { patterns: ["carpaccio"], id: "carpaccio-de-boeuf" },
   { patterns: ["salade du moment", "salad of the day", "主厨灵感沙拉"], id: "salade-nicoise" },
-  { patterns: ["salade jambon", "jambon de parme", "parma ham salad", "帕尔马火腿沙拉"], id: "salade-chez-louis" },
+  { patterns: ["salade jambon", "parma ham salad", "帕尔马火腿沙拉"], id: "salade-chez-louis" },
+  { patterns: ["jambon de parme", "parma ham", "帕尔马火腿", "prosciutto", "火腿片", "jambon", "jamon iberico", "伊比利亚火腿"], id: "charcuterie-francaise" },
+  { patterns: ["mortadella", "mortadelle", "mortal", "博洛尼亚香肠", "肉肠", "salami", "saucisson", "萨拉米"], id: "charcuterie-francaise" },
+  { patterns: ["charcuterie", "冷切拼盘", "肉拼盘"], id: "charcuterie-francaise" },
   { patterns: ["nicoise", "niçoise"], id: "salade-nicoise" },
   { patterns: ["pesto genovese", "trofie al pesto", "pasta al pesto", "青酱意面"], id: "pasta-al-pesto" },
   { patterns: ["bolognese", "ragù alla bolognese", "ragu alla bolognese", "肉酱意面"], id: "ragu-alla-bolognese" },
@@ -80,7 +83,7 @@ const STOPWORDS = new Set([
 ]);
 
 function isLocalImageUrl(value: string | undefined): boolean {
-  return typeof value === "string" && value.startsWith("/");
+  return typeof value === "string" && value.startsWith("/dishes/");
 }
 
 function localized(value: DishLike["name_translated"] | DishLike["description"]): string {

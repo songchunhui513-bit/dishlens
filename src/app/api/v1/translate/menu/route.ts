@@ -9,6 +9,19 @@ import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
 import { MAX_MENU_IMAGES, normalizeImageMimeType } from "@/lib/image-input";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
 
+// In-memory translation cache — avoids Supabase schema/RLS issues for anonymous users
+const translationCache = new Map<string, { result: Record<string, unknown>; createdAt: number }>();
+const CACHE_MAX = 50;
+const CACHE_TTL = 30 * 60 * 1000; // 30 min
+
+function hashImageName(name: string, size: number): string {
+  // Lightweight cache key: filename + size is stable across re-encodes
+  let h = 0;
+  const key = `${name}:${size}`;
+  for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(36);
+}
+
 export const maxDuration = 60;
 
 const OCR_CONCURRENCY = Math.max(
@@ -68,8 +81,26 @@ export async function POST(req: NextRequest) {
       }))
     );
 
+    // Build stable cache key from filenames + sizes (survives re-encoding)
+    const cacheKey = imageBuffers.map((b) => hashImageName(b.name, b.size)).sort().join("|");
+
+    // Check in-memory cache
+    const cached = translationCache.get(cacheKey);
+    if (cached && Date.now() - cached.createdAt < CACHE_TTL) {
+      const cachedResult = { ...cached.result, metadata: { ...(cached.result.metadata as Record<string, unknown>), cached: true } };
+      await updateTask(taskId, { status: "done", result: cachedResult });
+      return NextResponse.json({ task_id: taskId, status: "processing", cached: true }, { status: 202 });
+    }
+
+    // Evict expired entries
+    if (translationCache.size >= CACHE_MAX) {
+      for (const [k, v] of translationCache) {
+        if (Date.now() - v.createdAt >= CACHE_TTL) translationCache.delete(k);
+      }
+    }
+
     // Fire background processing — buffers are in memory, safe to use after response
-    processImages(taskId, imageBuffers, targetLang, startTime).catch(async (err) => {
+    processImages(taskId, imageBuffers, targetLang, startTime, cacheKey).catch(async (err) => {
       console.error("Background processing failed:", err);
       const { updateTask, getTask } = await import("@/lib/cache/task-store");
       const task = await getTask(taskId);
@@ -100,7 +131,8 @@ async function processImages(
   taskId: string,
   imageBuffers: MenuImageInput[],
   targetLang: string,
-  startTime: number
+  startTime: number,
+  cacheKey?: string
 ) {
   const results: Array<Record<string, unknown>> = [];
   const failedPages: Array<{ page_index: number; error: string; retry_allowed: boolean }> = [];
@@ -194,14 +226,15 @@ async function processImages(
                   .select("id, ai_image_url, image_source")
                   .eq("name_original", dish.name_original)
                   .single();
-                const imageUrl = existing?.ai_image_url || localMatch?.card || null;
+                // Priority: local knowledge DB > Supabase cached AI image > null (triggers generation)
+                const imageUrl = localMatch?.card || existing?.ai_image_url || null;
 
                 return {
                   ...dish,
                   id: existing?.id || `temp-${crypto.randomUUID()}`,
                   ai_image_url: imageUrl,
                   image_url: imageUrl,
-                  image_source: existing?.image_source || (localMatch ? "mixed" : "ai"),
+                  image_source: localMatch ? "mixed" : (existing?.image_source || "ai"),
                 };
               } catch {
                 const imageUrl = localMatch?.card || null;
@@ -283,19 +316,10 @@ async function processImages(
     estimatedRemaining: 0,
   });
 
-  supabase
-    .from("translations")
-    .insert({
-      image_hashes: [],
-      photo_count: imageBuffers.length,
-      source_lang: resultPayload.metadata.source_language,
-      target_lang: targetLang,
-      dish_count: resultPayload.metadata.total_dishes,
-      page_count: imageBuffers.length,
-      status,
-      result_json: resultPayload,
-    })
-    .then(() => {}, () => {});
+  // Store result in memory cache for instant repeat lookups
+  if (cacheKey) {
+    translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
+  }
 
   // Async image generation — runs in background, updates task when done
   generateImagesInBackground(taskId, resultPayload).catch((err) => {
@@ -309,6 +333,9 @@ async function generateImagesInBackground(
 ) {
   const pages = (resultPayload as { pages: Array<{ dishes: Dish[] }> }).pages;
   const allDishes: Dish[] = pages.flatMap((p) => p.dishes || []);
+
+  // Generate AI images only for dishes that have NO image at all
+  // (neither local knowledge DB nor Supabase cached AI image)
   const dishesForGeneration = allDishes
     .filter((dish) => !dish.ai_image_url)
     .slice(0, Math.max(0, BACKGROUND_IMAGE_LIMIT));
@@ -319,14 +346,34 @@ async function generateImagesInBackground(
     dishesForGeneration,
     async (index, tempUrl) => {
       const dish = dishesForGeneration[index];
-      const canUpdateDishRow = dish.id && !dish.id.startsWith("temp-");
+      const isNewDish = !dish.id || dish.id.startsWith("temp-");
 
       const storageId = storageIdForGeneratedDishImage(dish);
       const publicUrl = await uploadDishImage(storageId, tempUrl);
       const finalUrl = publicUrl || tempUrl;
 
-      if (canUpdateDishRow) {
-        // Update dish in DB
+      // Persist image: upsert into dishes table so next translation reuses it
+      const translated = typeof dish.name_translated === "string"
+        ? dish.name_translated
+        : (dish.name_translated as Record<string, string>)?.zh || "";
+      const dishRow = {
+        name_original: dish.name_original,
+        name_translated: translated,
+        ai_image_url: finalUrl,
+        image_source: "ai",
+      };
+
+      if (isNewDish) {
+        // Insert new dish row with generated image
+        const { data: inserted } = await supabase
+          .from("dishes")
+          .insert(dishRow)
+          .select("id")
+          .single()
+          .then((r) => r, () => ({ data: null }));
+        if (inserted?.id) dish.id = inserted.id;
+      } else {
+        // Update existing dish row
         await supabase
           .from("dishes")
           .update({ ai_image_url: finalUrl, image_source: "ai" })

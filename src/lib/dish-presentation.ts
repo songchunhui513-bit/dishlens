@@ -78,6 +78,31 @@ const imageRules: DishImageRule[] = [
     card: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=136&h=136&fit=crop&auto=format",
     hero: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop&auto=format",
   },
+  {
+    patterns: ["coffee", "espresso", "expresso", "cappuccino", "latte", "americano", "咖啡", "浓缩", "卡布奇诺", "拿铁"],
+    card: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["tea", "matcha", "chai", "茶", "抹茶"],
+    card: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["wine", "beer", "cocktail", "champagne", "酒", "啤酒", "鸡尾酒", "香槟", "红酒", "白酒"],
+    card: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["juice", "smoothie", "lemonade", "果汁", "冰沙", "柠檬水"],
+    card: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1622597467836-f2131b8?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["ham", "jambon", "prosciutto", "parma", "cold cut", "charcuterie", "salami", "sausage", "saucisson", "火腿", "香肠", "冷切", "肉肠", "萨拉米"],
+    card: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=600&h=400&fit=crop&auto=format",
+  },
 ];
 
 const diverseFallbacks = [
@@ -164,8 +189,9 @@ export function getDishInsight(dish: Dish): DishInsight {
   const isFried = /fried|炸|煎|calamari|鱿鱼/.test(searchText);
   const isDessert = /dessert|cake|sweet|甜|蛋糕|挞/.test(searchText);
   const isSeafood = /fish|seafood|salmon|sole|calamari|鱼|海鲜|鱿鱼/.test(searchText);
-  const isHearty = /beef|steak|chicken|pork|lamb|牛|鸡|猪|羊|rich/.test(searchText);
+  const isHearty = /beef|steak|chicken|pork|lamb|牛排|牛肉|鸡肉|猪|羊/.test(searchText);
   const isSalad = /salad|沙拉|fresh|蔬菜/.test(searchText);
+  const isDrink = /coffee|espresso|expresso|cappuccino|latte|americano|tea|matcha|chai|wine|beer|cocktail|juice|smoothie|lemonade|咖啡|浓缩|卡布奇诺|拿铁|茶|抹茶|酒|啤酒|鸡尾酒|果汁|冰沙/.test(searchText);
   const baseDescription = description || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
 
   // AI-generated fields take priority
@@ -173,21 +199,24 @@ export function getDishInsight(dish: Dish): DishInsight {
   const aiGoodFor = localized(dish.good_for);
   const aiCaution = localized(dish.caution);
 
-  let recommendation = "这道菜风味温和不刺激，适合第一次尝试该菜系的人。如果你想吃一顿不出错的正餐，这是一个稳妥的选择。建议搭配一杯白葡萄酒或气泡水。";
-  if (isFried) recommendation = "如果你喜欢外酥里嫩的口感，这道菜不会让你失望。炸制食物讲究趁热吃，上桌后尽快享用风味最佳。挤点柠檬汁或蘸上店家特调酱汁，能让层次更丰富。";
+  let recommendation = "这道菜风味温和不刺激，适合第一次尝试该菜系的人。如果你想吃一顿不出错的正餐，这是一个稳妥的选择。";
+  if (isDrink) recommendation = "如果你想点一杯佐餐或餐后的饮品，这是不错的选择。可以根据个人口味选择热饮或冷饮，搭配甜点或单独享用都很合适。";
+  else if (isFried) recommendation = "如果你喜欢外酥里嫩的口感，这道菜不会让你失望。炸制食物讲究趁热吃，上桌后尽快享用风味最佳。挤点柠檬汁或蘸上店家特调酱汁，能让层次更丰富。";
   else if (isDessert) recommendation = "如果你还有胃口，强烈推荐用这道甜品为整顿饭画上句号。甜食搭配浓缩咖啡或红茶尤其出色，也可以和朋友分着吃，不会太腻。";
   else if (isSeafood) recommendation = "如果你钟爱鲜味和海洋气息，这道菜值得一试。重点在于食材的新鲜度——好的海鲜料理能让你一口尝到海的清甜。注意看是否配奶油或黄油酱汁，会影响整体口感走向。";
   else if (isHearty) recommendation = "如果你今天想吃一顿扎实过瘾的正餐，这就是答案。浓郁的酱汁、饱满的肉香，适合饿了一天之后好好犒劳自己。一个人点一份通常足够，不太建议再点太多其他主菜。";
   else if (isSalad) recommendation = "想吃点清爽的、给胃减减负担？选它没错。新鲜蔬菜搭配酱汁，既开胃又不会占太多胃容量。不过如果只点这一道当正餐，可能会觉得不够饱，建议再配一份主食或汤。";
 
   let goodFor = "适合第一次看菜单时作为安全选择，也适合想尝试经典口味但不愿冒险的人。";
-  if (isFried) goodFor = "适合作为开胃前菜或和朋友分食的小吃，也可以点几道不同的炸物拼盘尝鲜。";
+  if (isDrink) goodFor = "适合佐餐、餐后小憩或下午茶时段。也可以作为不喝酒的社交替代饮品。";
+  else if (isFried) goodFor = "适合作为开胃前菜或和朋友分食的小吃，也可以点几道不同的炸物拼盘尝鲜。";
   else if (isDessert) goodFor = "适合饭后与同伴分享甜蜜时刻，不建议当正餐单独点。搭配茶或咖啡体验更佳。";
   else if (isHearty) goodFor = "适合作为正餐的核心主菜，一个人一份通常够饱。胃口大的可以再配一道汤或小菜。";
   else if (isSalad) goodFor = "适合作为配菜搭配主菜，或者想吃得清淡健康时作为轻食。也可以当开胃菜打开味蕾。";
 
   let caution = "如果你有食物过敏或特殊忌口，点单前建议向服务员确认酱汁和隐藏配料，有些菜可能含有坚果、乳制品或鱼类高汤。";
-  if (isFried) caution = "油炸菜热量较高，如果正在控制油脂摄入或不太能吃油腻食物，建议谨慎选择或和朋友分食。";
+  if (isDrink) caution = "注意咖啡因含量，下午较晚时段建议选低咖啡因或花草茶。对乳糖不耐的人注意拿铁和卡布奇诺含牛奶。";
+  else if (isFried) caution = "油炸菜热量较高，如果正在控制油脂摄入或不太能吃油腻食物，建议谨慎选择或和朋友分食。";
   else if (isSeafood) caution = "海鲜过敏者务必注意，这道菜可能含贝类、虾蟹或鱼类高汤。点单前一定要向餐厅确认具体食材和交叉污染风险。";
   else if (isDessert) caution = "甜品通常含较多糖分、乳制品和鸡蛋。如果你在控糖、有乳糖不耐或鸡蛋过敏，建议先确认成分。";
   else if (isVeg) caution = "看起来是素食，但部分菜可能使用蛋奶、鱼露或高汤调味。如果你是严格素食者，建议和餐厅确认具体配料。";

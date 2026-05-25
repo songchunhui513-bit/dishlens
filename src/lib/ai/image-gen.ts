@@ -23,15 +23,18 @@ function buildPrompt(dish: {
   const desc = typeof dish.description === "string"
     ? dish.description
     : (dish.description as Record<string, string>)?.zh || "";
+  const ings = dish.ingredients?.length ? dish.ingredients.join("、") : "";
   const parts = [
-    `专业美食摄影，${name}`,
-    dish.name_original !== name ? `（${dish.name_original}）` : "",
-    "俯拍45度角度",
-    dish.ingredients?.length ? `，主食材：${dish.ingredients.join("、")}` : "",
-    desc ? `，${desc}` : "",
-    "，自然光，餐厅级摆盘，白色或深色简约餐盘，浅景深，菜品居中构图，高清细节",
+    "Professional food photography of a single plated dish.",
+    `Dish name: ${dish.name_original}`,
+    translated && translated !== dish.name_original ? `(${name})` : "",
+    ings ? `Main ingredients visible on plate: ${ings}` : "",
+    desc ? `Description: ${desc}` : "",
+    "Shot from 45-degree angle, natural window light, shallow depth of field.",
+    "Dish centered on a simple white ceramic plate, neutral table background.",
+    "Photorealistic, high detail, appetizing colors. No text, no logos, no hands, no other dishes visible.",
   ];
-  return parts.join("");
+  return parts.filter(Boolean).join(" ");
 }
 
 function hashSeed(value: string): number {
