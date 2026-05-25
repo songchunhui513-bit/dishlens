@@ -8,7 +8,7 @@ const KEYS = {
   weather: (date: string) => `dishlens_weather_${date}`,
 } as const;
 
-const MAX_HISTORY = 100;
+const MAX_HISTORY = 50;
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
