@@ -73,6 +73,14 @@ export default function Page() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  // Refresh history from localStorage when returning to home
+  useEffect(() => {
+    if (screen === "home") {
+      setHistoryEntries(getStoredHistory());
+      setFavoritesData(getStoredFavorites());
+    }
+  }, [screen]);
+
   // Daily recommendation
   const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation();
 
@@ -289,6 +297,7 @@ export default function Page() {
     let active = true;
     let count = 0;
     const MAX_POLLS = 20;
+    let lastSyncedImages = 0;
 
     const poll = async () => {
       if (!active || count >= MAX_POLLS) return;
@@ -303,13 +312,38 @@ export default function Page() {
           setTranslationResult((prev) => {
             if (!prev) return newResult;
             let changed = false;
+            let imageCount = 0;
             for (let p = 0; p < newResult.pages.length; p++) {
               for (let d = 0; d < (newResult.pages[p].dishes?.length || 0); d++) {
                 const newDish = newResult.pages[p].dishes[d];
                 const oldDish = prev.pages[p]?.dishes?.[d];
+                if (newDish?.ai_image_url) imageCount++;
                 if (newDish?.ai_image_url && newDish.ai_image_url !== oldDish?.ai_image_url) {
                   changed = true;
                 }
+              }
+            }
+            // Re-save history with updated thumbnails when new images arrive
+            if (changed && imageCount > lastSyncedImages) {
+              lastSyncedImages = imageCount;
+              const firstDish = newResult.pages.find((p) => p.dishes?.length)?.dishes?.[0];
+              if (firstDish?.ai_image_url) {
+                const entry: HistoryEntry = {
+                  id: newResult.task_id,
+                  restaurant_name: newResult.metadata?.source_language
+                    ? `翻译 #${newResult.task_id.slice(0, 6)}`
+                    : "菜单翻译",
+                  city: "",
+                  dish_count: newResult.metadata?.total_dishes || 0,
+                  page_count: newResult.pages.length,
+                  date: new Date().toISOString(),
+                  thumbnail: getDishImageUrl(firstDish),
+                  source_lang: newResult.metadata?.source_language || "",
+                  target_lang: settings.targetLang,
+                  result_summary: newResult,
+                };
+                addHistory(entry);
+                setHistoryEntries(getStoredHistory());
               }
             }
             return changed ? newResult : prev;
@@ -330,10 +364,10 @@ export default function Page() {
       }
     };
 
-    const timer = setTimeout(poll, 5000);
+    // Fire immediately on mount/restore to get latest images without delay
+    poll();
     return () => {
       active = false;
-      clearTimeout(timer);
     };
   }, [screen, translationResult?.task_id]);
 
@@ -510,7 +544,7 @@ export default function Page() {
           }}
           recentHistory={historyEntries
             .filter((h) => h.result_summary?.pages?.some((p) => p.dishes?.length))
-            .slice(0, 3).map((h) => {
+            .slice(0, 8).map((h) => {
               const firstDish = h.result_summary?.pages?.find((p) => p.dishes?.length)?.dishes?.[0];
               const zhName = firstDish?.name_translated
                 ? (typeof firstDish.name_translated === "string" ? firstDish.name_translated : firstDish.name_translated.zh || "")

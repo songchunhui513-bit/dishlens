@@ -371,7 +371,7 @@ async function processImages(
   }
 
   // Async image generation — runs in background, updates task when done
-  generateImagesInBackground(taskId, resultPayload).catch((err) => {
+  generateImagesInBackground(taskId, resultPayload, cacheKey).catch((err) => {
     console.error("Background image generation failed:", err);
   });
 }
@@ -379,6 +379,7 @@ async function processImages(
 async function generateImagesInBackground(
   taskId: string,
   resultPayload: Record<string, unknown>,
+  cacheKey?: string,
 ) {
   const pages = (resultPayload as { pages: Array<{ dishes: Dish[] }> }).pages;
   const allDishes: Dish[] = pages.flatMap((p) => p.dishes || []);
@@ -443,4 +444,9 @@ async function generateImagesInBackground(
     },
     IMAGE_GENERATION_CONCURRENCY,
   );
+
+  // Update translation cache with generated images so repeat uploads are instant
+  if (cacheKey && dishesForGeneration.some((d) => d.ai_image_url)) {
+    translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
+  }
 }
