@@ -39,6 +39,7 @@ yarn-error.log*
 # temp / prototypes
 _temp/
 .dish-gen-progress.json
+/public/generated-dishes/
 
 # typescript
 *.tsbuildinfo

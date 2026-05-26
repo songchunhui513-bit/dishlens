@@ -8,6 +8,7 @@ import { getCachedDishImageUrl, uploadDishImage } from "@/lib/storage/supabase-s
 import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
 import { MAX_MENU_IMAGES, normalizeImageMimeType } from "@/lib/image-input";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
+import { dishNameLookupCandidates } from "@/lib/dish-name-normalization";
 
 // In-memory translation cache — avoids Supabase schema/RLS issues for anonymous users
 const translationCache = new Map<string, { result: Record<string, unknown>; createdAt: number }>();
@@ -48,19 +49,10 @@ type MenuImageInput = {
 
 type ExistingDishImage = {
   id: string;
+  name_original: string;
   ai_image_url?: string | null;
   image_source?: string | null;
 };
-
-function cleanDishNameForLookup(name: string): string {
-  return name
-    .replace(/[.·•]{2,}.*$/g, "")
-    .replace(/\s+[€$£¥₹]\s*\d[\d.,]*/g, "")
-    .replace(/\s+\d+[\d.,]*\s*(€|eur|usd|gbp|元|円|₹)?$/i, "")
-    .replace(/[€$£¥₹]\s*\d[\d.,]*/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function isReusableExistingImageUrl(url: string | null | undefined): url is string {
   if (!url) return false;
@@ -68,25 +60,39 @@ function isReusableExistingImageUrl(url: string | null | undefined): url is stri
   return true;
 }
 
-function dishNameLookupCandidates(name: string): string[] {
-  const cleaned = cleanDishNameForLookup(name);
-  return Array.from(new Set([name.trim(), cleaned].filter(Boolean)));
-}
-
-async function findExistingDishImage(name: string): Promise<ExistingDishImage | null> {
+async function findExistingDishImages(
+  dishes: Array<{ name_original: string }>,
+): Promise<Map<number, ExistingDishImage>> {
   const client = getSupabaseAdminClient() || supabase;
-  const candidates = dishNameLookupCandidates(name);
-  if (candidates.length === 0) return null;
+  const candidateToIndices = new Map<string, number[]>();
+
+  dishes.forEach((dish, index) => {
+    for (const candidate of dishNameLookupCandidates(dish.name_original)) {
+      const bucket = candidateToIndices.get(candidate) || [];
+      bucket.push(index);
+      candidateToIndices.set(candidate, bucket);
+    }
+  });
+
+  const candidates = Array.from(candidateToIndices.keys());
+  if (candidates.length === 0) return new Map();
 
   const { data } = await client
     .from("dishes")
-    .select("id, ai_image_url, image_source")
+    .select("id, name_original, ai_image_url, image_source")
     .in("name_original", candidates)
-    .limit(1)
-    .maybeSingle()
+    .limit(200)
     .then((r) => r, () => ({ data: null }));
 
-  return data as ExistingDishImage | null;
+  const results = new Map<number, ExistingDishImage>();
+  for (const row of (data || []) as ExistingDishImage[]) {
+    const indices = candidateToIndices.get(row.name_original) || [];
+    for (const index of indices) {
+      if (!results.has(index)) results.set(index, row);
+    }
+  }
+
+  return results;
 }
 
 export async function POST(req: NextRequest) {
@@ -258,6 +264,8 @@ async function processImages(
             }
           }
 
+          const existingImagesByIndex = await findExistingDishImages(refinedDishes);
+
           const dishRecords = await Promise.all(
             refinedDishes.map(async (dish: {
               name_original: string;
@@ -268,7 +276,7 @@ async function processImages(
             }, di: number) => {
               const localMatch = localMatches.get(di);
               try {
-                const existing = await findExistingDishImage(dish.name_original);
+                const existing = existingImagesByIndex.get(di) || null;
                 const existingImageUrl = isReusableExistingImageUrl(existing?.ai_image_url)
                   ? existing.ai_image_url
                   : null;

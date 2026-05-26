@@ -75,10 +75,12 @@ export default function Page() {
 
   // Refresh history from localStorage when returning to home
   useEffect(() => {
-    if (screen === "home") {
+    if (screen !== "home") return;
+    const frame = window.requestAnimationFrame(() => {
       setHistoryEntries(getStoredHistory());
       setFavoritesData(getStoredFavorites());
-    }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [screen]);
 
   // Daily recommendation
@@ -382,7 +384,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [screen, translationResult?.task_id]);
+  }, [screen, settings.targetLang, translationResult?.task_id]);
 
   // ── Render by screen ──────────────────────────────────────────
 

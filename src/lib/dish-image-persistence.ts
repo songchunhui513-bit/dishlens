@@ -1,3 +1,5 @@
+import { canonicalDishNameKey } from "@/lib/dish-name-normalization";
+
 type GeneratedDishImageTarget = {
   id?: string;
   name_original?: string;
@@ -15,7 +17,6 @@ function slug(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[€$£¥₹]\s*\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?\s*(?:€|eur|euros?|usd|gbp|元|円|₹)/gi, " ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 72);
@@ -24,6 +25,7 @@ function slug(value: string): string {
 export function storageIdForGeneratedDishImage(dish: GeneratedDishImageTarget): string {
   if (dish.id && !dish.id.startsWith("temp-")) return dish.id;
 
-  const nameSlug = slug(dish.name_original || localized(dish.name_translated) || dish.id || "dish");
+  const rawName = dish.name_original || localized(dish.name_translated) || dish.id || "dish";
+  const nameSlug = slug(canonicalDishNameKey(rawName) || rawName);
   return `generated-${nameSlug || "dish"}`;
 }

@@ -26,6 +26,10 @@ async function loadTsModule(file) {
     'import { matchDishKnowledgeImage } from "@/lib/dish-image-match";',
     'import { matchDishKnowledgeImage } from "./dish-image-match.mjs";',
   );
+  compiled = compiled.replaceAll(
+    'from "@/lib/dish-name-normalization"',
+    'from "./dish-name-normalization.mjs"',
+  );
   const rel = relative(ROOT, file).replace(/\.ts$/, ".mjs");
   const outFile = join(TMP_ROOT, rel);
   await mkdir(dirname(outFile), { recursive: true });
@@ -105,6 +109,7 @@ test("menu uploads preserve supported image mime types and allow 20 pages", asyn
 });
 
 test("generated menu images use stable storage ids even for temporary dishes", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-name-normalization.ts`);
   const { storageIdForGeneratedDishImage } = await loadTsModule(
     `${ROOT}/src/lib/dish-image-persistence.ts`,
   );
@@ -112,7 +117,11 @@ test("generated menu images use stable storage ids even for temporary dishes", a
   assert.equal(storageIdForGeneratedDishImage({ id: "db-dish-1" }), "db-dish-1");
   assert.equal(
     storageIdForGeneratedDishImage({ id: "temp-123", name_original: "LA MARINARA 11,50€" }),
-    "generated-la-marinara",
+    "generated-marinara",
+  );
+  assert.equal(
+    storageIdForGeneratedDishImage({ id: "temp-456", name_original: "Marinara Pizza" }),
+    "generated-marinara",
   );
   assert.equal(
     storageIdForGeneratedDishImage({ name_original: "Crème brûlée" }),
@@ -258,9 +267,30 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(route, /getCachedDishImageUrl/);
   assert.match(route, /getSupabaseAdminClient/);
   assert.match(route, /storageIdForGeneratedDishImage/);
+  assert.match(route, /findExistingDishImages/);
+  assert.match(route, /existingImagesByIndex/);
+  assert.doesNotMatch(route, /await findExistingDishImage\(dish\.name_original\)/);
   assert.match(route, /localMatch\?\.card \|\| cachedGeneratedImageUrl \|\| existingImageUrl/);
   assert.match(storage, /public", "generated-dishes/);
   assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
   assert.match(storage, /return localUrl/);
   assert.doesNotMatch(route, /generateImagesForDishes\([\s\S]*,\s*1,\s*\)/);
+});
+
+test("dish image diagnostics script reports image source layers", async () => {
+  const script = await readFile(`${ROOT}/scripts/diagnose-dish-images.mjs`, "utf8");
+  assert.match(script, /local_knowledge/);
+  assert.match(script, /generated_local/);
+  assert.match(script, /supabase_db/);
+  assert.match(script, /ai_pending/);
+  assert.match(script, /matchDishKnowledgeImage/);
+  assert.match(script, /storageIdForGeneratedDishImage/);
+});
+
+test("knowledge image downloader can materialize existing files without long network runs", async () => {
+  const script = await readFile(`${ROOT}/scripts/download-knowledge-images.mjs`, "utf8");
+  assert.match(script, /--existing-only/);
+  assert.match(script, /DOWNLOAD_LIMIT/);
+  assert.match(script, /fileExists/);
+  assert.match(script, /continue/);
 });
