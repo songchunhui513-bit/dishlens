@@ -13,10 +13,20 @@ function localized(value: GeneratedDishImageTarget["name_translated"]): string {
 }
 
 function slug(value: string): string {
-  return value
+  const cleaned = value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
+    .replace(/[\u20ac$\u00a3\u00a5\u20b9]\s*\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?\s*(?:\u20ac|eur|euros?|usd|gbp|\u5143|\u5186|\u20b9)/gi, " ")
+    .replace(/[\u00ab\u00bb"\u201c\u201d'\u2019`\u00b4.,;:!?()[\]{}+*/\\|_~^=<>]/g, " ")
+    .trim()
+    .toLowerCase();
+  // Use a short hash suffix to guarantee uniqueness for non-Latin names
+  if (!/[a-z0-9]/.test(cleaned)) {
+    let h = 0;
+    for (let i = 0; i < value.length; i++) h = (Math.imul(31, h) + value.charCodeAt(i)) | 0;
+    return `dish-${Math.abs(h).toString(36)}`;
+  }
+  return cleaned
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 72);
