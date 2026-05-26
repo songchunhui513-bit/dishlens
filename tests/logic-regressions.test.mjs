@@ -120,6 +120,10 @@ test("generated menu images use stable storage ids even for temporary dishes", a
     "generated-marinara",
   );
   assert.equal(
+    storageIdForGeneratedDishImage({ id: "temp-789", name_original: "03 LA MARINARA 11,50€" }),
+    "generated-marinara",
+  );
+  assert.equal(
     storageIdForGeneratedDishImage({ id: "temp-456", name_original: "Marinara Pizza" }),
     "generated-marinara",
   );
@@ -238,8 +242,8 @@ test("dish image loading animation chooses category-specific food characters", a
   assert.doesNotMatch(component, /skeleton-shimmer/);
 });
 
-test("AI image generation prompt uses category-specific framing for drinks and soups", async () => {
-  const { buildDishImagePrompt } = await loadTsModule(
+test("AI image generation prompt uses category-specific framing for drinks, soups, and seafood", async () => {
+  const { buildDishImagePrompt, classifyDishImageKind } = await loadTsModule(
     `${ROOT}/src/lib/ai/image-gen.ts`,
   );
 
@@ -266,6 +270,18 @@ test("AI image generation prompt uses category-specific framing for drinks and s
   assert.match(soupPrompt, /broth|soup/i);
   assert.match(soupPrompt, /visible individual ingredients|surface detail/i);
   assert.doesNotMatch(soupPrompt, /white ceramic plate/i);
+
+  const seafoodDish = {
+    name_original: "陈年花雕焗膏蟹",
+    name_translated: { zh: "陈年花雕焗膏蟹" },
+    description: { zh: "膏蟹以陈年花雕酒焗制，蟹黄饱满" },
+    ingredients: ["膏蟹", "花雕酒", "姜葱"],
+  };
+  const seafoodPrompt = buildDishImagePrompt(seafoodDish);
+  assert.equal(classifyDishImageKind(seafoodDish), "seafood");
+  assert.match(seafoodPrompt, /seafood|crab|shellfish|fish/i);
+  assert.match(seafoodPrompt, /shell|claw|roe|fillet|shrimp|crab/i);
+  assert.doesNotMatch(seafoodPrompt, /cup|mug|beverage/i);
 });
 
 test("AI generated dish images are cached with deterministic keys before generating again", async () => {

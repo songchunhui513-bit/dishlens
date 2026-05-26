@@ -24,7 +24,7 @@ function localized(value: string | Record<string, string> | undefined): string {
   return value.zh || value.en || Object.values(value)[0] || "";
 }
 
-export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "soup" | "dessert" | "burger" | "wrap" | "sandwich" | "salad" | "pizza" | "main" {
+export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "soup" | "dessert" | "seafood" | "burger" | "wrap" | "sandwich" | "salad" | "pizza" | "main" {
   const text = [
     dish.category || "",
     dish.name_original || "",
@@ -33,6 +33,9 @@ export function classifyDishImageKind(dish: DishImagePromptInput): "drink" | "so
     ...(dish.ingredients || []),
   ].join(" ").toLowerCase();
 
+  if (/seafood|fish|salmon|tuna|shrimp|prawn|scallop|clam|oyster|crab|lobster|eel|squid|calamari|shellfish|海鲜|鱼|虾|蟹|贝|蚝|蛤|鲍|鳝|鱿鱼|花蛤|膏蟹|樱花虾/.test(text)) {
+    return "seafood";
+  }
   if (/drink|beverage|coffee|tea|latte|cappuccino|espresso|cocktail|juice|wine|beer|奶茶|咖啡|茶|饮品|饮料|酒|果汁|cola|coke|soda|soft drink/.test(text)) {
     return "drink";
   }
@@ -74,6 +77,7 @@ export function buildDishImagePrompt(dish: DishImagePromptInput): string {
     drink: "Premium restaurant beverage photography of a single beverage served in an appropriate cup, mug, coupe, wine glass, or clear tumbler. The drink is the only subject, with distinct beverage texture: foam, ice, garnish, steam, condensation, bubbles, crema, or liquid color when relevant. No plate, no food platter.",
     soup: "Premium restaurant food photography of a single bowl of soup, broth, noodle soup, chowder, or stew. The bowl is centered, with visible individual ingredients, broth surface detail, garnish, oil droplets or steam, and clear soup depth. Not plated flat.",
     dessert: "Premium restaurant dessert photography of one finished dessert portion. Show precise pastry layers, cream texture, fruit, sauce, crumb, glaze, melted chocolate, or ice cream surface detail clearly on a small dessert plate or bowl.",
+    seafood: "Premium restaurant seafood photography of one finished seafood dish. The seafood is the unmistakable subject: visible crab shell or claws, shrimp shape, fish fillet flakes, scallop texture, shellfish, eel pieces, roe, or seafood sauce as appropriate to the dish name. Show fresh gloss, steam or seared edges, accurate seafood anatomy, not a drink and no glassware.",
     burger: "Premium fast-food product photography of a single plated burger. The burger is the only subject, shown whole or cut in half to reveal internal layers. The patty MUST visually match the dish name and ingredients — a chicken patty must look different from a beef patty, a paneer patty must look like Indian cheese not meat, a vegetable patty must show visible vegetables. Bun should be appropriate to cuisine: sesame seed for American, potato bun for premium, no bun if described as lettuce-wrapped. Served on branded paper or simple plate. No fries, no cola, no other items.",
     wrap: "Premium food photography of a single wrap, burrito, or rolled tortilla. The wrap is the only subject, shown whole or diagonally cut showing filling layers. Visible: flour tortilla exterior with light grill marks, sliced cross-section revealing layered fillings (protein, vegetables, sauce, cheese). Served on simple plate or paper. No sides unless specified.",
     sandwich: "Premium food photography of a single sandwich or sub. The sandwich is the only subject, shown whole or cut diagonally. Visible: bread slices or sub roll, layered fillings (protein, vegetables, cheese, spreads) between bread. Served on simple plate. No sides unless specified.",
@@ -82,7 +86,7 @@ export function buildDishImagePrompt(dish: DishImagePromptInput): string {
     main: "Premium restaurant food photography of a single finished dish with accurate portion, cooking texture, sauce placement, garnish, and ingredient separation.",
   };
   const kindFraming = framing[kind] || framing.main;
-  const isPlateFormat = kind === "main" || kind === "burger" || kind === "wrap" || kind === "sandwich" || kind === "salad";
+  const isPlateFormat = kind === "main" || kind === "seafood" || kind === "burger" || kind === "wrap" || kind === "sandwich" || kind === "salad";
   const parts = [
     kindFraming,
     `Dish name: ${dish.name_original}`,
