@@ -1,17 +1,19 @@
-// AI provider selector: Qwen (Alibaba) > Gemini (Google) > Ollama (local)
+// AI provider selector: Qwen (Alibaba) > DeepSeek > Gemini (Google) > Ollama (local)
 
-function provider(): "qwen" | "gemini" | "ollama" {
+function provider(): "qwen" | "deepseek" | "gemini" | "ollama" {
   if (process.env.QWEN_API_KEY) return "qwen";
+  if (process.env.DEEPSEEK_API_KEY) return "deepseek";
   if (process.env.GEMINI_API_KEY) return "gemini";
   return "ollama";
 }
 
-let _mod: typeof import("./qwen") | typeof import("./gemini") | typeof import("./ollama") | null = null;
+let _mod: typeof import("./qwen") | typeof import("./deepseek") | typeof import("./gemini") | typeof import("./ollama") | null = null;
 
 async function load() {
   if (_mod) return _mod;
   const p = provider();
   if (p === "qwen") _mod = await import("./qwen");
+  else if (p === "deepseek") _mod = await import("./deepseek");
   else if (p === "gemini") _mod = await import("./gemini");
   else _mod = await import("./ollama");
   return _mod;
