@@ -32,6 +32,15 @@
    - `.gitignore` 新增 `/public/generated-dishes/`。
    - 该目录是运行时缓存，线上 ECS 会继续保留；源码只提交可复用的知识库图片 `/public/dishes/`。
 
+6. 线上持久化补齐
+   - 线上 Supabase Storage 原本缺少 `dishes` bucket，AI 图片上传报 `Bucket not found`。
+   - 已用 service role 创建公开 `dishes` bucket。
+   - 已验证 `generated-burrata-du-moment-l-inspiration-du-chef-mauro.png` 可上传到 Supabase Storage，并已把对应 `dishes.ai_image_url` 更新为 Supabase 公共 URL。
+
+7. 缓存任务进度修正
+   - 修复内存翻译缓存命中时 `progress.current` 仍为 0 的问题。
+   - 现在重复上传同菜单会返回 `cached: true`，任务状态为 `done` 且进度为 `1/1`。
+
 ## 本地/云端模型与离线影响
 
 | 能力 | 当前实现 | 本地还是云端 | 主机离线影响 |
@@ -54,6 +63,10 @@
 - `npm run lint` 通过。
 - `npm run build` 通过。
 - `node scripts/diagnose-dish-images.mjs --summary` 输出：`local_knowledge=320`，`ai_pending_or_remote=702`。
+- 线上 `public/generated-dishes/` 当前约 65 张、86MB。
+- 线上重复上传 `/Users/julian/Documents/菜单/微信图片_20260523192450_154_838.jpg`：
+  - 首次：约 1 秒返回任务入口，后台 OCR 后命中 `/generated-dishes/generated-burrata-du-moment-l-inspiration-du-chef-mauro.png`。
+  - 再次：约 1 秒命中内存缓存，`cached=true`，progress `1/1`。
 - 诊断样例：
   - `Borscht` -> `local_knowledge` -> `/dishes/borscht.png`
   - `Tangyuan` -> `local_knowledge` -> `/dishes/tangyuan.png`
