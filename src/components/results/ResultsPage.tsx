@@ -69,6 +69,7 @@ interface ResultsPageProps {
   useMock?: boolean;
   onBack: () => void;
   onDishDetail: (dish: Dish) => void;
+  onShare?: () => void;
   loading?: boolean;
   showAllergens?: boolean;
   showVeg?: boolean;
@@ -79,6 +80,7 @@ export default function ResultsPage({
   result,
   onBack,
   onDishDetail,
+  onShare,
   loading,
   showAllergens,
   showVeg,
@@ -146,6 +148,22 @@ export default function ResultsPage({
         >
           {sourceLang} → 中文
         </span>
+        {isReal && onShare ? (
+          <button
+            onClick={onShare}
+            className="inline-flex items-center justify-center transition-opacity hover:opacity-70"
+            aria-label="分享菜单"
+            style={{ width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(45,45,45,0.06)", color: "var(--ink)", cursor: "pointer" }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: 14, height: 14, stroke: "currentColor", fill: "none", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.6 10.7 15.4 6.3" />
+              <path d="M8.6 13.3 15.4 17.7" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       {/* Scroll area */}

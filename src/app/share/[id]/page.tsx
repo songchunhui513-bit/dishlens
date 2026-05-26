@@ -1,0 +1,32 @@
+import SharedMenuPage from "@/components/share/SharedMenuPage";
+import { getTask } from "@/lib/cache/task-store";
+import type { TranslationResult } from "@/types";
+
+type SharePageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function SharePage({ params }: SharePageProps) {
+  const { id } = await params;
+  const task = await getTask(id);
+  const result = task?.result as TranslationResult | undefined;
+
+  if (!result?.pages) {
+    return (
+      <div className="w-full flex justify-center" style={{ minHeight: "100dvh", background: "#F0EBE3" }}>
+        <div className="w-full relative flex flex-col items-center justify-center text-center" style={{ maxWidth: 430, minHeight: "100dvh", background: "var(--bg)", padding: 24 }}>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--ink)", marginBottom: 8 }}>分享菜单已不可用</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, lineHeight: 1.6, color: "var(--muted)" }}>这份菜单可能仍在处理，或分享链接已经过期。请让分享者重新打开菜单后再分享一次。</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex justify-center" style={{ minHeight: "100dvh", background: "#F0EBE3" }}>
+      <div className="w-full relative flex flex-col overflow-hidden" style={{ maxWidth: 430, height: "100dvh", background: "var(--bg)" }}>
+        <SharedMenuPage result={result} />
+      </div>
+    </div>
+  );
+}

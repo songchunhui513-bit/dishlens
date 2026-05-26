@@ -50,6 +50,7 @@ export default function Page() {
   const [translationResult, setTranslationResult] = useState<TranslationResult | null>(null);
   const latestResultRef = useRef<TranslationResult | null>(null);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [shareNotice, setShareNotice] = useState("");
   const [history, setHistory] = useState<Screen[]>(["home"]);
   const [useMockFallback, setUseMockFallback] = useState(false);
   const [settings, setSettings] = useState<UserSettings>({
@@ -85,6 +86,7 @@ export default function Page() {
 
   // Daily recommendation
   const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation();
+  const shareTaskId = translationResult?.task_id || "";
 
   // Compute AI image generation progress
   const imageGenProgress = useMemo(() => {
@@ -304,6 +306,28 @@ export default function Page() {
     navigate("results");
   }, [navigate]);
 
+  const handleShareMenu = useCallback(async () => {
+    if (!shareTaskId || typeof window === "undefined") return;
+    const url = new URL(`/share/${shareTaskId}`, window.location.origin).toString();
+    const title = "DishLens 分享菜单";
+    const text = "我用 DishLens 翻译了一份菜单，点开可以查看菜品列表和详情。";
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        setShareNotice("已打开分享面板");
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareNotice("菜单链接已复制");
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setShareNotice("分享未完成，请稍后再试");
+    } finally {
+      window.setTimeout(() => setShareNotice(""), 1800);
+    }
+  }, [shareTaskId]);
+
   // Poll for AI-generated images in background while on results screen
   useEffect(() => {
     if ((screen !== "results" && screen !== "detail") || !translationResult?.task_id) return;
@@ -422,6 +446,7 @@ export default function Page() {
           useMock={useMockFallback}
           onBack={() => navigate("home", "back")}
           onDishDetail={handleDishDetail}
+          onShare={handleShareMenu}
           showAllergens={settings.showAllergens}
           showVeg={settings.showVeg}
           imageGenProgress={imageGenProgress}
@@ -438,6 +463,7 @@ export default function Page() {
           showAllergens={settings.showAllergens}
           isFavorited={selectedDish ? checkFavorited(selectedDish.id) : false}
           onToggleFavorite={handleToggleFavorite}
+          onShare={handleShareMenu}
           imageGenProgress={imageGenProgress}
         />
       );
@@ -605,6 +631,28 @@ export default function Page() {
     <div className="w-full flex justify-center" style={{ minHeight: "100dvh", background: "#F0EBE3" }}>
       <div className="w-full relative flex flex-col overflow-hidden" style={{ maxWidth: 430, height: "100dvh", background: "var(--bg)" }}>
         {ScreenComponent}
+        {shareNotice ? (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: 18,
+              transform: "translateX(-50%)",
+              padding: "8px 12px",
+              borderRadius: 18,
+              background: "rgba(45,45,45,0.86)",
+              color: "#FFF",
+              fontFamily: "var(--font-ui)",
+              fontSize: 9,
+              fontWeight: 700,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+              pointerEvents: "none",
+              zIndex: 20,
+            }}
+          >
+            {shareNotice}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
 import { MAX_MENU_IMAGES, normalizeImageMimeType } from "@/lib/image-input";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
 import { dishNameLookupCandidates } from "@/lib/dish-name-normalization";
+import { isReusableExistingImageUrl } from "@/lib/dish-image-url";
 
 // In-memory translation cache — avoids Supabase schema/RLS issues for anonymous users
 const translationCache = new Map<string, { result: Record<string, unknown>; createdAt: number }>();
@@ -50,24 +51,23 @@ type MenuImageInput = {
 type ExistingDishImage = {
   id: string;
   name_original: string;
+  name_translated?: string | null;
   ai_image_url?: string | null;
   image_source?: string | null;
 };
 
-function isReusableExistingImageUrl(url: string | null | undefined): url is string {
-  if (!url) return false;
-  if (/images\.unsplash\.com|image\.pollinations\.ai|aliyuncs\.com/i.test(url)) return false;
-  return true;
-}
-
 async function findExistingDishImages(
-  dishes: Array<{ name_original: string }>,
+  dishes: Array<{ name_original: string; name_translated?: string | Record<string, string> }>,
 ): Promise<Map<number, ExistingDishImage>> {
   const client = getSupabaseAdminClient() || supabase;
   const candidateToIndices = new Map<string, number[]>();
 
   dishes.forEach((dish, index) => {
-    for (const candidate of dishNameLookupCandidates(dish.name_original)) {
+    const translated = typeof dish.name_translated === "string"
+      ? dish.name_translated
+      : dish.name_translated?.zh || dish.name_translated?.en || "";
+    const sourceNames = [dish.name_original, translated].filter(Boolean);
+    for (const candidate of sourceNames.flatMap((name) => dishNameLookupCandidates(name))) {
       const bucket = candidateToIndices.get(candidate) || [];
       bucket.push(index);
       candidateToIndices.set(candidate, bucket);
@@ -77,16 +77,26 @@ async function findExistingDishImages(
   const candidates = Array.from(candidateToIndices.keys());
   if (candidates.length === 0) return new Map();
 
-  const { data } = await client
+  const { data: originalRows } = await client
     .from("dishes")
-    .select("id, name_original, ai_image_url, image_source")
+    .select("id, name_original, name_translated, ai_image_url, image_source")
     .in("name_original", candidates)
     .limit(200)
     .then((r) => r, () => ({ data: null }));
 
+  const { data: translatedRows } = await client
+    .from("dishes")
+    .select("id, name_original, name_translated, ai_image_url, image_source")
+    .in("name_translated", candidates)
+    .limit(200)
+    .then((r) => r, () => ({ data: null }));
+
   const results = new Map<number, ExistingDishImage>();
-  for (const row of (data || []) as ExistingDishImage[]) {
-    const indices = candidateToIndices.get(row.name_original) || [];
+  for (const row of ([...(originalRows || []), ...(translatedRows || [])]) as ExistingDishImage[]) {
+    const indices = [
+      ...(candidateToIndices.get(row.name_original) || []),
+      ...(row.name_translated ? candidateToIndices.get(row.name_translated) || [] : []),
+    ];
     for (const index of indices) {
       if (!results.has(index)) results.set(index, row);
     }

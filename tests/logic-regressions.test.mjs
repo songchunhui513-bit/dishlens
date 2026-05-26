@@ -127,6 +127,13 @@ test("generated menu images use stable storage ids even for temporary dishes", a
     storageIdForGeneratedDishImage({ name_original: "Crème brûlée" }),
     "generated-creme-brulee",
   );
+  const chineseOnlyA = storageIdForGeneratedDishImage({ name_original: "豆酱焗斗仓" });
+  const chineseOnlyB = storageIdForGeneratedDishImage({ name_original: "陈年花雕焗膏蟹" });
+  assert.match(chineseOnlyA, /^generated-dish-[a-z0-9]+$/);
+  assert.match(chineseOnlyB, /^generated-dish-[a-z0-9]+$/);
+  assert.notEqual(chineseOnlyA, "generated-dish");
+  assert.notEqual(chineseOnlyB, "generated-dish");
+  assert.notEqual(chineseOnlyA, chineseOnlyB);
 });
 
 test("next image config allows DashScope result hosts", async () => {
@@ -276,6 +283,38 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
   assert.match(storage, /return localUrl/);
   assert.doesNotMatch(route, /generateImagesForDishes\([\s\S]*,\s*1,\s*\)/);
+});
+
+test("stale local generated image URLs from the database are not reused as valid cached images", async () => {
+  const { isReusableExistingImageUrl } = await loadTsModule(
+    `${ROOT}/src/lib/dish-image-url.ts`,
+  );
+
+  assert.equal(isReusableExistingImageUrl("/generated-dishes/generated-old-local-only.png"), false);
+  assert.equal(isReusableExistingImageUrl("/dishes/pizza-marinara.png"), true);
+  assert.equal(
+    isReusableExistingImageUrl("https://gbkallzbksmaahzvxezq.supabase.co/storage/v1/object/public/dishes/generated-dish-xoismf.png"),
+    true,
+  );
+  assert.equal(
+    isReusableExistingImageUrl("https://dashscope-result-wlcb-acdr-1.oss-cn-wulanchabu-acdr-1.aliyuncs.com/temporary.png"),
+    false,
+  );
+});
+
+test("translated menus can be shared through a public read-only menu page", async () => {
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+  const sharePage = await readFile(`${ROOT}/src/app/share/[id]/page.tsx`, "utf8");
+  const sharedMenu = await readFile(`${ROOT}/src/components/share/SharedMenuPage.tsx`, "utf8");
+
+  assert.match(appPage, /handleShareMenu/);
+  assert.match(resultsPage, /onShare/);
+  assert.match(detailPage, /onShare/);
+  assert.match(sharePage, /getTask/);
+  assert.match(sharedMenu, /onDishDetail/);
+  assert.match(sharedMenu, /分享菜单/);
 });
 
 test("dish image diagnostics script reports image source layers", async () => {
