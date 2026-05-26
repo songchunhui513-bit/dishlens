@@ -141,7 +141,13 @@ export async function POST(req: NextRequest) {
     const cached = translationCache.get(cacheKey);
     if (cached && Date.now() - cached.createdAt < CACHE_TTL) {
       const cachedResult = { ...cached.result, metadata: { ...(cached.result.metadata as Record<string, unknown>), cached: true } };
-      await updateTask(taskId, { status: "done", result: cachedResult });
+      await updateTask(taskId, {
+        status: "done",
+        progress: { current: images.length, total: images.length },
+        perPageStatus: images.map((_, i) => ({ page_index: i, status: "done" })),
+        result: cachedResult,
+        estimatedRemaining: 0,
+      });
       return NextResponse.json({ task_id: taskId, status: "processing", cached: true }, { status: 202 });
     }
 

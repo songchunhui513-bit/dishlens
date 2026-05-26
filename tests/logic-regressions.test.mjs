@@ -270,6 +270,7 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(route, /findExistingDishImages/);
   assert.match(route, /existingImagesByIndex/);
   assert.doesNotMatch(route, /await findExistingDishImage\(dish\.name_original\)/);
+  assert.match(route, /progress:\s*\{\s*current:\s*images\.length,\s*total:\s*images\.length\s*\}/);
   assert.match(route, /localMatch\?\.card \|\| cachedGeneratedImageUrl \|\| existingImageUrl/);
   assert.match(storage, /public", "generated-dishes/);
   assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
