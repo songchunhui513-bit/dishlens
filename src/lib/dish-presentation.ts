@@ -89,7 +89,47 @@ const imageRules: DishImageRule[] = [
     hero: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=400&fit=crop&auto=format",
   },
   {
-    patterns: ["wine", "beer", "cocktail", "champagne", "酒", "啤酒", "鸡尾酒", "香槟", "红酒", "白酒"],
+    patterns: ["beer", "draft beer", "lager", "ale", "stout", "pilsner", "asahi", "heineken", "budweiser", "corona", "啤酒", "生啤酒", "生啤", "精酿"],
+    card: "https://images.unsplash.com/photo-1566632776289-2a5f5b9b6e4e?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1566632776289-2a5f5b9b6e4e?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["wine", "red wine", "white wine", "rosé", "vin", "vino", "红酒", "白酒", "葡萄酒", "杯装酒"],
+    card: "https://images.unsplash.com/photo-1474722883777-792e7990302f?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1474722883777-792e7990302f?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["whiskey", "whisky", "scotch", "bourbon", "威士忌"],
+    card: "https://images.unsplash.com/photo-1572715376701-579e0b0e88a5?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1572715376701-579e0b0e88a5?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["shochu", "soju", "烧酒", "烧酎", "韩国烧酒", "日本烧酒", "芋", "麦烧酒", "薯烧酒"],
+    card: "https://images.unsplash.com/photo-1599300298645-398187537a19?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1599300298645-398187537a19?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["plum wine", "ume", "umeshu", "梅酒", "梅子酒"],
+    card: "https://images.unsplash.com/photo-1584319302131-3c5fce30c0b4?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1584319302131-3c5fce30c0b4?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["sake", "nihonshu", "清酒", "日本酒", "daiginjo", "junmai"],
+    card: "https://images.unsplash.com/photo-1576800651266-77a58ce2f10b?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1576800651266-77a58ce2f10b?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["cocktail", "martini", "margarita", "mojito", "鸡尾酒"],
+    card: "https://images.unsplash.com/photo-1551024709-8f5b2d99e352?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1551024709-8f5b2d99e352?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["champagne", "sparkling", "prosecco", "香槟", "起泡酒", "气泡酒"],
+    card: "https://images.unsplash.com/photo-1594144355189-40b46e72efd8?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1594144355189-40b46e72efd8?w=600&h=400&fit=crop&auto=format",
+  },
+  {
+    patterns: ["酒", "alcohol", "liquor", "spirit", "drink", "beverage"],
     card: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=136&h=136&fit=crop&auto=format",
     hero: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&h=400&fit=crop&auto=format",
   },
