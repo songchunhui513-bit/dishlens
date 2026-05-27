@@ -395,6 +395,8 @@ test("app link icons use the warm DishLens illustration style", async () => {
   const layout = await readFile(`${ROOT}/src/app/layout.tsx`, "utf8");
   const manifest = JSON.parse(await readFile(`${ROOT}/public/manifest.json`, "utf8"));
   const favicon = await readFile(`${ROOT}/src/app/favicon.ico`);
+  const rootAppleIcon = await readFile(`${ROOT}/public/apple-touch-icon.png`);
+  const sharePreviewIcon = await readFile(`${ROOT}/public/icons/share-preview-20260527.png`);
 
   for (const icon of [appIcon, icon192]) {
     assert.match(icon, /#FFF5E9/);
@@ -411,10 +413,13 @@ test("app link icons use the warm DishLens illustration style", async () => {
 
   assert.match(layout, /\/icon\.svg/);
   assert.match(layout, /\/favicon\.ico/);
+  assert.match(layout, /\/apple-touch-icon\.png/);
   assert.match(layout, /apple-touch-icon\.png/);
   assert.equal(manifest.icons.some((icon) => icon.src === "/icons/icon-192.png" && icon.type === "image/png"), true);
   assert.equal(manifest.icons.some((icon) => icon.src === "/icons/icon-512.png" && icon.type === "image/png"), true);
   assert.equal(favicon.subarray(0, 4).toString("hex"), "00000100");
+  assert.equal(rootAppleIcon.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(sharePreviewIcon.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
 });
 
 test("global menu sharing builds platform links without private WeChat deep links", async () => {
@@ -531,6 +536,23 @@ test("finalized share sheet uses the together-at-the-table illustration system",
   assert.match(sheet, /targetId === "x"/);
   assert.doesNotMatch(sheet, /打开手机分享菜单|贴到任何聊天工具|系统分享|短信|邮件/);
   assert.doesNotMatch(sheet, /#49A4E8|#2677B8|#4D8CE8|#2B65B8|fill="#2D2D2D"|stroke="#111"/);
+});
+
+test("iOS native share previews use explicit image metadata and WeChat avoids hanging native share", async () => {
+  const layout = await readFile(`${ROOT}/src/app/layout.tsx`, "utf8");
+  const sharePage = await readFile(`${ROOT}/src/app/share/[id]/page.tsx`, "utf8");
+  const sheet = await readFile(`${ROOT}/src/components/share/ShareSheet.tsx`, "utf8");
+
+  assert.match(layout, /\/icons\/share-preview-20260527\.png/);
+  assert.match(sharePage, /SHARE_PREVIEW_IMAGE/);
+  assert.match(sharePage, /images:\s*\[\s*shareImage/);
+  assert.match(sharePage, /twitter:[\s\S]*images:\s*\[shareImage\.url/);
+  assert.match(sheet, /Promise\.race/);
+  assert.match(sheet, /Clipboard write timed out/);
+
+  const wechatBranch = sheet.match(/if \(targetId === "wechat"\) \{[\s\S]*?return;\n    \}/)?.[0] || "";
+  assert.match(wechatBranch, /copyLink\("链接已复制，打开微信粘贴给好友或群聊"\)/);
+  assert.doesNotMatch(wechatBranch, /nativeShare|shareNative|navigator\.share/);
 });
 
 test("dish image diagnostics script reports image source layers", async () => {

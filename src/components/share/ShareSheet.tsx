@@ -12,6 +12,7 @@ interface ShareSheetProps {
 }
 
 const roundStroke: CSSProperties = { strokeLinecap: "round", strokeLinejoin: "round" };
+const CLIPBOARD_TIMEOUT_MS = 350;
 
 function ShareIllustrationIcon({ targetId, featured = false }: { targetId: ShareTargetId; featured?: boolean }) {
   const size = featured ? 62 : 50;
@@ -120,9 +121,20 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
     window.setTimeout(() => setLocalStatus(""), 1800);
   }
 
+  async function writeClipboardWithTimeout(text: string) {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+
+    await Promise.race([
+      navigator.clipboard.writeText(text),
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("Clipboard write timed out")), CLIPBOARD_TIMEOUT_MS);
+      }),
+    ]);
+  }
+
   async function copyLink(message = "菜单链接已复制") {
     try {
-      await navigator.clipboard.writeText(shareMeta.url);
+      await writeClipboardWithTimeout(shareMeta.url);
       showStatus(message);
     } catch {
       const textarea = document.createElement("textarea");
@@ -166,12 +178,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
     }
 
     if (targetId === "wechat") {
-      const nativeShare = navigator.share as ((data: ShareData) => Promise<void>) | undefined;
-      if (nativeShare) {
-        await shareNative("链接已复制，可粘贴到微信/微信群");
-      } else {
-        await copyLink("链接已复制，可粘贴到微信/微信群");
-      }
+      await copyLink("链接已复制，打开微信粘贴给好友或群聊");
       return;
     }
 
@@ -324,7 +331,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
         </div>
 
         <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", lineHeight: 1.55, marginTop: 12 }}>
-          {localStatus || "微信无法从普通网页直接发群时，会自动复制链接；在聊天里粘贴链接即可。"}
+          {localStatus || "点微信会复制链接；打开微信，在聊天里粘贴链接即可。"}
         </div>
         <div className="sr-only">支持微信、WhatsApp、Telegram、LINE、Facebook、X 和复制链接</div>
         <div className="sr-only">{buildShareMessage(shareMeta)}</div>

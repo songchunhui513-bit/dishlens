@@ -8,10 +8,19 @@ type SharePageProps = {
   params: Promise<{ id: string }>;
 };
 
+const SHARE_PREVIEW_IMAGE = "/icons/share-preview-20260527.png";
+
 export async function generateMetadata({ params }: SharePageProps): Promise<Metadata> {
   const { id } = await params;
   const task = await getTask(id);
   const result = task?.result as TranslationResult | undefined;
+  const shareUrl = `${appShareOrigin()}/share/${encodeURIComponent(id)}`;
+  const shareImage = {
+    url: new URL(SHARE_PREVIEW_IMAGE, appShareOrigin()).href,
+    width: 1200,
+    height: 630,
+    alt: "DishLens 一起看菜",
+  };
 
   if (!result?.pages) {
     return {
@@ -21,9 +30,16 @@ export async function generateMetadata({ params }: SharePageProps): Promise<Meta
       openGraph: {
         title: "DishLens 分享菜单已不可用",
         description: "这份菜单可能仍在处理，或分享链接已经过期。",
-        url: `${appShareOrigin()}/share/${encodeURIComponent(id)}`,
+        url: shareUrl,
         siteName: "DishLens",
+        images: [shareImage],
         type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "DishLens 分享菜单已不可用",
+        description: "这份菜单可能仍在处理，或分享链接已经过期。",
+        images: [shareImage.url],
       },
     };
   }
@@ -39,12 +55,14 @@ export async function generateMetadata({ params }: SharePageProps): Promise<Meta
       description: shareMeta.text,
       url: shareMeta.url,
       siteName: "DishLens",
+      images: [shareImage],
       type: "website",
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: shareMeta.title,
       description: shareMeta.text,
+      images: [shareImage.url],
     },
   };
 }
