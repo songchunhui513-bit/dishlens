@@ -1,0 +1,25 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/camera/index",
+    "pages/loading/index",
+    "pages/results/index",
+    "pages/detail/index",
+    "pages/share-menu/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "backgroundColor": "#fff8ee",
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#fff8ee",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "DishLens"
+  },
+  "networkTimeout": {
+    "request": 60000,
+    "uploadFile": 60000,
+    "downloadFile": 60000
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

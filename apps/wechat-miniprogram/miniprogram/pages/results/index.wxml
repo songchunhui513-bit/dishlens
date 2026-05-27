@@ -1,0 +1,31 @@
+<view class="page results-page">
+  <view class="summary-card soft-card">
+    <view>
+      <view class="eyebrow">DISHLENS MENU</view>
+      <view class="summary-title">{{result.metadata.total_dishes || dishes.length}} 道菜已翻译</view>
+      <view class="summary-subtitle">点开菜品看详情，也可以直接转发给同行。</view>
+    </view>
+    <view class="pill">中文</view>
+  </view>
+
+  <view class="share-row">
+    <button class="primary-button share-button" open-type="share">发给朋友</button>
+    <view class="secondary-button share-button" bindtap="copyH5Link">复制公开链接</view>
+  </view>
+
+  <view class="secondary-button full-share" bindtap="openSharePage">打开分享页预览</view>
+
+  <view class="dish-list">
+    <view wx:for="{{dishes}}" wx:key="id" class="dish-card card" bindtap="openDish" data-index="{{index}}">
+      <view class="dish-index">{{index + 1 < 10 ? "0" + (index + 1) : index + 1}}</view>
+      <view class="dish-main">
+        <view class="dish-name">{{item.displayName}}</view>
+        <view class="dish-original">{{item.name_original}}</view>
+        <view class="dish-desc">{{item.displayDescription}}</view>
+        <view class="tag-row">
+          <view wx:for="{{item.taste_profile}}" wx:for-item="tag" wx:key="*this" class="small-tag">{{tag}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

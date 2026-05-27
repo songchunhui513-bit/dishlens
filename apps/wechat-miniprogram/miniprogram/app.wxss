@@ -1,0 +1,133 @@
+page {
+  min-height: 100%;
+  background: #fff8ee;
+  color: #2b2926;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+}
+
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 36rpx 32rpx 56rpx;
+}
+
+.eyebrow {
+  color: #35b55a;
+  font-size: 24rpx;
+  font-weight: 800;
+  letter-spacing: 1rpx;
+  text-transform: uppercase;
+}
+
+.title {
+  margin-top: 10rpx;
+  font-size: 48rpx;
+  font-weight: 900;
+  line-height: 1.12;
+  color: #2f2a26;
+}
+
+.subtitle {
+  margin-top: 14rpx;
+  color: #827b72;
+  font-size: 28rpx;
+  line-height: 1.55;
+}
+
+.card {
+  box-sizing: border-box;
+  border: 2rpx solid #efcfac;
+  border-radius: 36rpx;
+  background: #fff4e5;
+  box-shadow: 0 18rpx 42rpx rgba(150, 92, 33, 0.08);
+}
+
+.soft-card {
+  box-sizing: border-box;
+  border-radius: 40rpx;
+  background: linear-gradient(135deg, #ffe8c6 0%, #fff1dc 100%);
+  box-shadow: 0 20rpx 50rpx rgba(210, 142, 54, 0.13);
+}
+
+.primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 104rpx;
+  padding: 0 34rpx;
+  border-radius: 34rpx;
+  background: #46b955;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 850;
+  line-height: 1.2;
+  box-shadow: 0 16rpx 34rpx rgba(56, 160, 72, 0.2);
+}
+
+.secondary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96rpx;
+  padding: 0 30rpx;
+  border: 2rpx solid #efcfac;
+  border-radius: 32rpx;
+  background: #fff8ee;
+  color: #2f2a26;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.tiny-label {
+  color: #8c857c;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.dish-name {
+  color: #2f2a26;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.dish-original {
+  color: #7f766e;
+  font-size: 24rpx;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.text-muted {
+  color: #8b8378;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: #ffe1b8;
+  color: #ef8c16;
+  font-size: 23rpx;
+  font-weight: 850;
+}
+
+.illustration-tile {
+  width: 116rpx;
+  height: 116rpx;
+  border: 2rpx solid #efcfac;
+  border-radius: 32rpx;
+  background: radial-gradient(circle at 30% 24%, #fffdf8 0, #fffdf8 22%, #fff5e8 74%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.empty-state {
+  margin-top: 44rpx;
+  padding: 44rpx 34rpx;
+  text-align: center;
+}

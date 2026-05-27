@@ -1,0 +1,31 @@
+<view class="page camera-page">
+  <view class="eyebrow">CAPTURE MENU</view>
+  <view class="title">选择菜单照片</view>
+  <view class="subtitle">先跑通单张菜单的完整链路，多图上传会在下一阶段补小程序专用适配。</view>
+
+  <view class="capture-panel soft-card">
+    <view class="camera-illustration">
+      <view class="camera-body"></view>
+      <view class="camera-lens"></view>
+      <view class="camera-spark spark-a"></view>
+      <view class="camera-spark spark-b"></view>
+    </view>
+    <view class="capture-title">拍清楚菜名和价格</view>
+    <view class="capture-desc">光线充足、文字尽量铺满画面，识别会更稳。</view>
+  </view>
+
+  <view class="capture-actions">
+    <view class="primary-button" bindtap="chooseFromCamera">打开相机</view>
+    <view class="secondary-button" bindtap="chooseFromAlbum">从相册选择</view>
+  </view>
+
+  <view wx:if="{{filePaths.length}}" class="preview-card card">
+    <image class="preview-image" src="{{filePaths[0]}}" mode="aspectFill"></image>
+    <view class="preview-copy">
+      <view class="preview-title">已选择 1 张菜单</view>
+      <view class="preview-desc">可以开始翻译了。</view>
+    </view>
+  </view>
+
+  <view class="primary-button start-button" bindtap="startTranslate">开始翻译</view>
+</view>

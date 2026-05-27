@@ -1,0 +1,70 @@
+<view class="page home-page">
+  <view class="home-hero soft-card">
+    <view class="hero-copy">
+      <view class="eyebrow">DISHLENS MENU</view>
+      <view class="title">拍菜单，马上看懂每一道菜</view>
+      <view class="subtitle">复刻 H5 的翻译、推荐和分享体验，微信里可以直接转发给朋友。</view>
+    </view>
+    <view class="hero-plate" aria-label="DishLens illustration">
+      <view class="plate-bowl"></view>
+      <view class="plate-line plate-line-a"></view>
+      <view class="plate-line plate-line-b"></view>
+      <view class="plate-dot plate-dot-a"></view>
+      <view class="plate-dot plate-dot-b"></view>
+    </view>
+  </view>
+
+  <view class="action-grid">
+    <view class="primary-button scan-button" bindtap="goCamera">
+      <view class="mini-ill scan-ill">
+        <view class="scan-paper"></view>
+        <view class="scan-spark"></view>
+      </view>
+      <view>
+        <view class="action-title">拍菜单翻译</view>
+        <view class="action-subtitle">相机或相册选择菜单</view>
+      </view>
+    </view>
+    <view class="secondary-button profile-button" bindtap="goProfile">
+      <view class="mini-ill profile-ill">
+        <view class="profile-face"></view>
+      </view>
+      <view>
+        <view class="profile-title">微信账号</view>
+        <view class="profile-subtitle">{{user ? "已静默登录" : "按需完善头像昵称"}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-row">
+    <view>
+      <view class="tiny-label">当前阶段</view>
+      <view class="section-title">小程序 M1 骨架</view>
+    </view>
+    <view class="pill">H5 不受影响</view>
+  </view>
+
+  <view class="feature-list">
+    <view class="feature-card card">
+      <view class="feature-icon feature-icon-green">拍</view>
+      <view class="feature-copy">
+        <view class="feature-title">复用现有 OCR/AI 翻译</view>
+        <view class="feature-desc">同一个 taskId，同一份菜单结果。</view>
+      </view>
+    </view>
+    <view class="feature-card card">
+      <view class="feature-icon feature-icon-orange">享</view>
+      <view class="feature-copy">
+        <view class="feature-title">微信原生分享</view>
+        <view class="feature-desc">小程序卡片给微信，H5 链接给海外。</view>
+      </view>
+    </view>
+    <view class="feature-card card" bindtap="openPreview">
+      <view class="feature-icon feature-icon-cream">看</view>
+      <view class="feature-copy">
+        <view class="feature-title">查看预览结果</view>
+        <view class="feature-desc">没有真实任务时也能检查 UI。</view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,89 @@
+.share-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 30rpx;
+}
+
+.menu-icon {
+  position: relative;
+  width: 72rpx;
+  height: 82rpx;
+}
+
+.menu-paper {
+  position: absolute;
+  left: 14rpx;
+  top: 6rpx;
+  width: 44rpx;
+  height: 62rpx;
+  border: 5rpx solid #d9a56c;
+  border-radius: 10rpx;
+  background: #fffdf8;
+}
+
+.menu-fold {
+  position: absolute;
+  right: 6rpx;
+  top: 30rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-right: 6rpx solid #38b75a;
+  border-bottom: 6rpx solid #38b75a;
+  border-radius: 7rpx;
+}
+
+.share-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-title {
+  margin-top: 8rpx;
+  font-size: 36rpx;
+  font-weight: 900;
+}
+
+.share-desc {
+  margin-top: 10rpx;
+  color: #80786f;
+  font-size: 25rpx;
+}
+
+.share-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.action {
+  min-height: 96rpx;
+  font-size: 28rpx;
+}
+
+button.action {
+  border: 0;
+}
+
+.share-note {
+  margin-top: 20rpx;
+}
+
+.shared-dishes {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 26rpx;
+}
+
+.shared-dish {
+  padding: 26rpx;
+}
+
+.shared-desc {
+  margin-top: 14rpx;
+  color: #5f584f;
+  font-size: 25rpx;
+  line-height: 1.5;
+}

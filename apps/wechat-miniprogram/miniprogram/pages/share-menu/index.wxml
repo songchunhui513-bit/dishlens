@@ -1,0 +1,30 @@
+<view class="page share-page">
+  <view class="share-card soft-card">
+    <view class="illustration-tile">
+      <view class="menu-icon">
+        <view class="menu-paper"></view>
+        <view class="menu-fold"></view>
+      </view>
+    </view>
+    <view class="share-copy">
+      <view class="eyebrow">DISHLENS MENU</view>
+      <view class="share-title">{{result.metadata.total_dishes || dishes.length}} 道菜</view>
+      <view class="share-desc">朋友分享了一份菜单，点开就能一起看菜。</view>
+    </view>
+  </view>
+
+  <view class="share-actions">
+    <button class="primary-button action" open-type="share">发给微信朋友</button>
+    <view class="secondary-button action" bindtap="copyLink">复制 H5 链接</view>
+  </view>
+
+  <view class="tiny-label share-note">微信里用小程序卡片，海外或其他 App 用公开链接。</view>
+
+  <view class="shared-dishes">
+    <view wx:for="{{dishes}}" wx:key="id" class="shared-dish card">
+      <view class="dish-name">{{item.displayName}}</view>
+      <view class="dish-original">{{item.name_original}}</view>
+      <view class="shared-desc">{{item.displayDescription}}</view>
+    </view>
+  </view>
+</view>

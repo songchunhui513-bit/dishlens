@@ -1,0 +1,204 @@
+.home-hero {
+  position: relative;
+  min-height: 420rpx;
+  padding: 42rpx 36rpx;
+  overflow: hidden;
+}
+
+.hero-copy {
+  width: 72%;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-plate {
+  position: absolute;
+  right: 18rpx;
+  bottom: 8rpx;
+  width: 230rpx;
+  height: 230rpx;
+}
+
+.plate-bowl {
+  position: absolute;
+  left: 36rpx;
+  top: 90rpx;
+  width: 140rpx;
+  height: 76rpx;
+  border: 8rpx solid #daa46c;
+  border-top: 0;
+  border-radius: 0 0 80rpx 80rpx;
+  background: #fff6df;
+}
+
+.plate-line {
+  position: absolute;
+  border-radius: 999rpx;
+  background: #39b75b;
+  transform: rotate(-20deg);
+}
+
+.plate-line-a {
+  left: 104rpx;
+  top: 48rpx;
+  width: 82rpx;
+  height: 18rpx;
+}
+
+.plate-line-b {
+  left: 120rpx;
+  top: 78rpx;
+  width: 64rpx;
+  height: 14rpx;
+}
+
+.plate-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffad33;
+}
+
+.plate-dot-a {
+  left: 44rpx;
+  top: 72rpx;
+  width: 18rpx;
+  height: 18rpx;
+}
+
+.plate-dot-b {
+  left: 78rpx;
+  top: 50rpx;
+  width: 12rpx;
+  height: 12rpx;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22rpx;
+  margin-top: 28rpx;
+}
+
+.scan-button,
+.profile-button {
+  justify-content: flex-start;
+  gap: 22rpx;
+}
+
+.mini-ill {
+  position: relative;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 24rpx;
+  background: #fff8ee;
+  flex: 0 0 auto;
+}
+
+.scan-paper {
+  position: absolute;
+  left: 20rpx;
+  top: 14rpx;
+  width: 34rpx;
+  height: 48rpx;
+  border: 4rpx solid #d9a56c;
+  border-radius: 8rpx;
+  background: #fffdf8;
+}
+
+.scan-spark {
+  position: absolute;
+  right: 13rpx;
+  top: 21rpx;
+  width: 24rpx;
+  height: 24rpx;
+  border-right: 6rpx solid #36b85c;
+  border-bottom: 6rpx solid #36b85c;
+  border-radius: 6rpx;
+}
+
+.profile-face {
+  position: absolute;
+  left: 18rpx;
+  top: 18rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #ffe2b9;
+  border: 4rpx solid #d9a56c;
+}
+
+.action-title,
+.profile-title {
+  font-size: 31rpx;
+  font-weight: 900;
+}
+
+.action-subtitle,
+.profile-subtitle {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  opacity: 0.8;
+}
+
+.section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 42rpx 4rpx 20rpx;
+}
+
+.section-title {
+  margin-top: 6rpx;
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.feature-card {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding: 26rpx;
+}
+
+.feature-icon {
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.feature-icon-green {
+  background: #ddf3d8;
+  color: #34aa4f;
+}
+
+.feature-icon-orange {
+  background: #ffe2b8;
+  color: #ee8b17;
+}
+
+.feature-icon-cream {
+  background: #fffaf2;
+  color: #d39a5f;
+}
+
+.feature-title {
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.feature-desc {
+  margin-top: 6rpx;
+  color: #827a71;
+  font-size: 24rpx;
+}

@@ -1,0 +1,17 @@
+<view class="page loading-page">
+  <view class="loading-card soft-card">
+    <view class="loading-illustration">
+      <view class="loading-bowl"></view>
+      <view class="loading-note note-a"></view>
+      <view class="loading-note note-b"></view>
+      <view class="loading-dot dot-a"></view>
+      <view class="loading-dot dot-b"></view>
+    </view>
+    <view class="title loading-title">正在看懂菜单</view>
+    <view class="subtitle">{{statusText}}</view>
+    <view class="progress-track">
+      <view class="progress-fill" style="width: {{total ? (current * 100 / total) : 18}}%;"></view>
+    </view>
+    <view class="progress-copy">{{current}} / {{total}} 页</view>
+  </view>
+</view>

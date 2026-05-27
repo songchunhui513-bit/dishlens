@@ -1,0 +1,97 @@
+.loading-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-card {
+  width: 100%;
+  padding: 62rpx 42rpx;
+  text-align: center;
+}
+
+.loading-illustration {
+  position: relative;
+  width: 240rpx;
+  height: 210rpx;
+  margin: 0 auto 24rpx;
+}
+
+.loading-bowl {
+  position: absolute;
+  left: 44rpx;
+  bottom: 38rpx;
+  width: 150rpx;
+  height: 82rpx;
+  border: 8rpx solid #d9a56c;
+  border-top: 0;
+  border-radius: 0 0 90rpx 90rpx;
+  background: #fff6df;
+}
+
+.loading-note {
+  position: absolute;
+  width: 72rpx;
+  height: 46rpx;
+  border: 6rpx solid #43b85a;
+  border-radius: 18rpx;
+  background: #e9f8df;
+}
+
+.note-a {
+  left: 48rpx;
+  top: 44rpx;
+}
+
+.note-b {
+  right: 34rpx;
+  top: 70rpx;
+  transform: scale(0.86);
+}
+
+.loading-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffae32;
+}
+
+.dot-a {
+  left: 34rpx;
+  top: 24rpx;
+  width: 13rpx;
+  height: 13rpx;
+}
+
+.dot-b {
+  right: 42rpx;
+  top: 38rpx;
+  width: 16rpx;
+  height: 16rpx;
+}
+
+.loading-title {
+  font-size: 42rpx;
+}
+
+.progress-track {
+  height: 18rpx;
+  margin-top: 38rpx;
+  border-radius: 999rpx;
+  background: #f0d9bd;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  min-width: 18%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #46b955, #f2a233);
+  transition: width 250ms ease;
+}
+
+.progress-copy {
+  margin-top: 18rpx;
+  color: #857b71;
+  font-size: 24rpx;
+  font-weight: 700;
+}

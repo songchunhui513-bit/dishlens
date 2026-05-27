@@ -1,0 +1,88 @@
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 34rpx;
+}
+
+.avatar-preview {
+  width: 128rpx;
+  height: 128rpx;
+  border: 2rpx solid #efcfac;
+  border-radius: 34rpx;
+  background: #fff8ee;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.avatar-image,
+.avatar-empty {
+  width: 128rpx;
+  height: 128rpx;
+}
+
+.avatar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #35b55a;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.profile-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-title {
+  margin-top: 8rpx;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.profile-status {
+  margin-top: 10rpx;
+  color: #80786f;
+  font-size: 25rpx;
+}
+
+.form-card {
+  margin-top: 24rpx;
+  padding: 30rpx;
+}
+
+.field-label {
+  color: #847a70;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.choose-avatar {
+  margin-top: 16rpx;
+  width: 100%;
+  border: 0;
+}
+
+.nickname-label {
+  margin-top: 28rpx;
+}
+
+.nickname-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 92rpx;
+  margin-top: 16rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid #efcfac;
+  border-radius: 28rpx;
+  background: #fffaf2;
+  font-size: 28rpx;
+}
+
+.profile-note {
+  margin-top: 12rpx;
+  color: #5f584f;
+  font-size: 26rpx;
+  line-height: 1.55;
+}

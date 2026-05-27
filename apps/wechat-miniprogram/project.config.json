@@ -1,0 +1,14 @@
+{
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "miniprogramRoot": "miniprogram/",
+  "projectname": "DishLens",
+  "setting": {
+    "enhance": true,
+    "es6": true,
+    "postcss": true,
+    "minified": false,
+    "urlCheck": true
+  }
+}

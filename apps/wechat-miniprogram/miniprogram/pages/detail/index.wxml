@@ -1,0 +1,37 @@
+<view class="page detail-page" wx:if="{{dish}}">
+  <view class="detail-hero soft-card">
+    <view class="detail-illustration">
+      <view class="dish-bowl"></view>
+      <view class="dish-leaf leaf-a"></view>
+      <view class="dish-leaf leaf-b"></view>
+    </view>
+    <view class="dish-name detail-title">{{dish.displayName}}</view>
+    <view class="dish-original">{{dish.name_original}}</view>
+    <view class="detail-desc">{{dish.displayDescription}}</view>
+  </view>
+
+  <view class="info-grid">
+    <view class="info-card card">
+      <view class="tiny-label">食材</view>
+      <view class="info-text">{{ingredientsText}}</view>
+    </view>
+    <view class="info-card card">
+      <view class="tiny-label">过敏原</view>
+      <view class="info-text">{{allergensText}}</view>
+    </view>
+    <view class="info-card card">
+      <view class="tiny-label">口味</view>
+      <view class="info-text">{{tasteText}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{dish.recommendation}}" class="note-card card">
+    <view class="tiny-label">推荐理由</view>
+    <view class="note-text">{{dish.recommendation}}</view>
+  </view>
+
+  <view wx:if="{{dish.caution}}" class="note-card warning-card card">
+    <view class="tiny-label">点餐提醒</view>
+    <view class="note-text">{{dish.caution}}</view>
+  </view>
+</view>

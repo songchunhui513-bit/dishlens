@@ -1,0 +1,25 @@
+<view class="page profile-page">
+  <view class="profile-card soft-card">
+    <view class="avatar-preview">
+      <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill"></image>
+      <view wx:else class="avatar-empty">DL</view>
+    </view>
+    <view class="profile-copy">
+      <view class="eyebrow">WECHAT ACCOUNT</view>
+      <view class="profile-title">微信身份已接入</view>
+      <view class="profile-status">{{statusText}}</view>
+    </view>
+  </view>
+
+  <view class="form-card card">
+    <view class="field-label">头像</view>
+    <button class="secondary-button choose-avatar" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">选择微信头像</button>
+    <view class="field-label nickname-label">昵称</view>
+    <input class="nickname-input" type="nickname" placeholder="填写微信昵称" value="{{nickname}}" bindinput="onNicknameInput" />
+  </view>
+
+  <view class="empty-state card">
+    <view class="tiny-label">说明</view>
+    <view class="profile-note">DishLens 首次使用只做静默登录。头像和昵称只在需要展示身份、保存记录或同步收藏时再由你主动填写。</view>
+  </view>
+</view>

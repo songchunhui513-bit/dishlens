@@ -1,0 +1,79 @@
+.detail-hero {
+  padding: 42rpx 34rpx;
+  text-align: center;
+}
+
+.detail-illustration {
+  position: relative;
+  width: 170rpx;
+  height: 150rpx;
+  margin: 0 auto 20rpx;
+}
+
+.dish-bowl {
+  position: absolute;
+  left: 20rpx;
+  bottom: 24rpx;
+  width: 124rpx;
+  height: 64rpx;
+  border: 7rpx solid #d9a56c;
+  border-top: 0;
+  border-radius: 0 0 70rpx 70rpx;
+  background: #fff8e8;
+}
+
+.dish-leaf {
+  position: absolute;
+  width: 54rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: #42b85a;
+}
+
+.leaf-a {
+  left: 74rpx;
+  top: 36rpx;
+  transform: rotate(-28deg);
+}
+
+.leaf-b {
+  left: 48rpx;
+  top: 56rpx;
+  transform: rotate(18deg);
+  background: #f2a233;
+}
+
+.detail-title {
+  font-size: 38rpx;
+}
+
+.detail-desc {
+  margin-top: 22rpx;
+  color: #5f584f;
+  font-size: 27rpx;
+  line-height: 1.58;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.info-card,
+.note-card {
+  padding: 28rpx;
+}
+
+.info-text,
+.note-text {
+  margin-top: 12rpx;
+  color: #3d372f;
+  font-size: 27rpx;
+  line-height: 1.55;
+}
+
+.warning-card {
+  background: #fff2dc;
+}
