@@ -15,6 +15,7 @@
 3. 分享面板覆盖国内与海外主流渠道：发给朋友、复制链接、微信、WhatsApp、Telegram、LINE、Facebook、X。
 4. 分享链接带有动态标题、摘要和 Open Graph 元数据，适配聊天软件预览卡片。
 5. 微信入口采用“手机分享菜单或复制链接”的稳妥策略，不使用不可控的私有 deep link。
+6. 分享图标采用 DishLens 自有 warm editorial 插画体系，不使用系统分享箭头、文字缩写或不协调的品牌硬色块。
 
 ## 用户场景
 
@@ -69,3 +70,5 @@
 5. 分享 URL 使用 `/share/{taskId}`。
 6. `/share/[id]` 能生成与具体菜单相关的 title、description、openGraph 和 canonical。
 7. `node --test tests/logic-regressions.test.mjs`、`npm run lint`、`npm run build` 通过。
+8. app/link/PWA 图标使用方案 C「一起看菜」：聊天气泡 + 餐碗 + 暖色手绘描边。
+9. 分享面板主文案包含“朋友不用登录，点开就能一起看菜”，按钮说明包含“发到聊天里一起看菜”和“适合粘到任何群聊”。

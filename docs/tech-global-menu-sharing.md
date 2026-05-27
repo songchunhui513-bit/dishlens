@@ -15,6 +15,13 @@
 - `src/components/share/SharedMenuPage.tsx`
 - `src/app/share/[id]/page.tsx`
 - `src/app/layout.tsx`
+- `src/app/icon.svg`
+- `public/icons/icon-192.svg`
+- `public/icons/icon-512.svg`
+- `public/icons/icon-192.png`
+- `public/icons/icon-512.png`
+- `public/icons/apple-touch-icon.png`
+- `src/app/favicon.ico`
 - `tests/logic-regressions.test.mjs`
 
 ## 分享领域模型
@@ -35,7 +42,7 @@
 
 - `open`
 - `meta`
-- `onOpenChange`
+- `onClose`
 - `onStatus`
 
 组件职责：
@@ -45,6 +52,19 @@
 3. 调用 Clipboard API 并提供 textarea fallback。
 4. 打开 WhatsApp、Telegram、LINE、Facebook、X 外链。
 5. 微信入口执行手机分享菜单优先、复制链接兜底。
+
+## 图标定稿
+
+最终采用方案 C「一起看菜」。
+
+落地文件：
+
+- `src/app/icon.svg`：Next app icon 和浏览器 SVG icon。
+- `public/icons/icon-192.svg`、`public/icons/icon-512.svg`：manifest SVG icon。
+- `public/icons/icon-192.png`、`public/icons/icon-512.png`、`public/icons/apple-touch-icon.png`：PWA 和 Apple touch icon。
+- `src/app/favicon.ico`：16/32/48 多尺寸 ICO。
+
+图形结构：两个聊天气泡 + 餐碗 + 橙色星点 + 少量绿色线条。禁止回退到黑色箭头、放大镜、`DL` 文本、系统分享图标或大面积平台品牌色。
 
 ## 结果页接入
 
@@ -73,6 +93,8 @@
 4. `/share/[id]` 有 `generateMetadata`、`openGraph`、`metadataBase`。
 5. UI 文案包含国内和海外渠道。
 6. 客户端能力包含 `navigator.share` 和 `clipboard.writeText`。
+7. 方案 C 定稿图标包含聊天气泡和餐碗路径，并排除旧放大镜/纸飞机路径。
+8. 分享面板文案包含“朋友不用登录”“聊天里粘贴链接”，并排除“系统分享”“短信”“邮件”等旧表达。
 
 ## 已验证命令
 

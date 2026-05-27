@@ -30,8 +30,8 @@ export interface ShareMenuMeta {
 const FALLBACK_APP_ORIGIN = "https://dishlens.wukongmkt.com";
 
 export const SHARE_TARGETS: ShareTarget[] = [
-  { id: "native", label: "发给朋友", shortLabel: "SEND", description: "打开手机分享菜单" },
-  { id: "copy", label: "复制链接", shortLabel: "LINK", description: "贴到任何聊天工具" },
+  { id: "native", label: "发给朋友", shortLabel: "SEND", description: "发到聊天里一起看菜" },
+  { id: "copy", label: "复制链接", shortLabel: "LINK", description: "适合粘到任何群聊" },
   { id: "wechat", label: "微信", shortLabel: "WX", description: "复制后发给微信好友或微信群" },
   { id: "whatsapp", label: "WhatsApp", shortLabel: "WA", description: "海外旅行常用群聊" },
   { id: "telegram", label: "Telegram", shortLabel: "TG", description: "发给 Telegram 聊天" },

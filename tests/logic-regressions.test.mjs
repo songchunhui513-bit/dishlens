@@ -402,7 +402,11 @@ test("app link icons use the warm DishLens illustration style", async () => {
     assert.match(icon, /#D4A574/);
     assert.match(icon, /ellipse/);
     assert.match(icon, /stroke-linecap="round"/);
+    assert.match(icon, /M39 74 q0-22 27-22/);
+    assert.match(icon, /M104 61 q0-20 25-20/);
+    assert.match(icon, /Q96 136 138 112/);
     assert.doesNotMatch(icon, /<text|DL|#000|black|triangle/i);
+    assert.doesNotMatch(icon, /circle cx="114" cy="64" r="28"|M134 84 L154 104|M55 30 L77 22/);
   }
 
   assert.match(layout, /\/icon\.svg/);
@@ -506,6 +510,27 @@ test("global share UI is wired through a reusable sheet and dynamic metadata", a
   assert.doesNotMatch(sheet, /系统分享/);
   assert.doesNotMatch(sheet, /短信/);
   assert.doesNotMatch(sheet, /邮件/);
+});
+
+test("finalized share sheet uses the together-at-the-table illustration system", async () => {
+  const { SHARE_TARGETS } = await loadTsModule(
+    `${ROOT}/src/lib/share-menu.ts`,
+  );
+  const sheet = await readFile(`${ROOT}/src/components/share/ShareSheet.tsx`, "utf8");
+
+  assert.equal(SHARE_TARGETS.find((target) => target.id === "native")?.description, "发到聊天里一起看菜");
+  assert.equal(SHARE_TARGETS.find((target) => target.id === "copy")?.description, "适合粘到任何群聊");
+  assert.match(sheet, /一起看菜/);
+  assert.match(sheet, /朋友不用登录/);
+  assert.match(sheet, /聊天里粘贴链接/);
+  assert.match(sheet, /targetId === "wechat"/);
+  assert.match(sheet, /targetId === "whatsapp"/);
+  assert.match(sheet, /targetId === "telegram"/);
+  assert.match(sheet, /targetId === "line"/);
+  assert.match(sheet, /targetId === "facebook"/);
+  assert.match(sheet, /targetId === "x"/);
+  assert.doesNotMatch(sheet, /打开手机分享菜单|贴到任何聊天工具|系统分享|短信|邮件/);
+  assert.doesNotMatch(sheet, /#49A4E8|#2677B8|#4D8CE8|#2B65B8|fill="#2D2D2D"|stroke="#111"/);
 });
 
 test("dish image diagnostics script reports image source layers", async () => {

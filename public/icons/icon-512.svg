@@ -1,14 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 192 192" role="img" aria-label="DishLens">
   <rect width="192" height="192" rx="42" fill="#FFF5E9"/>
   <circle cx="96" cy="96" r="72" fill="#FFF0DD"/>
-  <ellipse cx="86" cy="131" rx="52" ry="12" fill="#FEE6CB" stroke="#D4A574" stroke-width="6"/>
-  <path d="M48 108 Q86 132 124 108 L116 128 Q86 142 56 128Z" fill="#FFFDF7" stroke="#D4A574" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M62 106 Q85 92 110 105" fill="none" stroke="#FFB74D" stroke-width="9" stroke-linecap="round"/>
-  <circle cx="78" cy="103" r="6" fill="#4CAF50"/>
-  <circle cx="100" cy="101" r="5" fill="#C0392B"/>
-  <circle cx="114" cy="64" r="28" fill="#E9F8DE" stroke="#4CAF50" stroke-width="8"/>
-  <path d="M134 84 L154 104" fill="none" stroke="#4CAF50" stroke-width="12" stroke-linecap="round"/>
-  <path d="M102 63 Q113 52 126 63" fill="none" stroke="#66BB6A" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="142" cy="42" r="10" fill="#FF9F1C"/>
-  <path d="M44 56 Q52 47 61 56" fill="none" stroke="#FFB74D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M39 74 q0-22 27-22 q27 0 27 22 q0 21-27 21 q-5 0-10-.9 L43 102 l5-13 q-9-6-9-15Z" fill="#FEE6CB" stroke="#D4A574" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.94"/>
+  <path d="M104 61 q0-20 25-20 q25 0 25 20 q0 19-25 19 q-5 0-9-.8 l-12 8 l4-12 q-8-5-8-14Z" fill="#FFF5E9" stroke="#D4A574" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="96" cy="137" rx="52" ry="11" fill="#FEE6CB" stroke="#D4A574" stroke-width="5"/>
+  <path d="M54 112 Q96 136 138 112 L129 132 Q96 149 63 132Z" fill="#FFF5E9" stroke="#D4A574" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="96" cy="111" rx="35" ry="8" fill="#FFB74D" opacity="0.82"/>
+  <path d="M79 103 q17-11 35 1" fill="none" stroke="#4CAF50" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+  <circle cx="58" cy="72" r="4.2" fill="#FF9F1C"/>
+  <circle cx="73" cy="72" r="4.2" fill="#FF9F1C"/>
+  <path d="M121 62 h21 M121 72 h13" stroke="#4CAF50" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="46" cy="46" r="4.6" fill="#FF9F1C"/>
+  <circle cx="147" cy="103" r="4.6" fill="#4CAF50"/>
 </svg>
