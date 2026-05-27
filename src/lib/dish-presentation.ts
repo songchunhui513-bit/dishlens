@@ -233,15 +233,96 @@ export function isVegetarianDish(dish: Dish): boolean {
   );
 }
 
+const genericFallbackRecommendations = [
+  "这道菜风味温和不刺激，适合第一次尝试该菜系的人。如果你想吃一顿不出错的正餐，这是一个稳妥的选择。",
+  "如果你想点一杯佐餐或餐后的饮品，这是不错的选择。可以根据个人口味选择热饮或冷饮，搭配甜点或单独享用都很合适。",
+  "如果你喜欢外酥里嫩的口感，这道菜不会让你失望。炸制食物讲究趁热吃，上桌后尽快享用风味最佳。挤点柠檬汁或蘸上店家特调酱汁，能让层次更丰富。",
+  "如果你还有胃口，强烈推荐用这道甜品为整顿饭画上句号。甜食搭配浓缩咖啡或红茶尤其出色，也可以和朋友分着吃，不会太腻。",
+  "如果你钟爱鲜味和海洋气息，这道菜值得一试。重点在于食材的新鲜度——好的海鲜料理能让你一口尝到海的清甜。注意看是否配奶油或黄油酱汁，会影响整体口感走向。",
+  "如果你今天想吃一顿扎实过瘾的正餐，这就是答案。浓郁的酱汁、饱满的肉香，适合饿了一天之后好好犒劳自己。一个人点一份通常足够，不太建议再点太多其他主菜。",
+  "想吃点清爽的、给胃减减负担？选它没错。新鲜蔬菜搭配酱汁，既开胃又不会占太多胃容量。不过如果只点这一道当正餐，可能会觉得不够饱，建议再配一份主食或汤。",
+];
+
+function isGenericRecommendation(value: string): boolean {
+  return genericFallbackRecommendations.includes(value.trim());
+}
+
+type DishInsightFlags = {
+  isVeg: boolean;
+  isFried: boolean;
+  isDessert: boolean;
+  isSeafood: boolean;
+  isHearty: boolean;
+  isSalad: boolean;
+  isDrink: boolean;
+};
+
+function pickInsightLine(seed: string, lines: string[]): string {
+  return lines[hashStr(seed) % lines.length];
+}
+
+function buildSpecificRecommendation(
+  translatedName: string,
+  description: string,
+  searchText: string,
+  flags: DishInsightFlags
+): string {
+  const text = searchText;
+
+  if (/豆酱|黄豆酱|miso|soybean/.test(text) && /斗仑|斗仓|鱼|fish|贝|shell|seafood/.test(text)) {
+    return `这道${translatedName}的重点是豆酱带来的咸鲜酱香，适合配米饭分享。喜欢鲜味重、带一点家常酱香的人，可以优先点它。`;
+  }
+  if (/椒盐|salt.?pepper/.test(text) && /油膳|油鳝|鳝|eel|鱼|seafood/.test(text)) {
+    return `椒盐做法看的是外层酥香和内里弹嫩，${translatedName}适合趁热吃，也很适合作为下酒菜。口味偏咸香，建议配一道清爽蔬菜。`;
+  }
+  if (/花雕|shaoxing|huadiao|rice wine/.test(text) && /蟹|crab|膏/.test(text)) {
+    return `这道${translatedName}的看点是花雕酒香、蟹黄鲜味和焗制后的浓郁汁水。适合想吃重风味海鲜的人，最好趁热分享。`;
+  }
+  if (/橄榄油|olive oil/.test(text) && /杂菜|时蔬|vegetable|蔬菜/.test(text)) {
+    return `${translatedName}胜在橄榄油香和蔬菜清爽，适合搭配海鲜、肉菜或主食。想减轻整桌油腻感，可以点一份平衡口味。`;
+  }
+  if (/樱花虾|sakura shrimp/.test(text) && /芹菜|celery|马家沟/.test(text)) {
+    return `樱花虾负责提鲜，芹菜提供脆爽清口的口感，${translatedName}适合作为开胃凉菜。想吃轻盈但有鲜味的菜，这道更合适。`;
+  }
+
+  if (flags.isDrink) {
+    return pickInsightLine(translatedName + description, [
+      `${translatedName}更适合用来佐餐或餐后慢慢喝，重点看香气、温度和甜度。想要轻松聊天时点一杯，会比再加主菜更舒服。`,
+      `如果你想补一杯饮品，${translatedName}适合按个人口味选冷饮或热饮。它更像调节节奏的选择，搭配甜点或单独喝都可以。`,
+    ]);
+  }
+  if (flags.isDessert) {
+    return pickInsightLine(translatedName + description, [
+      `${translatedName}适合作为餐后收尾，重点看甜度、奶香和口感层次。建议两个人分食，搭配咖啡或茶会更平衡。`,
+      `想用甜点结束这一餐，可以考虑${translatedName}。它更适合已经吃得差不多时分享，不建议和太多重口主菜一起点。`,
+    ]);
+  }
+  if (flags.isFried) {
+    return `${translatedName}的优势在趁热时的酥脆和香气，适合作为前菜或多人分食小吃。上桌后尽快吃，口感会明显更好。`;
+  }
+  if (flags.isSeafood) {
+    return `${translatedName}主要看食材鲜度和火候，适合喜欢鲜味、想点一道有记忆点菜的人。建议搭配清爽配菜，避免整桌太厚重。`;
+  }
+  if (flags.isHearty) {
+    return `${translatedName}更适合作为一餐里的核心主菜，风味通常比较扎实。胃口好或想吃得满足时可以点，旁边配一份清爽菜更稳。`;
+  }
+  if (flags.isSalad || flags.isVeg) {
+    return `${translatedName}走清爽路线，适合开胃或平衡重口味菜。若想吃得轻一些可以点它，但单独当正餐可能不够饱。`;
+  }
+
+  return `${translatedName}适合想稳妥尝试这家菜单的人，点单时重点看${description ? "它的食材组合和风味强度" : "食材、做法和口味强度"}。如果描述里的主料正合你口味，可以放心尝试。`;
+}
+
 export function getDishInsight(dish: Dish): DishInsight {
   const { translatedName, description, searchText } = getDishText(dish);
   const isVeg = isVegetarianDish(dish);
   const isFried = /fried|炸|煎|calamari|鱿鱼/.test(searchText);
-  const isDessert = /dessert|cake|sweet|甜|蛋糕|挞/.test(searchText);
-  const isSeafood = /fish|seafood|salmon|sole|calamari|鱼|海鲜|鱿鱼/.test(searchText);
+  const isDessert = /dessert|cake|sweet|甜品|甜点|蛋糕|挞|布丁|雪糕|冰淇淋|tiramisu|gelato|panna cotta|mousse/.test(searchText);
+  const isSeafood = /fish|seafood|salmon|sole|calamari|crab|shrimp|prawn|shellfish|clam|oyster|eel|鱼|海鲜|鱿鱼|蟹|虾|贝|蚝|鳝|斗仑|斗仓/.test(searchText);
   const isHearty = /beef|steak|chicken|pork|lamb|牛排|牛肉|鸡肉|猪|羊/.test(searchText);
   const isSalad = /salad|沙拉|fresh|蔬菜/.test(searchText);
-  const isDrink = /coffee|espresso|expresso|cappuccino|latte|americano|tea|matcha|chai|wine|beer|cocktail|juice|smoothie|lemonade|咖啡|浓缩|卡布奇诺|拿铁|茶|抹茶|酒|啤酒|鸡尾酒|果汁|冰沙/.test(searchText);
+  const hasDrinkTerm = /coffee|espresso|expresso|cappuccino|latte|americano|tea|matcha|chai|wine|beer|cocktail|juice|smoothie|lemonade|咖啡|浓缩|卡布奇诺|拿铁|茶|抹茶|酒|啤酒|鸡尾酒|果汁|冰沙/.test(searchText);
+  const isDrink = hasDrinkTerm && !isSeafood && !isHearty && !isFried;
   const baseDescription = description || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
 
   // AI-generated fields take priority
@@ -249,13 +330,15 @@ export function getDishInsight(dish: Dish): DishInsight {
   const aiGoodFor = localized(dish.good_for);
   const aiCaution = localized(dish.caution);
 
-  let recommendation = "这道菜风味温和不刺激，适合第一次尝试该菜系的人。如果你想吃一顿不出错的正餐，这是一个稳妥的选择。";
-  if (isDrink) recommendation = "如果你想点一杯佐餐或餐后的饮品，这是不错的选择。可以根据个人口味选择热饮或冷饮，搭配甜点或单独享用都很合适。";
-  else if (isFried) recommendation = "如果你喜欢外酥里嫩的口感，这道菜不会让你失望。炸制食物讲究趁热吃，上桌后尽快享用风味最佳。挤点柠檬汁或蘸上店家特调酱汁，能让层次更丰富。";
-  else if (isDessert) recommendation = "如果你还有胃口，强烈推荐用这道甜品为整顿饭画上句号。甜食搭配浓缩咖啡或红茶尤其出色，也可以和朋友分着吃，不会太腻。";
-  else if (isSeafood) recommendation = "如果你钟爱鲜味和海洋气息，这道菜值得一试。重点在于食材的新鲜度——好的海鲜料理能让你一口尝到海的清甜。注意看是否配奶油或黄油酱汁，会影响整体口感走向。";
-  else if (isHearty) recommendation = "如果你今天想吃一顿扎实过瘾的正餐，这就是答案。浓郁的酱汁、饱满的肉香，适合饿了一天之后好好犒劳自己。一个人点一份通常足够，不太建议再点太多其他主菜。";
-  else if (isSalad) recommendation = "想吃点清爽的、给胃减减负担？选它没错。新鲜蔬菜搭配酱汁，既开胃又不会占太多胃容量。不过如果只点这一道当正餐，可能会觉得不够饱，建议再配一份主食或汤。";
+  const recommendation = buildSpecificRecommendation(translatedName, description, searchText, {
+    isVeg,
+    isFried,
+    isDessert,
+    isSeafood,
+    isHearty,
+    isSalad,
+    isDrink,
+  });
 
   let goodFor = "适合第一次看菜单时作为安全选择，也适合想尝试经典口味但不愿冒险的人。";
   if (isDrink) goodFor = "适合佐餐、餐后小憩或下午茶时段。也可以作为不喝酒的社交替代饮品。";
@@ -273,7 +356,7 @@ export function getDishInsight(dish: Dish): DishInsight {
 
   return {
     summary: baseDescription,
-    recommendation: aiRecommendation || recommendation,
+    recommendation: aiRecommendation && !isGenericRecommendation(aiRecommendation) ? aiRecommendation : recommendation,
     goodFor: aiGoodFor || goodFor,
     caution: aiCaution || caution,
     confidenceLabel: dish.rating_avg ? `食客评分 ${dish.rating_avg}` : "AI 推荐参考",

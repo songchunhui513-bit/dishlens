@@ -284,6 +284,62 @@ test("AI image generation prompt uses category-specific framing for drinks, soup
   assert.doesNotMatch(seafoodPrompt, /cup|mug|beverage/i);
 });
 
+test("dish insight fallback recommendations are specific to each dish", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
+  const { getDishInsight } = await loadTsModule(
+    `${ROOT}/src/lib/dish-presentation.ts`,
+  );
+
+  const dishes = [
+    {
+      name_original: "03 豆酱焗斗仑",
+      name_translated: { zh: "豆酱焗斗仑" },
+      description: { zh: "用豆酱调味的贝类焗烤，香气扑鼻，鲜甜多汁，外壳酥脆内里嫩滑。" },
+      ingredients: ["斗仑", "豆酱", "姜葱"],
+      category: "seafood",
+    },
+    {
+      name_original: "04 椒盐油膳",
+      name_translated: { zh: "椒盐油膳" },
+      description: { zh: "油膳炸至金黄，撒上椒盐，外酥里嫩，咸香微辣，适合下酒。" },
+      ingredients: ["油膳", "椒盐"],
+      category: "seafood",
+    },
+    {
+      name_original: "05 陈年花雕焗膏蟹",
+      name_translated: { zh: "陈年花雕焗膏蟹" },
+      description: { zh: "选用膏蟹以陈年花雕酒焗制，蟹黄饱满，酒香浓郁，入口即化。" },
+      ingredients: ["膏蟹", "陈年花雕酒"],
+      category: "seafood",
+    },
+    {
+      name_original: "06 橄榄油炒杂菜",
+      name_translated: { zh: "橄榄油炒杂菜" },
+      description: { zh: "多种时蔬以橄榄油快炒，保留营养与清甜，口感爽脆，健康美味。" },
+      ingredients: ["橄榄油", "时蔬"],
+      category: "vegetable",
+    },
+    {
+      name_original: "07 樱花虾拌马家沟有机芹菜",
+      name_translated: { zh: "樱花虾拌马家沟有机芹菜" },
+      description: { zh: "樱花虾与有机芹菜凉拌，清香爽口，富含膳食纤维，低脂健康。" },
+      ingredients: ["樱花虾", "马家沟芹菜"],
+      category: "salad",
+    },
+  ];
+
+  const recommendations = dishes.map((dish) => getDishInsight(dish).recommendation);
+
+  assert.equal(new Set(recommendations).size, dishes.length);
+  assert.match(recommendations[0], /豆酱|酱香|斗仑/);
+  assert.match(recommendations[1], /椒盐|趁热|下酒/);
+  assert.match(recommendations[2], /花雕|蟹黄|膏蟹/);
+  assert.match(recommendations[3], /橄榄油|蔬菜|清爽|油腻/);
+  assert.match(recommendations[4], /樱花虾|芹菜|脆爽|清口/);
+  assert.doesNotMatch(recommendations.join("\n"), /如果你想点一杯佐餐或餐后的饮品/);
+  assert.doesNotMatch(recommendations.join("\n"), /如果你还有胃口，强烈推荐用这道甜品/);
+});
+
 test("AI generated dish images are cached with deterministic keys before generating again", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
   const storage = await readFile(`${ROOT}/src/lib/storage/supabase-storage.ts`, "utf8");
