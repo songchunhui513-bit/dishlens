@@ -2,7 +2,7 @@
 
 import type { ShareMenuMeta, ShareTargetId } from "@/lib/share-menu";
 import { buildShareHref, buildShareMessage, SHARE_TARGETS } from "@/lib/share-menu";
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
 interface ShareSheetProps {
   open: boolean;
@@ -11,10 +11,25 @@ interface ShareSheetProps {
   onStatus?: (message: string) => void;
 }
 
+type ShareIllustrationTarget = ShareTargetId | "menu";
+type WeChatShareScene = "friend" | "timeline" | "favorite";
+type WeixinBridgeResult = { err_msg?: string };
+
+interface WeixinBridgeApi {
+  invoke: (name: string, payload: Record<string, string>, callback?: (result: WeixinBridgeResult) => void) => void;
+}
+
+declare global {
+  interface Window {
+    WeixinJSBridge?: WeixinBridgeApi;
+  }
+}
+
 const roundStroke: CSSProperties = { strokeLinecap: "round", strokeLinejoin: "round" };
 const CLIPBOARD_TIMEOUT_MS = 350;
+const WECHAT_BRIDGE_TIMEOUT_MS = 1200;
 
-function ShareIllustrationIcon({ targetId, featured = false }: { targetId: ShareTargetId; featured?: boolean }) {
+function ShareIllustrationIcon({ targetId, featured = false }: { targetId: ShareIllustrationTarget; featured?: boolean }) {
   const size = featured ? 62 : 50;
   const shellBackground = featured
     ? "linear-gradient(135deg, rgba(255,245,233,0.98), rgba(254,230,203,0.9))"
@@ -35,6 +50,16 @@ function ShareIllustrationIcon({ targetId, featured = false }: { targetId: Share
       }}
     >
       <svg viewBox="0 0 96 96" style={{ width: featured ? 50 : 40, height: featured ? 50 : 40 }} aria-hidden="true">
+        {targetId === "menu" ? (
+          <>
+            <path d="M28 18 h35 q7 0 7 7 v43 q0 8-8 8 H28 q-7 0-7-7 V25 q0-7 7-7Z" fill="#FFF5E9" stroke="#D4A574" strokeWidth="2.6" style={roundStroke} />
+            <path d="M34 31 h22 M34 42 h28 M34 53 h20" stroke="#C49660" strokeWidth="2.5" opacity="0.78" style={roundStroke} />
+            <path d="M64 24 q7 5 6 13 q-1 8-9 11" fill="none" stroke="#4CAF50" strokeWidth="3.6" style={roundStroke} />
+            <path d="M32 72 q17 8 36 0" fill="none" stroke="#FFB74D" strokeWidth="5" style={roundStroke} />
+            <circle cx="25" cy="32" r="3" fill="#FF9F1C" style={{ animation: "sparkleA 2s ease-out infinite .25s" }} />
+            <circle cx="69" cy="54" r="2.8" fill="#4CAF50" />
+          </>
+        ) : null}
         {targetId === "native" ? (
           <>
             <path d="M19 42 q0-15 19-15 q19 0 19 15 q0 14-19 14 q-3 0-7-.6 l-9 6 l3-9 q-6-4-6-10Z" fill="#FEE6CB" stroke="#D4A574" strokeWidth="2.5" style={roundStroke} />
@@ -108,6 +133,8 @@ function ShareIllustrationIcon({ targetId, featured = false }: { targetId: Share
 
 export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheetProps) {
   const [localStatus, setLocalStatus] = useState("");
+  const [statusTone, setStatusTone] = useState<"success" | "info" | "error">("success");
+  const statusTimerRef = useRef<number | null>(null);
 
   if (!open || !meta) return null;
   const shareMeta: ShareMenuMeta = meta;
@@ -115,10 +142,83 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
   const mainTargets = SHARE_TARGETS.filter((target) => target.id === "native" || target.id === "copy");
   const channelTargets = SHARE_TARGETS.filter((target) => target.id !== "native" && target.id !== "copy");
 
-  function showStatus(message: string) {
+  function showStatus(message: string, tone: "success" | "info" | "error" = "success") {
+    if (statusTimerRef.current) window.clearTimeout(statusTimerRef.current);
+    setStatusTone(tone);
     setLocalStatus(message);
     onStatus?.(message);
-    window.setTimeout(() => setLocalStatus(""), 1800);
+    statusTimerRef.current = window.setTimeout(() => setLocalStatus(""), 2400);
+  }
+
+  function isWeChatBrowser() {
+    return /MicroMessenger/i.test(navigator.userAgent);
+  }
+
+  function waitForWeixinBridge() {
+    if (window.WeixinJSBridge) return Promise.resolve(window.WeixinJSBridge);
+
+    return new Promise<WeixinBridgeApi>((resolve, reject) => {
+      const timer = window.setTimeout(() => reject(new Error("WeixinJSBridge unavailable")), WECHAT_BRIDGE_TIMEOUT_MS);
+
+      document.addEventListener(
+        "WeixinJSBridgeReady",
+        () => {
+          window.clearTimeout(timer);
+          if (window.WeixinJSBridge) {
+            resolve(window.WeixinJSBridge);
+            return;
+          }
+          reject(new Error("WeixinJSBridge unavailable"));
+        },
+        { once: true },
+      );
+    });
+  }
+
+  function buildWeChatPayload() {
+    const imageUrl = new URL("/icons/share-preview-20260527.png", shareMeta.url).href;
+
+    return {
+      appid: "",
+      title: shareMeta.title,
+      desc: shareMeta.text,
+      link: shareMeta.url,
+      img_url: imageUrl,
+      img_width: "1200",
+      img_height: "630",
+    };
+  }
+
+  async function shareToWeChat(scene: WeChatShareScene) {
+    if (!isWeChatBrowser()) {
+      await copyLink("当前浏览器无法直接打开微信，链接已复制");
+      return;
+    }
+
+    try {
+      const bridge = await waitForWeixinBridge();
+      const command = scene === "timeline" ? "shareTimeline" : scene === "favorite" ? "addToFavorites" : "sendAppMessage";
+      const openingMessage = scene === "timeline" ? "正在打开朋友圈分享" : scene === "favorite" ? "正在打开微信收藏" : "正在打开微信好友分享";
+
+      showStatus(openingMessage, "info");
+      bridge.invoke(command, buildWeChatPayload(), (result) => {
+        const errMsg = result?.err_msg || "";
+        if (errMsg.includes(":ok")) {
+          showStatus(scene === "favorite" ? "已收藏到微信" : "微信分享已完成");
+          onClose();
+          return;
+        }
+
+        if (errMsg.includes(":cancel")) {
+          showStatus("已取消微信分享", "info");
+          return;
+        }
+
+        void copyLink("微信分享未完成，链接已复制");
+      });
+    } catch {
+      await copyLink("微信分享暂时打不开，链接已复制");
+    }
   }
 
   async function writeClipboardWithTimeout(text: string) {
@@ -142,19 +242,30 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
       textarea.setAttribute("readonly", "true");
       textarea.style.position = "fixed";
       textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      const copied = document.execCommand("copy");
-      document.body.removeChild(textarea);
-      showStatus(copied ? message : "复制失败，请长按链接手动复制");
+      try {
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        const copied = document.execCommand("copy");
+        showStatus(copied ? message : "已显示链接，请长按上方链接复制", copied ? "success" : "info");
+      } catch {
+        showStatus("已显示链接，请长按上方链接复制", "info");
+      } finally {
+        textarea.remove();
+      }
     }
   }
 
   async function shareNative(fallbackMessage = "浏览器无法打开分享菜单，链接已复制") {
+    if (isWeChatBrowser()) {
+      await shareToWeChat("friend");
+      return;
+    }
+
     try {
       const nativeShare = navigator.share as ((data: ShareData) => Promise<void>) | undefined;
       if (nativeShare) {
-        await nativeShare.call(navigator, { title: shareMeta.title, text: shareMeta.text, url: shareMeta.url });
+        await nativeShare.call(navigator, { title: shareMeta.title, text: buildShareMessage(shareMeta), url: shareMeta.url });
         showStatus("已打开分享菜单");
         onClose();
         return;
@@ -178,7 +289,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
     }
 
     if (targetId === "wechat") {
-      await copyLink("链接已复制，打开微信粘贴给好友或群聊");
+      await shareToWeChat("friend");
       return;
     }
 
@@ -188,9 +299,9 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
       return;
     }
 
-    window.open(href, "_blank", "noopener,noreferrer");
+    window.location.assign(href);
     const target = SHARE_TARGETS.find((item) => item.id === targetId);
-    showStatus(target ? `已打开 ${target.label}` : "已打开分享渠道");
+    showStatus(target ? `正在打开 ${target.label}` : "正在打开分享渠道", "info");
   }
 
   return (
@@ -249,7 +360,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
             marginBottom: 12,
           }}
         >
-          <ShareIllustrationIcon targetId="native" featured />
+          <ShareIllustrationIcon targetId="menu" featured />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2" style={{ marginBottom: 7 }}>
               <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, fontWeight: 800, color: "var(--primary)", letterSpacing: "0.04em" }}>
@@ -331,11 +442,49 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
         </div>
 
         <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", lineHeight: 1.55, marginTop: 12 }}>
-          {localStatus || "点微信会复制链接；打开微信，在聊天里粘贴链接即可。"}
+          {localStatus || "微信内可直接转发；其他 App 会打开对应分享页，复制链接后可在聊天里粘贴链接。"}
         </div>
         <div className="sr-only">支持微信、WhatsApp、Telegram、LINE、Facebook、X 和复制链接</div>
         <div className="sr-only">{buildShareMessage(shareMeta)}</div>
       </div>
+      {localStatus ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute left-1/2 top-1/2 flex items-center gap-2"
+          style={{
+            transform: "translate(-50%, -50%)",
+            zIndex: 60,
+            maxWidth: "calc(100% - 48px)",
+            borderRadius: 18,
+            background: statusTone === "error" ? "rgba(131,42,42,0.94)" : "rgba(45,45,45,0.92)",
+            color: "#FFF",
+            boxShadow: "0 16px 36px rgba(45,45,45,0.24)",
+            padding: "12px 15px",
+            fontFamily: "var(--font-ui)",
+            fontSize: 11,
+            fontWeight: 800,
+            lineHeight: 1.35,
+            textAlign: "left",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="inline-flex items-center justify-center"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: statusTone === "info" ? "rgba(255,183,77,0.22)" : "rgba(76,175,80,0.28)",
+              color: statusTone === "info" ? "#FFB74D" : "#B8F0BA",
+              flexShrink: 0,
+            }}
+          >
+            {statusTone === "info" ? "…" : "✓"}
+          </span>
+          <span>{localStatus}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

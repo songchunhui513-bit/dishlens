@@ -483,6 +483,11 @@ test("global menu sharing builds platform links without private WeChat deep link
   assert.match(buildShareHref("line", meta), /^https:\/\/social-plugins\.line\.me\/lineit\/share\?/);
   assert.match(buildShareHref("facebook", meta), /^https:\/\/www\.facebook\.com\/sharer\/sharer\.php\?/);
   assert.match(buildShareHref("x", meta), /^https:\/\/twitter\.com\/intent\/tweet\?/);
+  assert.match(decodeURIComponent(buildShareHref("whatsapp", meta) || ""), /https:\/\/dishlens\.wukongmkt\.com\/share\/task-123/);
+  assert.match(decodeURIComponent(buildShareHref("telegram", meta) || ""), /https:\/\/dishlens\.wukongmkt\.com\/share\/task-123/);
+  assert.match(decodeURIComponent(buildShareHref("line", meta) || ""), /https:\/\/dishlens\.wukongmkt\.com\/share\/task-123/);
+  assert.match(decodeURIComponent(buildShareHref("facebook", meta) || ""), /https:\/\/dishlens\.wukongmkt\.com\/share\/task-123/);
+  assert.match(decodeURIComponent(buildShareHref("x", meta) || ""), /https:\/\/dishlens\.wukongmkt\.com\/share\/task-123/);
   assert.equal(SHARE_TARGETS.some((target) => target.label === "短信" || target.label === "邮件"), false);
   assert.equal(buildShareHref("wechat", meta), null);
   assert.equal(buildShareHref("native", meta), null);
@@ -538,6 +543,33 @@ test("finalized share sheet uses the together-at-the-table illustration system",
   assert.doesNotMatch(sheet, /#49A4E8|#2677B8|#4D8CE8|#2B65B8|fill="#2D2D2D"|stroke="#111"/);
 });
 
+test("share sheet opens WeChat with bridge, keeps URLs in native share text, and uses stronger feedback", async () => {
+  const sheet = await readFile(`${ROOT}/src/components/share/ShareSheet.tsx`, "utf8");
+
+  assert.match(sheet, /WeixinJSBridge/);
+  assert.match(sheet, /sendAppMessage/);
+  assert.match(sheet, /shareTimeline/);
+  assert.match(sheet, /addToFavorites/);
+  assert.match(sheet, /isWeChatBrowser\(\)/);
+  assert.match(sheet, /shareToWeChat\("friend"\)/);
+  assert.match(sheet, /text:\s*buildShareMessage\(shareMeta\)/);
+  assert.match(sheet, /window\.location\.assign\(href\)/);
+  assert.match(sheet, /role="status"/);
+  assert.match(sheet, /aria-live="polite"/);
+  assert.match(sheet, /已显示链接，请长按上方链接复制/);
+  assert.match(sheet, /setSelectionRange/);
+  assert.match(sheet, /targetId="menu"/);
+  assert.match(sheet, /targetId === "menu"/);
+
+  const nativeBranch = sheet.match(/if \(targetId === "native"\) \{[\s\S]*?return;\n    \}/)?.[0] || "";
+  assert.match(nativeBranch, /shareNative/);
+  assert.match(sheet, /if \(isWeChatBrowser\(\)\) \{[\s\S]*?await shareToWeChat\("friend"\)/);
+
+  const wechatBranch = sheet.match(/if \(targetId === "wechat"\) \{[\s\S]*?return;\n    \}/)?.[0] || "";
+  assert.match(wechatBranch, /shareToWeChat\("friend"\)/);
+  assert.doesNotMatch(wechatBranch, /copyLink\("链接已复制，打开微信粘贴给好友或群聊"\)/);
+});
+
 test("iOS native share previews use explicit image metadata and WeChat avoids hanging native share", async () => {
   const layout = await readFile(`${ROOT}/src/app/layout.tsx`, "utf8");
   const sharePage = await readFile(`${ROOT}/src/app/share/[id]/page.tsx`, "utf8");
@@ -551,7 +583,7 @@ test("iOS native share previews use explicit image metadata and WeChat avoids ha
   assert.match(sheet, /Clipboard write timed out/);
 
   const wechatBranch = sheet.match(/if \(targetId === "wechat"\) \{[\s\S]*?return;\n    \}/)?.[0] || "";
-  assert.match(wechatBranch, /copyLink\("链接已复制，打开微信粘贴给好友或群聊"\)/);
+  assert.match(wechatBranch, /shareToWeChat\("friend"\)/);
   assert.doesNotMatch(wechatBranch, /nativeShare|shareNative|navigator\.share/);
 });
 
