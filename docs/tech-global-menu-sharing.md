@@ -35,7 +35,7 @@
 - `SHARE_TARGETS`：渠道配置，顺序为 native、copy、wechat、whatsapp、telegram、line、facebook、x。
 - `buildShareMenuMeta(result, origin, taskId)`：从识别结果生成分享标题、摘要、URL、代表菜品、语言等。
 - `buildShareMessage(meta)`：生成可放入聊天工具的文本。
-- `buildShareHref(targetId, meta)`：生成渠道 URL。native、copy、wechat 返回 `null`，由 UI 分别走原生分享、复制链接和微信桥接路径。
+- `buildShareHref(targetId, meta)`：生成渠道 URL。native、copy、wechat 返回 `null`，由 UI 分别走原生分享、复制链接和原生分享兜底路径。
 - `appShareOrigin()`：统一读取 `NEXT_PUBLIC_APP_URL`，默认 `https://dishlens.wukongmkt.com`。
 
 ## UI 组件
@@ -50,12 +50,11 @@
 组件职责：
 
 1. 展示分享摘要和公开链接。
-2. 微信内置浏览器中，使用 `WeixinJSBridge.invoke("sendAppMessage")` 打开好友转发。
-3. 普通浏览器中调用 `navigator.share`，且 `text` 使用 `buildShareMessage(meta)`，确保摘要和完整 URL 同时进入分享文本。
+2. 微信按钮和“发给朋友”统一调用 `navigator.share` 打开原生分享页，且 `text` 使用 `buildShareMessage(meta)`，确保摘要和完整 URL 同时进入分享文本。
 3. 调用 Clipboard API，并在 350ms 未返回时切换到 textarea fallback；如果浏览器权限连 fallback 也失败，中央 toast 明确提示“已显示链接，请长按上方链接复制”。
 4. 打开 WhatsApp、Telegram、LINE、Facebook、X 外链，通过 `window.location.assign(href)` 触发 App 或分享页跳转。
-5. 微信外无法桥接时复制链接兜底，避开不稳定的私有 URL scheme。
-6. 在面板中央展示强 toast，覆盖复制成功、微信打开中、微信失败兜底和 App 打开中状态。
+5. 微信不使用私有 URL scheme，也不主动调用微信桥接；原生分享不可用时复制链接兜底。
+6. 在面板中央展示强 toast，覆盖复制成功、原生分享失败兜底和 App 打开中状态。
 
 ## 图标定稿
 
@@ -100,17 +99,13 @@
 
 截图中的页面是 iOS 原生分享面板，不是 DishLens 自定义分享面板。点击其中的“微信”后，链路会交给微信 App 的 iOS Share Extension，普通网页无法控制其加载过程，也无法拿到稳定错误回调。卡住常见原因包括微信扩展状态异常、登录态异常、iOS 缓存、系统分享扩展 bug 或微信未能处理当前 URL 预览。
 
-因此本期修复不再让微信内的 DishLens 自定义微信入口或“发给朋友”调用 `navigator.share`。微信内路径改为：
+真实微信内置浏览器验证后，直接调用微信桥接会出现返回失败并触发复制兜底的情况，无法稳定打开用户预期的原生分享页。因此当前策略调整为：
 
-1. 检测 `MicroMessenger` user agent。
-2. 等待 `window.WeixinJSBridge` 或 `WeixinJSBridgeReady`。
-3. 调用 `WeixinJSBridge.invoke("sendAppMessage", payload, callback)`。
-4. `payload.link` 使用 `/share/{id}` 完整 URL，`payload.img_url` 使用 `/icons/share-preview-20260527.png`。
-5. 桥接不可用、失败或超时时复制链接，并显示中央 toast。
-
-代码中同时保留 `shareTimeline` 和 `addToFavorites` 命令映射，便于后续如果产品要把朋友圈/收藏做成显式入口时复用。
-
-普通浏览器仍保留 `navigator.share` 服务 AirDrop、Messages、WhatsApp、Telegram 等系统渠道，但分享文本已包含 URL，避免“分享到其他”只带文字不带链接。
+1. “发给朋友”和“微信”按钮都调用 `navigator.share`。
+2. 分享 payload 同时传入 `title`、`text` 和 `url`。
+3. `text` 使用 `buildShareMessage(meta)`，把菜单摘要和完整 URL 放在同一段文字里，避免“分享到其他”只带文字不带链接。
+4. 如果 `navigator.share` 不存在、失败或目标 App 没有接住，则复制 `/share/{id}` 完整 URL，并在中央 toast 明确提示。
+5. 不再主动使用 `WeixinJSBridge` 或微信私有 URL scheme，避免真实设备上出现“微信分享未完成，链接已复制”的误导提示。
 
 ## 测试策略
 
@@ -124,9 +119,9 @@
 6. 客户端能力包含 `navigator.share` 和 `clipboard.writeText`。
 7. 方案 C 定稿图标包含聊天气泡和餐碗路径，并排除旧放大镜/纸飞机路径。
 8. 分享面板文案包含“朋友不用登录”“聊天里粘贴链接”，并排除“系统分享”“短信”“邮件”等旧表达。
-9. iOS 分享预览必须有 root Apple touch icon、Open Graph 预览图，微信分支不能调用 `navigator.share`。
+9. iOS 分享预览必须有 root Apple touch icon、Open Graph 预览图，微信分支必须调用 `shareNative`，由原生分享页接管。
 10. 复制链路包含 Clipboard API 超时兜底，避免权限环境导致点击后无反馈。
-11. 微信内分享包含 `WeixinJSBridge`、`sendAppMessage`，原生分享文本包含 `buildShareMessage(meta)`。
+11. 微信入口不包含 `WeixinJSBridge`、`sendAppMessage`，原生分享文本包含 `buildShareMessage(meta)`。
 12. 顶部摘要卡使用 `targetId="menu"`，复制反馈通过 `role="status"` 与 `aria-live="polite"` 暴露。
 
 ## 已验证命令
@@ -142,5 +137,5 @@ npm run build
 ## 后续建议
 
 1. 上线后补充分享渠道点击埋点。
-2. 如果要做微信内优化，再单独引入微信 JS-SDK，并在服务端处理签名。
+2. 如果后续要做微信内更深度的分享控制，再单独评估微信 JS-SDK 能力、服务端签名和真实设备兼容性；不要直接恢复未验证的桥接调用。
 3. 增加分享页菜品筛选和“我想吃”轻量协作能力，承接群内讨论。

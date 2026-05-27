@@ -12,22 +12,9 @@ interface ShareSheetProps {
 }
 
 type ShareIllustrationTarget = ShareTargetId | "menu";
-type WeChatShareScene = "friend" | "timeline" | "favorite";
-type WeixinBridgeResult = { err_msg?: string };
-
-interface WeixinBridgeApi {
-  invoke: (name: string, payload: Record<string, string>, callback?: (result: WeixinBridgeResult) => void) => void;
-}
-
-declare global {
-  interface Window {
-    WeixinJSBridge?: WeixinBridgeApi;
-  }
-}
 
 const roundStroke: CSSProperties = { strokeLinecap: "round", strokeLinejoin: "round" };
 const CLIPBOARD_TIMEOUT_MS = 350;
-const WECHAT_BRIDGE_TIMEOUT_MS = 1200;
 
 function ShareIllustrationIcon({ targetId, featured = false }: { targetId: ShareIllustrationTarget; featured?: boolean }) {
   const size = featured ? 62 : 50;
@@ -150,77 +137,6 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
     statusTimerRef.current = window.setTimeout(() => setLocalStatus(""), 2400);
   }
 
-  function isWeChatBrowser() {
-    return /MicroMessenger/i.test(navigator.userAgent);
-  }
-
-  function waitForWeixinBridge() {
-    if (window.WeixinJSBridge) return Promise.resolve(window.WeixinJSBridge);
-
-    return new Promise<WeixinBridgeApi>((resolve, reject) => {
-      const timer = window.setTimeout(() => reject(new Error("WeixinJSBridge unavailable")), WECHAT_BRIDGE_TIMEOUT_MS);
-
-      document.addEventListener(
-        "WeixinJSBridgeReady",
-        () => {
-          window.clearTimeout(timer);
-          if (window.WeixinJSBridge) {
-            resolve(window.WeixinJSBridge);
-            return;
-          }
-          reject(new Error("WeixinJSBridge unavailable"));
-        },
-        { once: true },
-      );
-    });
-  }
-
-  function buildWeChatPayload() {
-    const imageUrl = new URL("/icons/share-preview-20260527.png", shareMeta.url).href;
-
-    return {
-      appid: "",
-      title: shareMeta.title,
-      desc: shareMeta.text,
-      link: shareMeta.url,
-      img_url: imageUrl,
-      img_width: "1200",
-      img_height: "630",
-    };
-  }
-
-  async function shareToWeChat(scene: WeChatShareScene) {
-    if (!isWeChatBrowser()) {
-      await copyLink("当前浏览器无法直接打开微信，链接已复制");
-      return;
-    }
-
-    try {
-      const bridge = await waitForWeixinBridge();
-      const command = scene === "timeline" ? "shareTimeline" : scene === "favorite" ? "addToFavorites" : "sendAppMessage";
-      const openingMessage = scene === "timeline" ? "正在打开朋友圈分享" : scene === "favorite" ? "正在打开微信收藏" : "正在打开微信好友分享";
-
-      showStatus(openingMessage, "info");
-      bridge.invoke(command, buildWeChatPayload(), (result) => {
-        const errMsg = result?.err_msg || "";
-        if (errMsg.includes(":ok")) {
-          showStatus(scene === "favorite" ? "已收藏到微信" : "微信分享已完成");
-          onClose();
-          return;
-        }
-
-        if (errMsg.includes(":cancel")) {
-          showStatus("已取消微信分享", "info");
-          return;
-        }
-
-        void copyLink("微信分享未完成，链接已复制");
-      });
-    } catch {
-      await copyLink("微信分享暂时打不开，链接已复制");
-    }
-  }
-
   async function writeClipboardWithTimeout(text: string) {
     if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
 
@@ -257,11 +173,6 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
   }
 
   async function shareNative(fallbackMessage = "浏览器无法打开分享菜单，链接已复制") {
-    if (isWeChatBrowser()) {
-      await shareToWeChat("friend");
-      return;
-    }
-
     try {
       const nativeShare = navigator.share as ((data: ShareData) => Promise<void>) | undefined;
       if (nativeShare) {
@@ -273,7 +184,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
       await copyLink(fallbackMessage);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      await copyLink("分享未完成，链接已复制");
+      await copyLink(fallbackMessage);
     }
   }
 
@@ -289,7 +200,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
     }
 
     if (targetId === "wechat") {
-      await shareToWeChat("friend");
+      await shareNative("微信分享未打开，链接已复制");
       return;
     }
 
@@ -442,7 +353,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
         </div>
 
         <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", lineHeight: 1.55, marginTop: 12 }}>
-          {localStatus || "微信内可直接转发；其他 App 会打开对应分享页，复制链接后可在聊天里粘贴链接。"}
+          {localStatus || "点发给朋友或微信会打开原生分享页；其他 App 会打开对应分享页，复制链接后可在聊天里粘贴链接。"}
         </div>
         <div className="sr-only">支持微信、WhatsApp、Telegram、LINE、Facebook、X 和复制链接</div>
         <div className="sr-only">{buildShareMessage(shareMeta)}</div>

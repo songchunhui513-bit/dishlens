@@ -32,7 +32,7 @@ const FALLBACK_APP_ORIGIN = "https://dishlens.wukongmkt.com";
 export const SHARE_TARGETS: ShareTarget[] = [
   { id: "native", label: "发给朋友", shortLabel: "SEND", description: "发到聊天里一起看菜" },
   { id: "copy", label: "复制链接", shortLabel: "LINK", description: "适合粘到任何群聊" },
-  { id: "wechat", label: "微信", shortLabel: "WX", description: "打开微信转发给好友" },
+  { id: "wechat", label: "微信", shortLabel: "WX", description: "打开原生分享页" },
   { id: "whatsapp", label: "WhatsApp", shortLabel: "WA", description: "海外旅行常用群聊" },
   { id: "telegram", label: "Telegram", shortLabel: "TG", description: "发给 Telegram 聊天" },
   { id: "line", label: "LINE", shortLabel: "LN", description: "日本、泰国等地区常用" },
