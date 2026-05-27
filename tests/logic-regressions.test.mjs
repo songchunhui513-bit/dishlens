@@ -389,6 +389,30 @@ test("translated menus can be shared through a public read-only menu page", asyn
   assert.match(sharedMenu, /分享菜单/);
 });
 
+test("app link icons use the warm DishLens illustration style", async () => {
+  const appIcon = await readFile(`${ROOT}/src/app/icon.svg`, "utf8");
+  const icon192 = await readFile(`${ROOT}/public/icons/icon-192.svg`, "utf8");
+  const layout = await readFile(`${ROOT}/src/app/layout.tsx`, "utf8");
+  const manifest = JSON.parse(await readFile(`${ROOT}/public/manifest.json`, "utf8"));
+  const favicon = await readFile(`${ROOT}/src/app/favicon.ico`);
+
+  for (const icon of [appIcon, icon192]) {
+    assert.match(icon, /#FFF5E9/);
+    assert.match(icon, /#4CAF50/);
+    assert.match(icon, /#D4A574/);
+    assert.match(icon, /ellipse/);
+    assert.match(icon, /stroke-linecap="round"/);
+    assert.doesNotMatch(icon, /<text|DL|#000|black|triangle/i);
+  }
+
+  assert.match(layout, /\/icon\.svg/);
+  assert.match(layout, /\/favicon\.ico/);
+  assert.match(layout, /apple-touch-icon\.png/);
+  assert.equal(manifest.icons.some((icon) => icon.src === "/icons/icon-192.png" && icon.type === "image/png"), true);
+  assert.equal(manifest.icons.some((icon) => icon.src === "/icons/icon-512.png" && icon.type === "image/png"), true);
+  assert.equal(favicon.subarray(0, 4).toString("hex"), "00000100");
+});
+
 test("global menu sharing builds platform links without private WeChat deep links", async () => {
   const { buildShareHref, buildShareMenuMeta, SHARE_TARGETS } = await loadTsModule(
     `${ROOT}/src/lib/share-menu.ts`,
