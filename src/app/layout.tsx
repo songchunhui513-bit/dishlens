@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4, Poppins } from "next/font/google";
 import "./globals.css";
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://dishlens.wukongmkt.com";
+
 const sourceSerif = Source_Serif_4({
   subsets: ["latin"],
   variable: "--font-display",
@@ -25,6 +27,7 @@ const interUi = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: "DishLens — AI Menu Translator",
   description: "拍菜单，秒懂天下菜。AI 翻译菜单、生成菜品图片、社区评价。",
   applicationName: "DishLens",

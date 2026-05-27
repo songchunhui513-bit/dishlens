@@ -12,11 +12,13 @@ import ErrorPage from "@/components/results/ErrorPage";
 import HistoryPage from "@/components/history/HistoryPage";
 import FavoritesPage from "@/components/favorites/FavoritesPage";
 import SettingsPage from "@/components/settings/SettingsPage";
+import ShareSheet from "@/components/share/ShareSheet";
 import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish } from "@/types";
 import { createTranslation } from "@/lib/api-client";
 import { getHistory as getStoredHistory, addHistory, getFavorites as getStoredFavorites, addFavorite, removeFavorite, isFavorited as checkFavorited } from "@/lib/local-storage";
 import { useDailyRecommendation } from "@/hooks/useDailyRecommendation";
 import { getDishImageUrl } from "@/lib/dish-presentation";
+import { buildShareMenuMeta } from "@/lib/share-menu";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ export default function Page() {
   const [translationResult, setTranslationResult] = useState<TranslationResult | null>(null);
   const latestResultRef = useRef<TranslationResult | null>(null);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
   const [history, setHistory] = useState<Screen[]>(["home"]);
   const [useMockFallback, setUseMockFallback] = useState(false);
@@ -87,6 +90,11 @@ export default function Page() {
   // Daily recommendation
   const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation();
   const shareTaskId = translationResult?.task_id || "";
+  const shareMeta = useMemo(() => {
+    if (!translationResult || !shareTaskId) return null;
+    const origin = typeof window === "undefined" ? undefined : window.location.origin;
+    return buildShareMenuMeta(translationResult, origin, shareTaskId);
+  }, [shareTaskId, translationResult]);
 
   // Compute AI image generation progress
   const imageGenProgress = useMemo(() => {
@@ -306,27 +314,19 @@ export default function Page() {
     navigate("results");
   }, [navigate]);
 
-  const handleShareMenu = useCallback(async () => {
-    if (!shareTaskId || typeof window === "undefined") return;
-    const url = new URL(`/share/${shareTaskId}`, window.location.origin).toString();
-    const title = "DishLens 分享菜单";
-    const text = "我用 DishLens 翻译了一份菜单，点开可以查看菜品列表和详情。";
+  const handleShareStatus = useCallback((message: string) => {
+    setShareNotice(message);
+    window.setTimeout(() => setShareNotice(""), 1800);
+  }, []);
 
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-        setShareNotice("已打开分享面板");
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShareNotice("菜单链接已复制");
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setShareNotice("分享未完成，请稍后再试");
-    } finally {
+  const handleShareMenu = useCallback(() => {
+    if (!shareTaskId || !shareMeta) {
+      setShareNotice("当前菜单还不能分享");
       window.setTimeout(() => setShareNotice(""), 1800);
+      return;
     }
-  }, [shareTaskId]);
+    setShareSheetOpen(true);
+  }, [shareMeta, shareTaskId]);
 
   // Poll for AI-generated images in background while on results screen
   useEffect(() => {
@@ -653,6 +653,12 @@ export default function Page() {
             {shareNotice}
           </div>
         ) : null}
+        <ShareSheet
+          open={shareSheetOpen}
+          meta={shareMeta}
+          onClose={() => setShareSheetOpen(false)}
+          onStatus={handleShareStatus}
+        />
       </div>
     </div>
   );

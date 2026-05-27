@@ -389,6 +389,101 @@ test("translated menus can be shared through a public read-only menu page", asyn
   assert.match(sharedMenu, /分享菜单/);
 });
 
+test("global menu sharing builds platform links without private WeChat deep links", async () => {
+  const { buildShareHref, buildShareMenuMeta, SHARE_TARGETS } = await loadTsModule(
+    `${ROOT}/src/lib/share-menu.ts`,
+  );
+
+  const result = {
+    task_id: "task-123",
+    status: "done",
+    pages: [
+      {
+        page_index: 0,
+        page_label: "Main",
+        image_thumbnail: "",
+        dishes: [
+          {
+            id: "dish-1",
+            name_original: "Soupe a l'oignon",
+            name_translated: { zh: "法式洋葱汤" },
+            description: {},
+            ingredients: [],
+            allergens: [],
+            taste_profile: [],
+            image_source: "mixed",
+          },
+          {
+            id: "dish-2",
+            name_original: "Burrata",
+            name_translated: { en: "Burrata" },
+            description: {},
+            ingredients: [],
+            allergens: [],
+            taste_profile: [],
+            image_source: "mixed",
+          },
+        ],
+      },
+    ],
+    metadata: {
+      source_language: "fr",
+      total_dishes: 2,
+      cached: false,
+    },
+  };
+
+  const meta = buildShareMenuMeta(result, "https://dishlens.wukongmkt.com", "task-123");
+  assert.equal(meta.url, "https://dishlens.wukongmkt.com/share/task-123");
+  assert.equal(meta.dishCount, 2);
+  assert.equal(meta.sourceTitle, "法语菜单");
+  assert.deepEqual(meta.previewDishes, ["法式洋葱汤", "Burrata"]);
+  assert.match(meta.title, /2 道菜/);
+  assert.match(meta.text, /法式洋葱汤、Burrata/);
+
+  assert.deepEqual(
+    SHARE_TARGETS.map((target) => target.id),
+    ["native", "copy", "wechat", "whatsapp", "telegram", "line", "facebook", "x"],
+  );
+  assert.match(buildShareHref("whatsapp", meta), /^https:\/\/wa\.me\/\?text=/);
+  assert.match(buildShareHref("telegram", meta), /^https:\/\/t\.me\/share\/url\?/);
+  assert.match(buildShareHref("line", meta), /^https:\/\/social-plugins\.line\.me\/lineit\/share\?/);
+  assert.match(buildShareHref("facebook", meta), /^https:\/\/www\.facebook\.com\/sharer\/sharer\.php\?/);
+  assert.match(buildShareHref("x", meta), /^https:\/\/twitter\.com\/intent\/tweet\?/);
+  assert.equal(SHARE_TARGETS.some((target) => target.label === "短信" || target.label === "邮件"), false);
+  assert.equal(buildShareHref("wechat", meta), null);
+  assert.equal(buildShareHref("native", meta), null);
+  assert.equal(buildShareHref("copy", meta), null);
+});
+
+test("global share UI is wired through a reusable sheet and dynamic metadata", async () => {
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const sharedMenu = await readFile(`${ROOT}/src/components/share/SharedMenuPage.tsx`, "utf8");
+  const sharePage = await readFile(`${ROOT}/src/app/share/[id]/page.tsx`, "utf8");
+  const layout = await readFile(`${ROOT}/src/app/layout.tsx`, "utf8");
+  const sheet = await readFile(`${ROOT}/src/components/share/ShareSheet.tsx`, "utf8");
+
+  assert.match(appPage, /ShareSheet/);
+  assert.match(appPage, /buildShareMenuMeta/);
+  assert.match(sharedMenu, /ShareSheet/);
+  assert.match(sharedMenu, /buildShareMenuMeta/);
+  assert.match(sharePage, /generateMetadata/);
+  assert.match(sharePage, /openGraph/);
+  assert.match(layout, /metadataBase/);
+  assert.match(sheet, /WhatsApp/);
+  assert.match(sheet, /Telegram/);
+  assert.match(sheet, /LINE/);
+  assert.match(sheet, /Facebook/);
+  assert.match(sheet, /X/);
+  assert.match(sheet, /微信/);
+  assert.match(sheet, /ShareIllustrationIcon/);
+  assert.match(sheet, /navigator\.share/);
+  assert.match(sheet, /clipboard\.writeText/);
+  assert.doesNotMatch(sheet, /系统分享/);
+  assert.doesNotMatch(sheet, /短信/);
+  assert.doesNotMatch(sheet, /邮件/);
+});
+
 test("dish image diagnostics script reports image source layers", async () => {
   const script = await readFile(`${ROOT}/scripts/diagnose-dish-images.mjs`, "utf8");
   assert.match(script, /local_knowledge/);

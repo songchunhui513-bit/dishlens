@@ -4,27 +4,12 @@ import { useMemo, useState } from "react";
 import type { Dish, TranslationResult } from "@/types";
 import DishImageWithLoading from "@/components/shared/DishImageWithLoading";
 import { getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import ShareSheet from "@/components/share/ShareSheet";
+import { buildShareMenuMeta, sourceTitle } from "@/lib/share-menu";
 
 type SharedMenuPageProps = {
   result: TranslationResult;
 };
-
-function sourceTitle(lang?: string): string {
-  const sourceLangNames: Record<string, string> = {
-    fr: "法语菜单",
-    ja: "日语菜单",
-    it: "意大利语菜单",
-    es: "西班牙语菜单",
-    de: "德语菜单",
-    ko: "韩语菜单",
-    th: "泰语菜单",
-    en: "英语菜单",
-    zh: "中文菜单",
-    pt: "葡语菜单",
-    vi: "越南语菜单",
-  };
-  return sourceLangNames[lang || ""] || "分享菜单";
-}
 
 function ShareIcon() {
   return (
@@ -40,32 +25,24 @@ function ShareIcon() {
 
 export default function SharedMenuPage({ result }: SharedMenuPageProps) {
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const allDishes = useMemo(() => result.pages.flatMap((page) => page.dishes || []), [result.pages]);
   const sourceLang = result.metadata?.source_language || "";
+  const currentOrigin = typeof window === "undefined" ? undefined : window.location.origin;
+  const shareMeta = useMemo(() => buildShareMenuMeta(result, currentOrigin, result.task_id), [currentOrigin, result]);
 
   function onDishDetail(dish: Dish) {
     setSelectedDish(dish);
   }
 
-  async function shareCurrentMenu() {
-    if (typeof window === "undefined") return;
-    const url = window.location.href;
-    const title = "DishLens 分享菜单";
-    const text = "这是一份用 DishLens 翻译好的菜单，可以查看菜品列表和详情。";
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-        setShareStatus("已打开分享面板");
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShareStatus("链接已复制");
-      }
-    } catch {
-      setShareStatus("分享未完成");
-    }
+  function showShareStatus(message: string) {
+    setShareStatus(message);
     window.setTimeout(() => setShareStatus(""), 1800);
+  }
+
+  function shareCurrentMenu() {
+    setShareSheetOpen(true);
   }
 
   if (selectedDish) {
@@ -109,6 +86,7 @@ export default function SharedMenuPage({ result }: SharedMenuPageProps) {
           <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{insight.recommendation}</div>
           <div style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", lineHeight: 1.55 }}>{insight.goodFor} {insight.caution}</div>
         </div>
+        <ShareSheet open={shareSheetOpen} meta={shareMeta} onClose={() => setShareSheetOpen(false)} onStatus={showShareStatus} />
       </div>
     );
   }
@@ -116,7 +94,10 @@ export default function SharedMenuPage({ result }: SharedMenuPageProps) {
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
-        <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>{sourceTitle(sourceLang)}</span>
+        <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>朋友分享的菜单</span>
+        <span className="text-[7px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>
+          {sourceTitle(sourceLang)} · {allDishes.length || result.metadata?.total_dishes || 0} 道
+        </span>
         <button onClick={shareCurrentMenu} className="inline-flex items-center gap-1 text-[8px] font-bold" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)", border: "none", borderRadius: 18, padding: "6px 9px" }}>
           <ShareIcon /> 分享菜单
         </button>
@@ -125,6 +106,11 @@ export default function SharedMenuPage({ result }: SharedMenuPageProps) {
         {shareStatus ? (
           <div style={{ padding: "8px 12px", marginBottom: 10, borderRadius: "var(--radius-sm)", background: "rgba(76,175,80,0.1)", color: "var(--primary)", fontFamily: "var(--font-ui)", fontSize: 8, fontWeight: 700 }}>
             {shareStatus}
+          </div>
+        ) : null}
+        {allDishes.length ? (
+          <div style={{ padding: "10px 14px", marginBottom: 10, borderRadius: "var(--radius-sm)", background: "var(--card-alt)", fontFamily: "var(--font-ui)", fontSize: 8.5, color: "var(--ink-soft)", lineHeight: 1.55 }}>
+            这是一份只读翻译菜单，适合一起决定点什么。
           </div>
         ) : null}
         {allDishes.length ? allDishes.map((dish, i) => {
@@ -153,6 +139,7 @@ export default function SharedMenuPage({ result }: SharedMenuPageProps) {
           </div>
         )}
       </div>
+      <ShareSheet open={shareSheetOpen} meta={shareMeta} onClose={() => setShareSheetOpen(false)} onStatus={showShareStatus} />
     </div>
   );
 }
