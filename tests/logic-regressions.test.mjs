@@ -347,6 +347,14 @@ test("dish insight fallback recommendations are specific to each dish", async ()
   ];
 
   const recommendations = dishes.map((dish) => getDishInsight(dish).recommendation);
+  const staleDrinkSummary = getDishInsight({
+    name_original: "05 陈年花雕焗膏蟹",
+    name_translated: { zh: "陈年花雕焗膏蟹" },
+    description: { zh: "选用膏蟹以陈年花雕酒焗制，蟹黄饱满，酒香浓郁，入口即化，适合搭配热饮或冷饮。" },
+    ingredients: ["膏蟹", "陈年花雕酒"],
+    category: "seafood",
+    image_source: "ai",
+  }).summary;
 
   assert.equal(new Set(recommendations).size, dishes.length);
   assert.match(recommendations[0], /豆酱|酱香|斗仑/);
@@ -356,6 +364,8 @@ test("dish insight fallback recommendations are specific to each dish", async ()
   assert.match(recommendations[4], /樱花虾|芹菜|脆爽|清口/);
   assert.match(recommendations[5], /花螺|鲜度|火候|海鲜|紫苏|酒香/);
   assert.doesNotMatch(recommendations[5], /饮品|点一杯|补一杯|冷饮|热饮|餐后慢慢喝/);
+  assert.match(staleDrinkSummary, /膏蟹|花雕|酒香/);
+  assert.doesNotMatch(staleDrinkSummary, /饮品|冷饮|热饮/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你想点一杯佐餐或餐后的饮品/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你想补一杯饮品|冷饮或热饮/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你还有胃口，强烈推荐用这道甜品/);

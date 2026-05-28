@@ -256,6 +256,13 @@ function isDrinkSpecificCopy(value: string): boolean {
   return /饮品|饮料|点一杯|补一杯|冷饮|热饮|餐后慢慢喝|单独喝|咖啡因|花草茶|拿铁|卡布奇诺/.test(value);
 }
 
+function stripNonDrinkBeverageAdvice(value: string): string {
+  return value
+    .replace(/[，,；;]?\s*(?:适合|建议|可以)?(?:搭配|配)?(?:热饮或冷饮|冷饮或热饮|饮品|饮料)[^。；;]*[。；;]?/g, "")
+    .replace(/[，,；;]\s*$/, "。")
+    .trim();
+}
+
 type DishInsightFlags = {
   isVeg: boolean;
   isFried: boolean;
@@ -335,7 +342,8 @@ export function getDishInsight(dish: Dish): DishInsight {
     /(?:wine|beer|sake|shaoxing|huadiao|rice wine|red wine|white wine).{0,24}(?:sauce|stew|brais|cook|boil|simmer|steam|roast|grill)|(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒).{0,10}(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤)|(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤).{0,10}(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒)/.test(searchText) &&
     /beef|chicken|duck|pork|lamb|fish|crab|shrimp|prawn|shellfish|conch|whelk|clam|oyster|snail|escargot|tofu|egg|noodle|rice|vegetable|mushroom|牛|鸡|鸭|猪|羊|肉|鱼|虾|蟹|贝|蚝|蛤|鲍|鳝|鱿|螺|花螺|海螺|蛏|扇贝|豆腐|蛋|面|粉|饭|菜|菇|茄子|排骨/.test(searchText);
   const isDrink = hasDrinkTerm && !isSeafood && !isHearty && !isFried && !alcoholCookedDish;
-  const baseDescription = description || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
+  const safeDescription = isDrink ? description : stripNonDrinkBeverageAdvice(description);
+  const baseDescription = safeDescription || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
 
   // AI-generated fields take priority
   const aiRecommendation = localized(dish.recommendation);
