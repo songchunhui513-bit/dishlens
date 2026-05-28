@@ -108,6 +108,20 @@ test("menu uploads preserve supported image mime types and allow 20 pages", asyn
   assert.equal(shouldNormalizeClientImage({ name: "small.jpg", type: "image/jpeg", size: 64_000 }), false);
 });
 
+test("dietary settings persist locally across page refreshes without an account", async () => {
+  const localStorage = await readFile(`${ROOT}/src/lib/local-storage.ts`, "utf8");
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+
+  assert.match(localStorage, /dishlens_settings/);
+  assert.match(localStorage, /export function getSettings/);
+  assert.match(localStorage, /export function setSettings/);
+  assert.match(localStorage, /document\.cookie/);
+  assert.match(appPage, /getSettings as getStoredSettings/);
+  assert.match(appPage, /setSettings as setStoredSettings/);
+  assert.match(appPage, /getStoredSettings\(\)/);
+  assert.match(appPage, /setStoredSettings\(next\)/);
+});
+
 test("generated menu images use stable storage ids even for temporary dishes", async () => {
   await loadTsModule(`${ROOT}/src/lib/dish-name-normalization.ts`);
   const { storageIdForGeneratedDishImage } = await loadTsModule(

@@ -1,14 +1,24 @@
-import type { HistoryEntry, FavoriteDish } from "@/types";
+import type { HistoryEntry, FavoriteDish, UserSettings } from "@/types";
 import type { DishKnowledgeEntry } from "./dish-knowledge-types";
 
 const KEYS = {
   history: "dishlens_history",
   favorites: "dishlens_favorites",
+  settings: "dishlens_settings",
   dailyRec: (date: string) => `dishlens_daily_rec_${date}`,
   weather: (date: string) => `dishlens_weather_${date}`,
 } as const;
 
 const MAX_HISTORY = 50;
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+const DEFAULT_SETTINGS: UserSettings = {
+  targetLang: "zh",
+  uiLang: "zh",
+  showAllergens: false,
+  showVeg: false,
+  showGlutenFree: false,
+};
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -35,6 +45,56 @@ function write(key: string, value: unknown): void {
       } catch {}
     }
   }
+}
+
+function readCookie(key: string): unknown | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${encodeURIComponent(key)}=`;
+  const item = document.cookie
+    .split("; ")
+    .find((part) => part.startsWith(prefix));
+  if (!item) return null;
+
+  try {
+    return JSON.parse(decodeURIComponent(item.slice(prefix.length)));
+  } catch {
+    return null;
+  }
+}
+
+function writeCookie(key: string, value: unknown): void {
+  if (typeof document === "undefined") return;
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
+}
+
+function normalizeSettings(value: unknown): UserSettings {
+  const source = value && typeof value === "object" ? value as Partial<UserSettings> : {};
+  return {
+    targetLang: typeof source.targetLang === "string" && source.targetLang ? source.targetLang : DEFAULT_SETTINGS.targetLang,
+    uiLang: source.uiLang === "en" ? "en" : "zh",
+    showAllergens: source.showAllergens === true,
+    showVeg: source.showVeg === true,
+    showGlutenFree: source.showGlutenFree === true,
+  };
+}
+
+// ── Settings ─────────────────────────────────────────────────────
+
+export function getSettings(): UserSettings {
+  const localSettings = read<Partial<UserSettings> | null>(KEYS.settings, null);
+  if (localSettings) return normalizeSettings(localSettings);
+
+  const cookieSettings = readCookie(KEYS.settings);
+  if (cookieSettings) return normalizeSettings(cookieSettings);
+
+  return DEFAULT_SETTINGS;
+}
+
+export function setSettings(settings: UserSettings): void {
+  const normalized = normalizeSettings(settings);
+  write(KEYS.settings, normalized);
+  writeCookie(KEYS.settings, normalized);
 }
 
 // ── History ──────────────────────────────────────────────────────

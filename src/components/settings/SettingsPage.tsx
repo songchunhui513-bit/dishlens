@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-interface UserSettings {
-  targetLang: string;
-  uiLang: "zh" | "en";
-  showAllergens: boolean;
-  showVeg: boolean;
-  showGlutenFree: boolean;
-}
+import type { UserSettings } from "@/types";
 
 interface SettingsPageProps {
   onBack: () => void;

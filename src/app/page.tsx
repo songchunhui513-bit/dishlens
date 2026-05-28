@@ -13,9 +13,18 @@ import HistoryPage from "@/components/history/HistoryPage";
 import FavoritesPage from "@/components/favorites/FavoritesPage";
 import SettingsPage from "@/components/settings/SettingsPage";
 import ShareSheet from "@/components/share/ShareSheet";
-import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish } from "@/types";
+import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish, UserSettings } from "@/types";
 import { createTranslation } from "@/lib/api-client";
-import { getHistory as getStoredHistory, addHistory, getFavorites as getStoredFavorites, addFavorite, removeFavorite, isFavorited as checkFavorited } from "@/lib/local-storage";
+import {
+  getHistory as getStoredHistory,
+  addHistory,
+  getFavorites as getStoredFavorites,
+  addFavorite,
+  removeFavorite,
+  isFavorited as checkFavorited,
+  getSettings as getStoredSettings,
+  setSettings as setStoredSettings,
+} from "@/lib/local-storage";
 import { useDailyRecommendation } from "@/hooks/useDailyRecommendation";
 import { getDishImageUrl } from "@/lib/dish-presentation";
 import { buildShareMenuMeta } from "@/lib/share-menu";
@@ -35,14 +44,6 @@ type Screen =
   | "settings"
   | "error";
 
-interface UserSettings {
-  targetLang: string;
-  uiLang: "zh" | "en";
-  showAllergens: boolean;
-  showVeg: boolean;
-  showGlutenFree: boolean;
-}
-
 // ── AppPhone State Manager ─────────────────────────────────────────
 
 export default function Page() {
@@ -56,13 +57,7 @@ export default function Page() {
   const [shareNotice, setShareNotice] = useState("");
   const [history, setHistory] = useState<Screen[]>(["home"]);
   const [useMockFallback, setUseMockFallback] = useState(false);
-  const [settings, setSettings] = useState<UserSettings>({
-    targetLang: "zh",
-    uiLang: "zh",
-    showAllergens: false,
-    showVeg: false,
-    showGlutenFree: false,
-  });
+  const [settings, setSettings] = useState<UserSettings>(() => getStoredSettings());
 
   // localStorage-backed state — init empty on SSR, hydrate on mount
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>(() =>
@@ -555,7 +550,10 @@ export default function Page() {
         <SettingsPage
           onBack={() => navigate("home", "back")}
           settings={settings}
-          onChange={setSettings}
+          onChange={(next) => {
+            setSettings(next);
+            setStoredSettings(next);
+          }}
         />
       );
       break;
