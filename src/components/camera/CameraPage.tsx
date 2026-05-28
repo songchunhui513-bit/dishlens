@@ -237,49 +237,84 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
 
       {/* Bottom controls */}
       <div
-        className="flex flex-col items-center flex-shrink-0"
+        className="grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0"
         style={{
-          padding: photos.length > 0 ? "10px 0 18px" : "10px 0 18px",
-          gap: 10,
+          padding: "12px 22px calc(20px + env(safe-area-inset-bottom))",
           background: "#1A1A1A",
         }}
       >
-        {photos.length > 0 && (
-          <button
-            onClick={() => onAnalyze(photos)}
-            className="text-sm font-semibold tracking-wider px-8 py-2.5 rounded transition-transform duration-150 active:scale-[0.96]"
+        <button
+          onClick={handleAlbumPick}
+          aria-label="从相册选择菜单照片"
+          className="justify-self-start flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform duration-150 active:scale-[0.94]"
+          style={{
+            minWidth: 58,
+            minHeight: 58,
+            color: "rgba(255,255,255,0.58)",
+            fontFamily: "var(--font-body)",
+            background: "none",
+            border: "none",
+          }}
+        >
+          <span
+            className="flex items-center justify-center"
             style={{
-              background: "var(--primary)",
-              color: "#FFF",
-              fontFamily: "var(--font-body)",
-              borderRadius: "var(--radius)",
-              boxShadow: "0 4px 20px rgba(76,175,80,0.3)",
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.36)",
+              background: "rgba(255,255,255,0.06)",
             }}
           >
-            分析全部（{photos.length} 张）
-          </button>
-        )}
+            <svg viewBox="0 0 24 24" style={{ width: 20, height: 20, stroke: "currentColor", fill: "none", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }}>
+              <rect x="3" y="5" width="18" height="14" rx="2.5" />
+              <circle cx="8" cy="10" r="1.5" />
+              <path d="M4.5 17l4.8-4.8a1.6 1.6 0 0 1 2.2 0L16 16.7" />
+              <path d="M14 14.8l1.6-1.6a1.6 1.6 0 0 1 2.2 0L20 15.4" />
+            </svg>
+          </span>
+          <span style={{ fontSize: 8, fontWeight: 600, lineHeight: 1 }}>相册</span>
+        </button>
+
         <button
           onClick={handleShoot}
           aria-label="拍摄菜单照片"
-          className="flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-[0.92]"
+          className="justify-self-center flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-[0.92]"
           style={{
-            width: 48,
-            height: 48,
+            width: 58,
+            height: 58,
             borderRadius: "50%",
-            border: "2px solid rgba(255,255,255,0.5)",
+            border: "3px solid rgba(255,255,255,0.5)",
             background: "none",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.18)",
           }}
         >
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.85)" }} />
+          <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,0.88)" }} />
         </button>
-        <button
-          onClick={handleAlbumPick}
-          className="text-[9px] cursor-pointer"
-          style={{ color: "rgba(255,255,255,0.35)", fontFamily: "var(--font-body)", background: "none", border: "none" }}
-        >
-          从相册选择
-        </button>
+
+        {photos.length > 0 ? (
+          <button
+            onClick={() => onAnalyze(photos)}
+            aria-label={`分析全部 ${photos.length} 张菜单照片`}
+            className="justify-self-end flex flex-col items-center justify-center transition-transform duration-150 active:scale-[0.96]"
+            style={{
+              minWidth: 68,
+              minHeight: 48,
+              padding: "8px 12px",
+              borderRadius: 18,
+              border: "none",
+              background: "var(--primary)",
+              color: "#FFF",
+              fontFamily: "var(--font-body)",
+              boxShadow: "0 4px 20px rgba(76,175,80,0.3)",
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.1 }}>完成</span>
+            <span style={{ marginTop: 2, fontSize: 8, fontWeight: 600, opacity: 0.82 }}>{photos.length} 张</span>
+          </button>
+        ) : (
+          <div aria-hidden="true" style={{ width: 68, justifySelf: "end" }} />
+        )}
       </div>
     </div>
   );
