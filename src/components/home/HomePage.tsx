@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useRef, type ChangeEvent } from "react";
+import type { CapturedPhoto } from "@/types";
 
 interface RecentItem {
   id: string;
@@ -26,6 +28,7 @@ interface DailyDishData {
 interface HomePageProps {
   onNavigate?: (screen: string) => void;
   onCapture?: () => void;
+  onAlbumAnalyze?: (photos: CapturedPhoto[]) => void;
   onDailyDishDetail?: () => void;
   onRecentClick?: (id: string) => void;
   recentHistory?: RecentItem[];
@@ -50,6 +53,7 @@ const CUISINE_LABELS: Record<string, string> = {
 export default function HomePage({
   onNavigate,
   onCapture,
+  onAlbumAnalyze,
   onDailyDishDetail,
   onRecentClick,
   recentHistory,
@@ -57,12 +61,41 @@ export default function HomePage({
   recommendationContext,
   recommendationReason,
 }: HomePageProps) {
+  const albumInputRef = useRef<HTMLInputElement>(null);
   const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : defaultRecent;
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
 
   const handleAlbumPick = () => {
-    onCapture?.();
+    albumInputRef.current?.click();
+  };
+
+  const handleAlbumFilesChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const timestamp = Date.now();
+    const photos = await Promise.all(
+      files.map(
+        (file, index) =>
+          new Promise<CapturedPhoto>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                id: `album-${timestamp}-${index}`,
+                dataUrl: reader.result as string,
+                file,
+                timestamp: timestamp + index,
+              });
+            };
+            reader.onerror = () => reject(new Error("Image read failed"));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+
+    event.target.value = "";
+    onAlbumAnalyze?.(photos);
   };
 
   return (
@@ -249,6 +282,16 @@ export default function HomePage({
       </div>
 
       {/* ── Camera CTA ────────────────────────────────────── */}
+      <input
+        ref={albumInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleAlbumFilesChange}
+        className="hidden"
+        aria-label="从相册选择菜单照片"
+      />
+
       <button
         onClick={onCapture}
         className="flex items-center justify-center gap-2.5 mx-5 my-1.5 transition-all duration-150 active:scale-[0.97] active:opacity-90"

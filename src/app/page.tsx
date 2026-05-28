@@ -577,6 +577,7 @@ export default function Page() {
         <HomePage
           onNavigate={navigate}
           onCapture={handleCapture}
+          onAlbumAnalyze={handleAnalyze}
           onDailyDishDetail={handleDailyDishDetail}
           onRecentClick={(id) => {
             const entry = historyEntries.find((h) => h.id === id);

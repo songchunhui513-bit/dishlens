@@ -28,7 +28,8 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [justCaptured, setJustCaptured] = useState(-1);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const albumInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -60,11 +61,16 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
 
     setCurrentPage((prev) => (prev + files.length) % menuPages.length);
 
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (albumInputRef.current) albumInputRef.current.value = "";
   };
 
   const handleShoot = () => {
-    fileInputRef.current?.click();
+    cameraInputRef.current?.click();
+  };
+
+  const handleAlbumPick = () => {
+    albumInputRef.current?.click();
   };
 
   const handleDelete = (idx: number, e: React.MouseEvent) => {
@@ -78,7 +84,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
     <div className="h-full flex flex-col" style={{ background: "#1A1A1A" }}>
       {/* Hidden file input */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -86,6 +92,15 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
         onChange={handleFileChange}
         className="hidden"
         aria-label="拍摄或选择菜单照片"
+      />
+      <input
+        ref={albumInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileChange}
+        className="hidden"
+        aria-label="从相册选择菜单照片"
       />
 
       {/* Top bar */}
@@ -259,7 +274,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
           <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.85)" }} />
         </button>
         <button
-          onClick={handleShoot}
+          onClick={handleAlbumPick}
           className="text-[9px] cursor-pointer"
           style={{ color: "rgba(255,255,255,0.35)", fontFamily: "var(--font-body)", background: "none", border: "none" }}
         >
