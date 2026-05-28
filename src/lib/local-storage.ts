@@ -20,10 +20,19 @@ const DEFAULT_SETTINGS: UserSettings = {
   showGlutenFree: false,
 };
 
+function getBrowserStorage(): Storage | null {
+  return (globalThis as unknown as { localStorage?: Storage }).localStorage ?? null;
+}
+
+function getBrowserDocument(): Document | null {
+  return (globalThis as unknown as { document?: Document }).document ?? null;
+}
+
 function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+  const storage = getBrowserStorage();
+  if (!storage) return fallback;
   try {
-    const raw = localStorage.getItem(key);
+    const raw = storage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
   } catch {
     return fallback;
@@ -31,26 +40,28 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function write(key: string, value: unknown): void {
-  if (typeof window === "undefined") return;
+  const storage = getBrowserStorage();
+  if (!storage) return;
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    storage.setItem(key, JSON.stringify(value));
   } catch {
     // localStorage full — clear oldest history entries
     const history = read<HistoryEntry[]>(KEYS.history, []);
     if (history.length > 10) {
       history.splice(0, 10);
       try {
-        localStorage.setItem(KEYS.history, JSON.stringify(history));
-        localStorage.setItem(key, JSON.stringify(value));
+        storage.setItem(KEYS.history, JSON.stringify(history));
+        storage.setItem(key, JSON.stringify(value));
       } catch {}
     }
   }
 }
 
 function readCookie(key: string): unknown | null {
-  if (typeof document === "undefined") return null;
+  const doc = getBrowserDocument();
+  if (!doc) return null;
   const prefix = `${encodeURIComponent(key)}=`;
-  const item = document.cookie
+  const item = doc.cookie
     .split("; ")
     .find((part) => part.startsWith(prefix));
   if (!item) return null;
@@ -63,9 +74,11 @@ function readCookie(key: string): unknown | null {
 }
 
 function writeCookie(key: string, value: unknown): void {
-  if (typeof document === "undefined") return;
-  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
+  const doc = getBrowserDocument();
+  if (!doc) return;
+  const location = (globalThis as unknown as { location?: Location }).location;
+  const secure = location?.protocol === "https:" ? "; Secure" : "";
+  doc.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
 }
 
 function normalizeSettings(value: unknown): UserSettings {

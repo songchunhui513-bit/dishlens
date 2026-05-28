@@ -115,7 +115,10 @@ test("dietary settings persist locally across page refreshes without an account"
   assert.match(localStorage, /dishlens_settings/);
   assert.match(localStorage, /export function getSettings/);
   assert.match(localStorage, /export function setSettings/);
-  assert.match(localStorage, /document\.cookie/);
+  assert.match(localStorage, /globalThis/);
+  assert.match(localStorage, /getBrowserStorage/);
+  assert.match(localStorage, /getBrowserDocument/);
+  assert.doesNotMatch(localStorage, /typeof window === "undefined"/);
   assert.match(appPage, /getSettings as getStoredSettings/);
   assert.match(appPage, /setSettings as setStoredSettings/);
   assert.match(appPage, /getStoredSettings\(\)/);
