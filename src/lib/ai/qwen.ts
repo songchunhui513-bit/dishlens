@@ -78,6 +78,7 @@ For each dish, provide:
 9. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. Do not confuse a restaurant story page with a dish list. For menu pages with prices, never return empty.
+IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 Example: {"name_original":"Foie Gras","name_translated":"鹅肝酱","description":"黄油煎鹅肝配无花果酱与烤面包片，外脆内滑，甜咸交织。","recommendation":"如果你喜欢法式经典前菜，强烈推荐。鹅肝的丰腴与无花果的酸甜平衡得恰到好处，适合特殊场合或想犒劳自己的时候点。","good_for":"适合作为前菜，两个人分食体验更佳。建议搭配甜白葡萄酒。","caution":"脂肪含量较高，热量不低。对鹅肝过敏或素食者需避开。分量通常较小，价格偏高。","confidence":0.95}
 
 Output ONLY valid JSON:
@@ -96,6 +97,7 @@ Rules:
 6. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. Return empty dishes ONLY if the page has no orderable items. For non-orderable story/brand/ingredient philosophy pages, set page_label to "说明页" and page_type to "info", and provide page_description: a 30-60 char Chinese summary of what this page describes.
+IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 
 Output ONLY valid JSON:
 { "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;

@@ -40,6 +40,8 @@ Also detect:
 - page_label: what section of the menu (e.g. "前菜", "主菜", "酒单", "甜点", "饮品", "混合")
 - source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, etc.)
 
+Important: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
+
 Output format:
 {
   "dishes": [...],

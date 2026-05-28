@@ -64,6 +64,11 @@ const imageRules: DishImageRule[] = [
     hero: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&h=400&fit=crop&auto=format",
   },
   {
+    patterns: ["shellfish", "clam", "oyster", "conch", "whelk", "sea snail", "snail", "escargot", "贝", "蚝", "蛤", "蛏", "扇贝", "螺", "花螺", "海螺", "响螺", "田螺"],
+    card: "/dishes/escargots-de-bourgogne.png",
+    hero: "/dishes/escargots-de-bourgogne.png",
+  },
+  {
     patterns: ["pasta", "spaghetti", "carbonara", "意面", "面"],
     card: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=136&h=136&fit=crop&auto=format",
     hero: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&auto=format",
@@ -247,6 +252,10 @@ function isGenericRecommendation(value: string): boolean {
   return genericFallbackRecommendations.includes(value.trim());
 }
 
+function isDrinkSpecificCopy(value: string): boolean {
+  return /饮品|饮料|点一杯|补一杯|冷饮|热饮|餐后慢慢喝|单独喝|咖啡因|花草茶|拿铁|卡布奇诺/.test(value);
+}
+
 type DishInsightFlags = {
   isVeg: boolean;
   isFried: boolean;
@@ -318,11 +327,14 @@ export function getDishInsight(dish: Dish): DishInsight {
   const isVeg = isVegetarianDish(dish);
   const isFried = /fried|炸|煎|calamari|鱿鱼/.test(searchText);
   const isDessert = /dessert|cake|sweet|甜品|甜点|蛋糕|挞|布丁|雪糕|冰淇淋|tiramisu|gelato|panna cotta|mousse/.test(searchText);
-  const isSeafood = /fish|seafood|salmon|sole|calamari|crab|shrimp|prawn|shellfish|clam|oyster|eel|鱼|海鲜|鱿鱼|蟹|虾|贝|蚝|鳝|斗仑|斗仓/.test(searchText);
+  const isSeafood = /fish|seafood|salmon|sole|calamari|crab|shrimp|prawn|shellfish|clam|oyster|eel|conch|whelk|sea snail|snail|escargot|鱼|海鲜|鱿鱼|蟹|虾|贝|蚝|蛤|鲍|鳝|斗仑|斗仓|螺|花螺|海螺|响螺|田螺|蛏|扇贝/.test(searchText);
   const isHearty = /beef|steak|chicken|pork|lamb|牛排|牛肉|鸡肉|猪|羊/.test(searchText);
   const isSalad = /salad|沙拉|fresh|蔬菜/.test(searchText);
   const hasDrinkTerm = /coffee|espresso|expresso|cappuccino|latte|americano|tea|matcha|chai|wine|beer|cocktail|juice|smoothie|lemonade|咖啡|浓缩|卡布奇诺|拿铁|茶|抹茶|酒|啤酒|鸡尾酒|果汁|冰沙/.test(searchText);
-  const isDrink = hasDrinkTerm && !isSeafood && !isHearty && !isFried;
+  const alcoholCookedDish =
+    /(?:wine|beer|sake|shaoxing|huadiao|rice wine|red wine|white wine).{0,24}(?:sauce|stew|brais|cook|boil|simmer|steam|roast|grill)|(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒).{0,10}(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤)|(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤).{0,10}(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒)/.test(searchText) &&
+    /beef|chicken|duck|pork|lamb|fish|crab|shrimp|prawn|shellfish|conch|whelk|clam|oyster|snail|escargot|tofu|egg|noodle|rice|vegetable|mushroom|牛|鸡|鸭|猪|羊|肉|鱼|虾|蟹|贝|蚝|蛤|鲍|鳝|鱿|螺|花螺|海螺|蛏|扇贝|豆腐|蛋|面|粉|饭|菜|菇|茄子|排骨/.test(searchText);
+  const isDrink = hasDrinkTerm && !isSeafood && !isHearty && !isFried && !alcoholCookedDish;
   const baseDescription = description || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
 
   // AI-generated fields take priority
@@ -340,10 +352,17 @@ export function getDishInsight(dish: Dish): DishInsight {
     isDrink,
   });
 
+  const safeAiRecommendation = aiRecommendation && !isGenericRecommendation(aiRecommendation) && (isDrink || !isDrinkSpecificCopy(aiRecommendation))
+    ? aiRecommendation
+    : "";
+  const safeAiGoodFor = aiGoodFor && (isDrink || !isDrinkSpecificCopy(aiGoodFor)) ? aiGoodFor : "";
+  const safeAiCaution = aiCaution && (isDrink || !isDrinkSpecificCopy(aiCaution)) ? aiCaution : "";
+
   let goodFor = "适合第一次看菜单时作为安全选择，也适合想尝试经典口味但不愿冒险的人。";
   if (isDrink) goodFor = "适合佐餐、餐后小憩或下午茶时段。也可以作为不喝酒的社交替代饮品。";
   else if (isFried) goodFor = "适合作为开胃前菜或和朋友分食的小吃，也可以点几道不同的炸物拼盘尝鲜。";
   else if (isDessert) goodFor = "适合饭后与同伴分享甜蜜时刻，不建议当正餐单独点。搭配茶或咖啡体验更佳。";
+  else if (isSeafood) goodFor = "适合作为桌上的海鲜主菜或下酒菜，建议趁热分享，搭配清爽蔬菜更平衡。";
   else if (isHearty) goodFor = "适合作为正餐的核心主菜，一个人一份通常够饱。胃口大的可以再配一道汤或小菜。";
   else if (isSalad) goodFor = "适合作为配菜搭配主菜，或者想吃得清淡健康时作为轻食。也可以当开胃菜打开味蕾。";
 
@@ -356,9 +375,9 @@ export function getDishInsight(dish: Dish): DishInsight {
 
   return {
     summary: baseDescription,
-    recommendation: aiRecommendation && !isGenericRecommendation(aiRecommendation) ? aiRecommendation : recommendation,
-    goodFor: aiGoodFor || goodFor,
-    caution: aiCaution || caution,
+    recommendation: safeAiRecommendation || recommendation,
+    goodFor: safeAiGoodFor || goodFor,
+    caution: safeAiCaution || caution,
     confidenceLabel: dish.rating_avg ? `食客评分 ${dish.rating_avg}` : "AI 推荐参考",
   };
 }

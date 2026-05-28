@@ -45,6 +45,7 @@ Also detect:
 For dish names with cultural context, translate the MEANING:
 - "佛跳墙" → "Braised Treasures in Broth" not "Buddha Jumps Over Wall"
 - "Boeuf Bourguignon" → "勃艮第红酒炖牛肉" not "勃艮第牛肉"
+- Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 
 Output format:
 {

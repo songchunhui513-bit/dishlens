@@ -282,6 +282,17 @@ test("AI image generation prompt uses category-specific framing for drinks, soup
   assert.match(seafoodPrompt, /seafood|crab|shellfish|fish/i);
   assert.match(seafoodPrompt, /shell|claw|roe|fillet|shrimp|crab/i);
   assert.doesNotMatch(seafoodPrompt, /cup|mug|beverage/i);
+
+  const wineCookedConch = {
+    name_original: "紫苏辣酒煮花螺",
+    name_translated: { zh: "紫苏辣酒煮花螺" },
+    description: { zh: "花螺以紫苏、辣椒和米酒热煮，鲜辣带酒香。" },
+    ingredients: ["花螺", "紫苏", "辣椒", "米酒"],
+  };
+  const conchPrompt = buildDishImagePrompt(wineCookedConch);
+  assert.equal(classifyDishImageKind(wineCookedConch), "seafood");
+  assert.match(conchPrompt, /seafood|shellfish|conch|whelk|sea snail/i);
+  assert.doesNotMatch(conchPrompt, /single beverage|appropriate cup|wine glass|clear tumbler|distinct beverage texture/i);
 });
 
 test("dish insight fallback recommendations are specific to each dish", async () => {
@@ -326,6 +337,13 @@ test("dish insight fallback recommendations are specific to each dish", async ()
       ingredients: ["樱花虾", "马家沟芹菜"],
       category: "salad",
     },
+    {
+      name_original: "08 紫苏辣酒煮花螺",
+      name_translated: { zh: "紫苏辣酒煮花螺" },
+      description: { zh: "花螺用紫苏、辣椒和米酒热煮，螺肉弹嫩，鲜辣带酒香。" },
+      ingredients: ["花螺", "紫苏", "辣椒", "米酒"],
+      category: "main",
+    },
   ];
 
   const recommendations = dishes.map((dish) => getDishInsight(dish).recommendation);
@@ -336,7 +354,10 @@ test("dish insight fallback recommendations are specific to each dish", async ()
   assert.match(recommendations[2], /花雕|蟹黄|膏蟹/);
   assert.match(recommendations[3], /橄榄油|蔬菜|清爽|油腻/);
   assert.match(recommendations[4], /樱花虾|芹菜|脆爽|清口/);
+  assert.match(recommendations[5], /花螺|鲜度|火候|海鲜|紫苏|酒香/);
+  assert.doesNotMatch(recommendations[5], /饮品|点一杯|补一杯|冷饮|热饮|餐后慢慢喝/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你想点一杯佐餐或餐后的饮品/);
+  assert.doesNotMatch(recommendations.join("\n"), /如果你想补一杯饮品|冷饮或热饮/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你还有胃口，强烈推荐用这道甜品/);
 });
 

@@ -26,7 +26,7 @@ function selectLoadingCharacter(dish: Dish): LoadingKind {
   ].join(" ").toLowerCase();
 
   if (/pizza|margherita|marinara|diavola|jardin|披萨/.test(text)) return "pizza";
-  if (/seafood|fish|salmon|tuna|shrimp|scallop|calamari|海鲜|鱼|虾|贝|鱿鱼/.test(text)) return "seafood";
+  if (/seafood|fish|salmon|tuna|shrimp|scallop|calamari|shellfish|conch|whelk|sea snail|snail|escargot|海鲜|鱼|虾|贝|蚝|蛤|鲍|鱿鱼|螺|花螺|海螺|响螺|田螺|蛏|扇贝/.test(text)) return "seafood";
   if (/steak|beef|lamb|pork|chicken|duck|meat|rib|veal|牛排|牛肉|羊|猪|鸡|鸭|肉/.test(text)) return "meat";
   if (/salad|vegetable|greens|garden|沙拉|蔬菜|生菜|田园/.test(text)) return "salad";
   if (/egg|breakfast|benedict|omelette|pancake|porridge|toast|早餐|鸡蛋|煎蛋|班尼迪克|松饼|燕麦/.test(text)) return "breakfast";

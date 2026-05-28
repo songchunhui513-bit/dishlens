@@ -77,6 +77,7 @@ For each dish, provide:
 9. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. For menu pages with prices, never return empty.
+IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 Output ONLY valid JSON.`;
 
 const VL_SYSTEM_PROMPT_SIMPLE = `You are a professional restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate them into CHINESE (中文).
@@ -92,6 +93,7 @@ Rules:
 6. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. For non-orderable story pages, set page_label to "说明页" and page_type to "info" with a page_description.
+IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 Output ONLY valid JSON.`;
 
 export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
