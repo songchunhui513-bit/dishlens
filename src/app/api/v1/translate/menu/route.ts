@@ -7,6 +7,7 @@ import { generateImagesForDishes } from "@/lib/ai/image-gen";
 import { getCachedDishImageUrl, uploadDishImage } from "@/lib/storage/supabase-storage";
 import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
 import { MAX_MENU_IMAGES, normalizeImageMimeType } from "@/lib/image-input";
+import { normalizeServerMenuImage } from "@/lib/server-image-normalization";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
 import { dishNameLookupCandidates } from "@/lib/dish-name-normalization";
 import { isReusableExistingImageUrl } from "@/lib/dish-image-url";
@@ -152,12 +153,22 @@ export async function POST(req: NextRequest) {
 
     // Read ALL file data into memory BEFORE returning response
     const imageBuffers = await Promise.all(
-      images.map(async (file) => ({
-        base64: Buffer.from(await file.arrayBuffer()).toString("base64"),
-        mimeType: normalizeImageMimeType(file.type, file.name),
-        name: file.name || "menu-photo",
-        size: file.size,
-      }))
+      images.map(async (file) => {
+        const originalBuffer = Buffer.from(await file.arrayBuffer());
+        const mimeType = normalizeImageMimeType(file.type, file.name);
+        const normalized = await normalizeServerMenuImage({
+          buffer: originalBuffer,
+          mimeType,
+          name: file.name,
+        });
+        return {
+          base64: normalized.buffer.toString("base64"),
+          mimeType: normalized.mimeType,
+          name: file.name || "menu-photo",
+          size: file.size,
+          normalizedSize: normalized.buffer.length,
+        };
+      })
     );
 
     // Build stable cache key from filenames + sizes (survives re-encoding)

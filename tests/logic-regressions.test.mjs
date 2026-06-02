@@ -108,6 +108,24 @@ test("menu uploads preserve supported image mime types and allow 20 pages", asyn
   assert.equal(shouldNormalizeClientImage({ name: "small.jpg", type: "image/jpeg", size: 64_000 }), false);
 });
 
+test("server-side menu image normalization protects overseas uploads from large-photo AI timeouts", async () => {
+  const packageJson = JSON.parse(await readFile(`${ROOT}/package.json`, "utf8"));
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const imageInput = await readFile(`${ROOT}/src/lib/image-input.ts`, "utf8");
+  const serverNormalization = await readFile(`${ROOT}/src/lib/server-image-normalization.ts`, "utf8");
+
+  assert.equal(packageJson.dependencies.sharp, "^0.34.5");
+  assert.match(imageInput, /SERVER_IMAGE_MAX_DIM = 1280/);
+  assert.match(imageInput, /SERVER_IMAGE_QUALITY = 68/);
+  assert.match(serverNormalization, /export async function normalizeServerMenuImage/);
+  assert.match(serverNormalization, /await import\("sharp"\)/);
+  assert.match(serverNormalization, /jpeg\(\{ quality: SERVER_IMAGE_QUALITY/);
+  assert.match(route, /normalizeServerMenuImage/);
+  assert.match(route, /normalized\.buffer\.toString\("base64"\)/);
+  assert.match(route, /normalized\.mimeType/);
+  assert.match(route, /normalizedSize/);
+});
+
 test("global menu recognition is resilient to slow overseas uploads and provider failures", async () => {
   const apiClient = await readFile(`${ROOT}/src/lib/api-client.ts`, "utf8");
   const aiIndex = await readFile(`${ROOT}/src/lib/ai/index.ts`, "utf8");

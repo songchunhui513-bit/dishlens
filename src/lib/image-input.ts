@@ -1,4 +1,6 @@
 export const MAX_MENU_IMAGES = 20;
+export const SERVER_IMAGE_MAX_DIM = 1280;
+export const SERVER_IMAGE_QUALITY = 68;
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
