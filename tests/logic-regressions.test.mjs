@@ -251,6 +251,39 @@ test("language settings affect API target language, cache keys, visible settings
   assert.match(resultsPage, /targetLanguageNativeName\(resultTargetLang\)/);
 });
 
+test("home page responds to interface language settings beyond the settings screen", async () => {
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
+  const recommendationHook = await readFile(`${ROOT}/src/hooks/useDailyRecommendation.ts`, "utf8");
+
+  assert.match(appPage, /uiLang=\{settings\.uiLang\}/);
+  assert.match(appPage, /useDailyRecommendation\(settings\.uiLang\)/);
+  assert.match(homePage, /uiLang\?:\s*"zh"\s*\|\s*"en"/);
+  assert.match(homePage, /const homeCopy =/);
+  assert.match(homePage, /const copy = homeCopy\[uiLang === "en" \? "en" : "zh"\]/);
+  assert.match(homePage, /copy\.captureCta/);
+  assert.match(homePage, /copy\.albumCta/);
+  assert.match(homePage, /copy\.recentTitle/);
+  assert.match(homePage, /copy\.viewAll/);
+  assert.match(homePage, /copy\.navHistory/);
+  assert.match(homePage, /copy\.navFavorites/);
+  assert.match(homePage, /copy\.navSettings/);
+  assert.match(homePage, /copy\.emptyTitle/);
+  assert.match(homePage, /copy\.recommendationReasonLabel/);
+  assert.match(homePage, /formatCuisine\(dailyDish\?\.cuisine \|\| "french",\s*uiLang\)/);
+  assert.match(homePage, /formatCategory\(dailyDish\?\.category,\s*uiLang\)/);
+  assert.match(homePage, /formatTaste\(t,\s*uiLang\)/);
+  assert.match(homePage, /Today's pick/);
+  assert.match(homePage, /Choose from album/);
+  assert.match(homePage, /Italian cuisine/);
+  assert.match(homePage, /Creamy/);
+  assert.match(recommendationHook, /export function useDailyRecommendation\(uiLang: "zh" \| "en" = "zh"\)/);
+  assert.match(recommendationHook, /getTimeLabel\(now\.getHours\(\),\s*uiLang\)/);
+  assert.match(recommendationHook, /buildReason\(recommended,\s*temperature,\s*now\.getHours\(\),\s*uiLang\)/);
+  assert.match(recommendationHook, /Unknown weather/);
+  assert.match(recommendationHook, /Dinner/);
+});
+
 test("generated menu images use stable storage ids even for temporary dishes", async () => {
   await loadTsModule(`${ROOT}/src/lib/dish-name-normalization.ts`);
   const { storageIdForGeneratedDishImage } = await loadTsModule(

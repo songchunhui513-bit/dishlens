@@ -84,7 +84,7 @@ export default function Page() {
   }, [screen]);
 
   // Daily recommendation
-  const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation();
+  const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation(settings.uiLang);
   const shareTaskId = translationResult?.task_id || "";
   const shareMeta = useMemo(() => {
     if (!translationResult || !shareTaskId) return null;
@@ -636,6 +636,7 @@ export default function Page() {
           } : undefined}
           recommendationContext={recommendationContext}
           recommendationReason={recommendationReason}
+          uiLang={settings.uiLang}
         />
       );
   }

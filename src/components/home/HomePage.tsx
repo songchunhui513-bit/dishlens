@@ -35,6 +35,7 @@ interface HomePageProps {
   dailyDish?: DailyDishData;
   recommendationContext?: string;
   recommendationReason?: string;
+  uiLang?: "zh" | "en";
 }
 
 const defaultRecent: RecentItem[] = [
@@ -50,6 +51,68 @@ const CUISINE_LABELS: Record<string, string> = {
   indian: "印度料理", turkish: "土耳其料理", vietnamese: "越南料理", american: "美式料理",
 };
 
+const CUISINE_LABELS_EN: Record<string, string> = {
+  french: "French cuisine", japanese: "Japanese cuisine", italian: "Italian cuisine", chinese: "Chinese cuisine",
+  korean: "Korean cuisine", thai: "Thai cuisine", mexican: "Mexican cuisine", spanish: "Spanish cuisine",
+  indian: "Indian cuisine", turkish: "Turkish cuisine", vietnamese: "Vietnamese cuisine", american: "American cuisine",
+  brazilian: "Brazilian cuisine", german: "German cuisine", british: "British cuisine", greek: "Greek cuisine",
+  international: "International cuisine",
+};
+
+const CATEGORY_LABELS_ZH: Record<string, string> = {
+  appetizer: "前菜", main: "主菜", dessert: "甜点", drink: "饮品", soup: "汤品",
+  bread: "面包", side: "配菜", snack: "小食", noodle: "面食", rice: "米饭", pasta: "意面", stew: "炖菜",
+};
+
+const CATEGORY_LABELS_EN: Record<string, string> = {
+  appetizer: "Appetizer", main: "Main", dessert: "Dessert", drink: "Drink", soup: "Soup",
+  bread: "Bread", side: "Side", snack: "Snack", noodle: "Noodles", rice: "Rice", pasta: "Pasta", stew: "Stew",
+};
+
+const TASTE_LABELS_EN: Record<string, string> = {
+  甜: "Sweet", 奶香: "Creamy", 浓郁: "Rich", 鲜香: "Savory", 清爽: "Fresh",
+  酸: "Sour", 辣: "Spicy", 咸: "Salty", 苦: "Bitter", 酥脆: "Crisp",
+};
+
+const homeCopy = {
+  zh: {
+    recommendationContextFallback: "按当前时段推荐",
+    recommendationReasonLabel: "今日推荐理由：",
+    recommendationReasonFallback: "根据当前时间，从本地知识库为你挑选一道适合现在点的菜。",
+    todayPick: "今日推荐",
+    cuisineFallback: "法式料理",
+    categoryFallback: "主菜",
+    albumAria: "从相册选择菜单照片",
+    captureCta: "拍摄菜单 · 开始翻译",
+    albumCta: "↑ 从相册选择",
+    recentTitle: "最近翻译",
+    viewAll: "查看全部 →",
+    emptyTitle: "还没有翻译记录",
+    emptySubtitle: "拍下第一张菜单，开启你的美食之旅",
+    navHistory: "历史",
+    navFavorites: "收藏",
+    navSettings: "设置",
+  },
+  en: {
+    recommendationContextFallback: "Recommended for now",
+    recommendationReasonLabel: "Today's reason: ",
+    recommendationReasonFallback: "Based on the time of day, DishLens picked something that fits this moment.",
+    todayPick: "Today's pick",
+    cuisineFallback: "French cuisine",
+    categoryFallback: "Main",
+    albumAria: "Choose menu photos from album",
+    captureCta: "Scan menu · Start translating",
+    albumCta: "Choose from album",
+    recentTitle: "Recent translations",
+    viewAll: "View all →",
+    emptyTitle: "No translations yet",
+    emptySubtitle: "Take your first menu photo to start exploring.",
+    navHistory: "History",
+    navFavorites: "Favorites",
+    navSettings: "Settings",
+  },
+};
+
 export default function HomePage({
   onNavigate,
   onCapture,
@@ -60,8 +123,10 @@ export default function HomePage({
   dailyDish,
   recommendationContext,
   recommendationReason,
+  uiLang = "zh",
 }: HomePageProps) {
   const albumInputRef = useRef<HTMLInputElement>(null);
+  const copy = homeCopy[uiLang === "en" ? "en" : "zh"];
   const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : defaultRecent;
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
@@ -164,7 +229,7 @@ export default function HomePage({
           <line x1="1" y1="12" x2="3" y2="12" />
           <line x1="21" y1="12" x2="23" y2="12" />
         </svg>
-        {recommendationContext || "按当前时段推荐"}
+        {recommendationContext || copy.recommendationContextFallback}
       </div>
 
       <div
@@ -180,8 +245,8 @@ export default function HomePage({
           lineHeight: 1.5,
         }}
       >
-        <strong style={{ fontWeight: 700 }}>今日推荐理由：</strong>
-        {recommendationReason || dailyDish?.description_zh || "根据当前时间，从本地知识库为你挑选一道适合现在点的菜。"}
+        <strong style={{ fontWeight: 700 }}>{copy.recommendationReasonLabel}</strong>
+        {recommendationReason || dailyDish?.description_zh || copy.recommendationReasonFallback}
       </div>
 
       {/* ── Hero Carousel ─────────────────────────────────── */}
@@ -218,7 +283,7 @@ export default function HomePage({
               animation: "gentleGlow 3s infinite",
             }}
           >
-            今日推荐
+            {copy.todayPick}
           </div>
           <div style={{ flex: 1, paddingTop: 18 }}>
             <div
@@ -232,7 +297,7 @@ export default function HomePage({
                 marginBottom: 4,
               }}
             >
-                {CUISINE_LABELS[dailyDish?.cuisine || "french"] || dailyDish?.cuisine || "法式料理"} · {dailyDish?.category || "主菜"}
+                {formatCuisine(dailyDish?.cuisine || "french", uiLang) || copy.cuisineFallback} · {formatCategory(dailyDish?.category, uiLang) || copy.categoryFallback}
             </div>
             <h2
               style={{
@@ -261,8 +326,8 @@ export default function HomePage({
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <Pill type="orange">{`★ ${dailyDish?.rating ?? 4.8}`}</Pill>
               {dailyDish?.taste_profile?.slice(0, 2).map((t, i) => (
-                <Pill key={i} type="green">{t}</Pill>
-              )) || (<><Pill type="green">牛肉</Pill><Pill type="warm">红酒炖煮</Pill></>)}
+                <Pill key={i} type="green">{formatTaste(t, uiLang)}</Pill>
+              )) || (<><Pill type="green">{uiLang === "en" ? "Beef" : "牛肉"}</Pill><Pill type="warm">{uiLang === "en" ? "Red wine stew" : "红酒炖煮"}</Pill></>)}
             </div>
           </div>
           <div
@@ -289,7 +354,7 @@ export default function HomePage({
         multiple
         onChange={handleAlbumFilesChange}
         className="hidden"
-        aria-label="从相册选择菜单照片"
+        aria-label={copy.albumAria}
       />
 
       <button
@@ -316,7 +381,7 @@ export default function HomePage({
           <circle cx="12" cy="12.5" r="4.5" />
           <circle cx="12" cy="12.5" r="2" />
         </svg>
-        拍摄菜单 · 开始翻译
+        {copy.captureCta}
       </button>
 
       <button
@@ -332,7 +397,7 @@ export default function HomePage({
           cursor: "pointer",
         }}
       >
-        ↑ 从相册选择
+        {copy.albumCta}
       </button>
 
       {/* ── Recent Translations ───────────────────────────── */}
@@ -346,7 +411,7 @@ export default function HomePage({
             color: "var(--ink)",
           }}
         >
-          最近翻译
+          {copy.recentTitle}
         </h3>
         {!isEmpty && (
           <span
@@ -359,7 +424,7 @@ export default function HomePage({
               cursor: "pointer",
             }}
           >
-            查看全部 →
+            {copy.viewAll}
           </span>
         )}
       </div>
@@ -386,10 +451,10 @@ export default function HomePage({
             </svg>
           </div>
           <h4 style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 600, color: "var(--muted)", marginBottom: 2 }}>
-            还没有翻译记录
+            {copy.emptyTitle}
           </h4>
           <p style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", opacity: 0.7 }}>
-            拍下第一张菜单，开启你的美食之旅
+            {copy.emptySubtitle}
           </p>
         </div>
       ) : (
@@ -461,7 +526,7 @@ export default function HomePage({
       >
         {[
           {
-            label: "历史",
+            label: copy.navHistory,
             screen: "history",
             icon: (
               <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
@@ -472,7 +537,7 @@ export default function HomePage({
             ),
           },
           {
-            label: "收藏",
+            label: copy.navFavorites,
             screen: "favorites",
             icon: (
               <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
@@ -488,7 +553,7 @@ export default function HomePage({
             ),
           },
           {
-            label: "设置",
+            label: copy.navSettings,
             screen: "settings",
             icon: (
               <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
@@ -562,4 +627,29 @@ function Pill({ type, children }: { type: "green" | "orange" | "warm"; children:
       {children}
     </span>
   );
+}
+
+function formatCuisine(cuisine: string | undefined, uiLang: "zh" | "en"): string {
+  if (!cuisine) return "";
+  if (uiLang === "en") return CUISINE_LABELS_EN[cuisine] || titleCase(cuisine);
+  return CUISINE_LABELS[cuisine] || cuisine;
+}
+
+function formatCategory(category: string | undefined, uiLang: "zh" | "en"): string {
+  if (!category) return "";
+  if (uiLang === "en") return CATEGORY_LABELS_EN[category] || titleCase(category);
+  return CATEGORY_LABELS_ZH[category] || category;
+}
+
+function formatTaste(taste: string, uiLang: "zh" | "en"): string {
+  if (uiLang === "en") return TASTE_LABELS_EN[taste] || titleCase(taste);
+  return taste;
+}
+
+function titleCase(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
