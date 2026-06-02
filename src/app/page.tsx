@@ -57,6 +57,7 @@ export default function Page() {
   const [shareNotice, setShareNotice] = useState("");
   const [history, setHistory] = useState<Screen[]>(["home"]);
   const [useMockFallback, setUseMockFallback] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [settings, setSettings] = useState<UserSettings>(() => getStoredSettings());
 
   // localStorage-backed state — init empty on SSR, hydrate on mount
@@ -203,6 +204,7 @@ export default function Page() {
     setCapturedPhotos([]);
     setTranslationResult(null);
     setUseMockFallback(false);
+    setErrorMessage("");
     navigate("camera");
   }, [navigate]);
 
@@ -211,6 +213,7 @@ export default function Page() {
       setCapturedPhotos(photos);
       setTranslationResult(null);
       setUseMockFallback(false);
+      setErrorMessage("");
       navigate("loading");
 
       const files: File[] = [];
@@ -226,15 +229,22 @@ export default function Page() {
       }
 
       if (files.length === 0) {
-        setUseMockFallback(true);
+        setErrorMessage("没有读取到图片，请重新选择或拍摄菜单。");
+        navigate("error");
         return;
       }
 
       try {
         const preliminary = await createTranslation(files);
         setTranslationResult(preliminary as unknown as TranslationResult);
-      } catch {
-        setUseMockFallback(true);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        setErrorMessage(
+          message.includes("timed out")
+            ? "海外网络上传到当前国内服务器较慢，图片识别请求超时。请换 Wi-Fi、减少图片数量后重试。"
+            : "图片上传或识别请求没有成功，请检查网络后重试。"
+        );
+        navigate("error");
       }
     },
     [navigate]
@@ -256,6 +266,13 @@ export default function Page() {
     setTranslationResult(null);
     setUseMockFallback(false);
     navigate("home");
+  }, [navigate]);
+
+  const handleLoadingTimeout = useCallback(() => {
+    setErrorMessage("海外网络或 AI 服务响应较慢，本次识别超过等待时间。请减少图片数量或稍后重试。");
+    setTranslationResult(null);
+    setUseMockFallback(false);
+    navigate("error");
   }, [navigate]);
 
   const handleDishDetail = useCallback(
@@ -428,6 +445,7 @@ export default function Page() {
           useMock={useMockFallback}
           onComplete={handleLoadingComplete}
           onCancel={handleCancelLoading}
+          onTimeout={handleLoadingTimeout}
           onResult={handleResultReceived}
         />
       );
@@ -564,8 +582,10 @@ export default function Page() {
           onRetry={() => {
             setTranslationResult(null);
             setUseMockFallback(false);
+            setErrorMessage("");
             setScreen("camera");
           }}
+          message={errorMessage}
         />
       );
       break;

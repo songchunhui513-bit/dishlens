@@ -48,6 +48,14 @@ type MenuImageInput = {
   size: number;
 };
 
+function requestMeta(req: NextRequest): Record<string, string> {
+  return {
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown",
+    country: req.headers.get("cf-ipcountry") || req.headers.get("x-vercel-ip-country") || "unknown",
+    userAgent: (req.headers.get("user-agent") || "").slice(0, 120),
+  };
+}
+
 type ExistingDishImage = {
   id: string;
   name_original: string;
@@ -107,6 +115,7 @@ async function findExistingDishImages(
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
+  const meta = requestMeta(req);
 
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -133,6 +142,13 @@ export async function POST(req: NextRequest) {
 
     const taskId = crypto.randomUUID();
     await createTask(taskId, images.length);
+    console.info("translate:task_started", {
+      taskId,
+      imageCount: images.length,
+      sizes: images.map((image) => image.size),
+      provider: process.env.MENU_AI_PROVIDER || "auto",
+      ...meta,
+    });
 
     // Read ALL file data into memory BEFORE returning response
     const imageBuffers = await Promise.all(
@@ -169,8 +185,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Fire background processing — buffers are in memory, safe to use after response
-    processImages(taskId, imageBuffers, targetLang, startTime, cacheKey).catch(async (err) => {
-      console.error("Background processing failed:", err);
+    processImages(taskId, imageBuffers, targetLang, startTime, cacheKey, meta).catch(async (err) => {
+      console.error("translate:task_failed", {
+        taskId,
+        elapsedMs: Date.now() - startTime,
+        error: err instanceof Error ? err.message : String(err),
+        ...meta,
+      });
       const { updateTask, getTask } = await import("@/lib/cache/task-store");
       const task = await getTask(taskId);
       if (task) {
@@ -201,7 +222,8 @@ async function processImages(
   imageBuffers: MenuImageInput[],
   targetLang: string,
   startTime: number,
-  cacheKey?: string
+  cacheKey?: string,
+  meta?: Record<string, string>,
 ) {
   const results: Array<Record<string, unknown>> = [];
   const failedPages: Array<{ page_index: number; error: string; retry_allowed: boolean }> = [];
@@ -340,6 +362,14 @@ async function processImages(
           }
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Unknown error";
+          console.error("translate:page_failed", {
+            taskId,
+            pageIndex: i,
+            elapsedMs: Date.now() - startTime,
+            error: message,
+            provider: process.env.MENU_AI_PROVIDER || "auto",
+            ...meta,
+          });
           failedPages.push({ page_index: i, error: message, retry_allowed: true });
           const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
           if (currentTask) {
@@ -387,6 +417,16 @@ async function processImages(
     result: resultPayload,
     failedPages: failedPages.length > 0 ? failedPages : undefined,
     estimatedRemaining: 0,
+  });
+  console.info("translate:task_finished", {
+    taskId,
+    status,
+    elapsedMs: Date.now() - startTime,
+    pageCount: sorted.length,
+    failedCount: failedPages.length,
+    dishCount: resultPayload.metadata.total_dishes,
+    provider: process.env.MENU_AI_PROVIDER || "auto",
+    ...meta,
   });
 
   // Store result in memory cache for instant repeat lookups

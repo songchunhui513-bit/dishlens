@@ -11,6 +11,7 @@ interface LoadingPageProps {
   useMock?: boolean;
   onComplete: () => void;
   onCancel: () => void;
+  onTimeout?: () => void;
   onResult?: (result: Record<string, unknown>) => void;
 }
 
@@ -22,6 +23,7 @@ const basePhases = [
 ];
 
 const FOOD_CHARACTER_ROTATE_MS = 4000;
+const MAX_POLLING_MS = 95_000;
 
 function buildPhases(count: number): string[] {
   if (count <= 1) return basePhases;
@@ -41,6 +43,7 @@ export default function LoadingPage({
   useMock,
   onComplete,
   onCancel,
+  onTimeout,
   onResult,
 }: LoadingPageProps) {
   const [progress, setProgress] = useState(0);
@@ -111,6 +114,13 @@ export default function LoadingPage({
 
     const poll = async () => {
       try {
+        if (Date.now() - pollStartTime > MAX_POLLING_MS) {
+          if (!cancelled && !completedRef.current) {
+            completedRef.current = true;
+            onTimeout?.();
+          }
+          return;
+        }
         const t = await pollTask(taskId);
         if (cancelled) return;
         const apiPct = t.progress.total > 0
@@ -145,7 +155,7 @@ export default function LoadingPage({
       cancelled = true;
       clearInterval(floorInterval);
     };
-  }, [isPolling, taskId, onComplete, onResult]);
+  }, [isPolling, taskId, onComplete, onResult, onTimeout]);
 
   // Mock mode
   useEffect(() => {

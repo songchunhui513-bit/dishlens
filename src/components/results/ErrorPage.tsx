@@ -3,9 +3,10 @@
 interface ErrorPageProps {
   onRetry: () => void;
   onSwitchModel?: () => void;
+  message?: string;
 }
 
-export default function ErrorPage({ onRetry, onSwitchModel }: ErrorPageProps) {
+export default function ErrorPage({ onRetry, onSwitchModel, message }: ErrorPageProps) {
   return (
     <div
       className="h-full flex flex-col items-center justify-center px-8 text-center"
@@ -60,7 +61,7 @@ export default function ErrorPage({ onRetry, onSwitchModel }: ErrorPageProps) {
           marginBottom: 22,
         }}
       >
-        无法解析菜单内容，请检查图片清晰度后重试，或切换 AI 模型再试
+        {message || "无法解析菜单内容，请检查图片清晰度后重试，或切换 AI 模型再试"}
       </p>
 
       <button

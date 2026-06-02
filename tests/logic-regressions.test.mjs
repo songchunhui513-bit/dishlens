@@ -108,6 +108,30 @@ test("menu uploads preserve supported image mime types and allow 20 pages", asyn
   assert.equal(shouldNormalizeClientImage({ name: "small.jpg", type: "image/jpeg", size: 64_000 }), false);
 });
 
+test("global menu recognition is resilient to slow overseas uploads and provider failures", async () => {
+  const apiClient = await readFile(`${ROOT}/src/lib/api-client.ts`, "utf8");
+  const aiIndex = await readFile(`${ROOT}/src/lib/ai/index.ts`, "utf8");
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const loadingPage = await readFile(`${ROOT}/src/components/results/LoadingPage.tsx`, "utf8");
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+
+  assert.match(apiClient, /TRANSLATION_UPLOAD_TIMEOUT_MS/);
+  assert.match(apiClient, /AbortController/);
+  assert.match(apiClient, /maxDim = 1280/);
+  assert.match(apiClient, /quality = 0\.68/);
+  assert.match(aiIndex, /providerOrder/);
+  assert.match(aiIndex, /MENU_AI_PROVIDER/);
+  assert.match(aiIndex, /analyzeMenuImage[\s\S]*lastError/);
+  assert.match(aiIndex, /Provider \$\{provider\} failed/);
+  assert.match(route, /translate:task_started/);
+  assert.match(route, /translate:page_failed/);
+  assert.match(route, /provider/);
+  assert.match(loadingPage, /MAX_POLLING_MS/);
+  assert.match(loadingPage, /onTimeout/);
+  assert.match(appPage, /handleLoadingTimeout/);
+  assert.match(appPage, /海外网络/);
+});
+
 test("dietary settings persist locally across page refreshes without an account", async () => {
   const localStorage = await readFile(`${ROOT}/src/lib/local-storage.ts`, "utf8");
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
