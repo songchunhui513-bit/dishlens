@@ -115,15 +115,56 @@ test("server-side menu image normalization protects overseas uploads from large-
   const serverNormalization = await readFile(`${ROOT}/src/lib/server-image-normalization.ts`, "utf8");
 
   assert.equal(packageJson.dependencies.sharp, "^0.34.5");
-  assert.match(imageInput, /SERVER_IMAGE_MAX_DIM = 1280/);
-  assert.match(imageInput, /SERVER_IMAGE_QUALITY = 68/);
+  assert.match(imageInput, /DEFAULT_SERVER_IMAGE_MAX_DIM = 1024/);
+  assert.match(imageInput, /DEFAULT_SERVER_IMAGE_QUALITY = 62/);
+  assert.match(imageInput, /getServerImageMaxDim/);
+  assert.match(imageInput, /getServerImageQuality/);
   assert.match(serverNormalization, /export async function normalizeServerMenuImage/);
   assert.match(serverNormalization, /await import\("sharp"\)/);
-  assert.match(serverNormalization, /jpeg\(\{ quality: SERVER_IMAGE_QUALITY/);
+  assert.match(serverNormalization, /const maxDim = getServerImageMaxDim\(\)/);
+  assert.match(serverNormalization, /const quality = getServerImageQuality\(\)/);
+  assert.match(serverNormalization, /jpeg\(\{ quality/);
   assert.match(route, /normalizeServerMenuImage/);
   assert.match(route, /normalized\.buffer\.toString\("base64"\)/);
   assert.match(route, /normalized\.mimeType/);
   assert.match(route, /normalizedSize/);
+});
+
+test("fast overseas recognition returns a lightweight first result before enrichment", async () => {
+  const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
+  const aiIndex = await readFile(`${ROOT}/src/lib/ai/index.ts`, "utf8");
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+
+  assert.match(qwen, /VL_SYSTEM_PROMPT_FAST_FIRST_PASS/);
+  assert.match(qwen, /export async function analyzeMenuImageFast/);
+  assert.match(qwen, /analyzeWithPrompt\(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, 3072\)/);
+  assert.match(qwen, /Do NOT generate recommendation/);
+  assert.match(qwen, /provide ONLY[\s\S]*name_original[\s\S]*name_translated[\s\S]*description[\s\S]*confidence/);
+  assert.doesNotMatch(qwen.match(/const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `([\s\S]*?)`;/)?.[1] || "", /ingredients|allergens|taste_profile/);
+  assert.match(aiIndex, /analyzeMenuImageFast/);
+  assert.match(route, /FAST_FIRST_PASS/);
+  assert.match(route, /analyzeMenuImageFast/);
+  assert.match(route, /resultPayload[\s\S]*metadata[\s\S]*enrichment_status:\s*"pending"/);
+  assert.match(route, /enrichResultInBackground/);
+  assert.match(route, /enrichResultInBackground[\s\S]*generateImagesInBackground\(taskId, enrichedPayload, cacheKey\)/);
+  assert.match(route, /translate:task_first_pass_finished/);
+});
+
+test("menu analysis normalization separates multiline names from descriptions", async () => {
+  const { normalizeExtractedDishFields } = await loadTsModule(
+    `${ROOT}/src/lib/menu-analysis-normalization.ts`,
+  );
+
+  const dish = normalizeExtractedDishFields({
+    name_original: "枝豆\n塩ゆで枝豆",
+    name_translated: "毛豆",
+    description: "",
+    confidence: 0.8,
+  });
+
+  assert.equal(dish.name_original, "枝豆");
+  assert.equal(dish.description, "塩ゆで枝豆");
+  assert.equal(dish.confidence, 0.8);
 });
 
 test("global menu recognition is resilient to slow overseas uploads and provider failures", async () => {
@@ -285,6 +326,49 @@ test("missing dish images are treated as pending instead of real food placeholde
   );
 });
 
+test("dish image matching avoids generic drink and repeated platter mismatches", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
+  const { getDishImageUrl, isDishImagePending } = await loadTsModule(
+    `${ROOT}/src/lib/dish-presentation.ts`,
+  );
+
+  const cheeseBoard = {
+    id: "cheese-board",
+    name_original: "PLANCHE DE FROMAGES ITALIENS",
+    name_translated: { zh: "意大利奶酪拼盘" },
+    description: { zh: "精选意大利奶酪组合，质地柔软，风味浓郁，适合佐酒。" },
+    ingredients: ["奶酪"],
+    allergens: ["dairy"],
+    taste_profile: [],
+    category: "appetizer",
+    image_source: "ai",
+  };
+
+  assert.equal(isDishImagePending(cheeseBoard), true);
+  assert.doesNotMatch(getDishImageUrl(cheeseBoard), /wine|792e7990302f|1510812431401/);
+
+  const mortadella = {
+    id: "mortadella",
+    name_original: "MORTADELLE DE BOLOGNE AUX PISTACHES",
+    name_translated: { zh: "开心果博洛尼亚香肠" },
+    description: { zh: "意大利风味香肠配开心果，口感丰富，咸香微甜。" },
+    ingredients: ["香肠", "开心果"],
+    allergens: ["tree_nut"],
+    taste_profile: [],
+    category: "appetizer",
+    image_source: "ai",
+  };
+  const charcuterie = {
+    ...mortadella,
+    id: "charcuterie-board",
+    name_original: "ASSORTIMENT DE CHARCUTERIE",
+    name_translated: { zh: "冷切拼盘" },
+  };
+
+  assert.match(getDishImageUrl(charcuterie), /charcuterie-francaise|1529692236671/);
+  assert.equal(isDishImagePending(mortadella), true);
+});
+
 test("dish image loading animation chooses category-specific food characters", async () => {
   const component = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
   assert.match(component, /function selectLoadingCharacter/);
@@ -444,6 +528,11 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(storage, /public", "generated-dishes/);
   assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
   assert.match(storage, /return localUrl/);
+  const uploadDishImageBody = storage.match(/export async function uploadDishImage[\s\S]*?\n}\n\nexport async function getCachedDishImageUrl/)?.[0] || "";
+  assert.match(uploadDishImageBody, /const client = getSupabaseAdminClient\(\)/);
+  assert.doesNotMatch(uploadDishImageBody, /getSupabaseAdminClient\(\) \|\| getSupabaseClient\(\)/);
+  assert.match(route, /if \(!publicUrl\) return/);
+  assert.doesNotMatch(route, /publicUrl \|\| tempUrl/);
   assert.doesNotMatch(route, /generateImagesForDishes\([\s\S]*,\s*1,\s*\)/);
 });
 

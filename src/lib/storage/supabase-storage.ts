@@ -42,7 +42,7 @@ export async function uploadDishImage(
     const buffer = await fetchImageBuffer(imageUrl);
     localUrl = await saveLocalDishImage(dishId, buffer);
 
-    const client = getSupabaseAdminClient() || getSupabaseClient();
+    const client = getSupabaseAdminClient();
     if (!client) return localUrl;
 
     const path = `${dishId}.png`;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeMenuImage, refineTranslation, hasChinese } from "@/lib/ai";
+import { analyzeMenuImage, analyzeMenuImageFast, refineTranslation, hasChinese } from "@/lib/ai";
 import type { Dish } from "@/types";
 import { getSupabaseAdminClient, supabase } from "@/lib/db/supabase";
 import { createTask, updateTask } from "@/lib/cache/task-store";
@@ -36,6 +36,7 @@ const FULL_PROMPT_PAGE_LIMIT = FAST_OCR_MODE
   ? 0
   : Number.parseInt(process.env.MENU_FULL_PROMPT_PAGE_LIMIT || "4", 10) || 4;
 const REFINE_LOW_CONFIDENCE = process.env.MENU_REFINE_LOW_CONFIDENCE === "true";
+const FAST_FIRST_PASS = process.env.MENU_FAST_FIRST_PASS !== "false";
 const BACKGROUND_IMAGE_LIMIT = Number.parseInt(process.env.MENU_IMAGE_GENERATION_LIMIT || "16", 10) || 16;
 const IMAGE_GENERATION_CONCURRENCY = Math.max(
   1,
@@ -63,6 +64,29 @@ type ExistingDishImage = {
   name_translated?: string | null;
   ai_image_url?: string | null;
   image_source?: string | null;
+};
+
+type AnalyzedDish = {
+  confidence: number;
+  name_original: string;
+  name_translated: string;
+  description: string;
+  recommendation?: string;
+  good_for?: string;
+  caution?: string;
+  _needsRetranslate?: boolean;
+  ingredients?: string[];
+  allergens?: string[];
+  taste_profile?: string[];
+  category?: string;
+};
+
+type MenuAnalysisResult = {
+  dishes: AnalyzedDish[];
+  page_label: string;
+  page_type?: "menu" | "info";
+  page_description?: string;
+  source_language: string;
 };
 
 async function findExistingDishImages(
@@ -112,6 +136,63 @@ async function findExistingDishImages(
   }
 
   return results;
+}
+
+async function buildDishRecords(
+  dishes: AnalyzedDish[],
+  pageLabel: string,
+  usedImageIds: Set<string>,
+): Promise<Dish[]> {
+  const localMatches = new Map<number, { card: string; hero: string; id: string } | null>();
+  for (let di = 0; di < dishes.length; di++) {
+    const dish = dishes[di];
+    const match = matchDishKnowledgeImage({ ...dish, page_label: pageLabel });
+    if (match && !usedImageIds.has(match.id)) {
+      usedImageIds.add(match.id);
+      localMatches.set(di, match);
+    } else {
+      localMatches.set(di, null);
+    }
+  }
+
+  const existingImagesByIndex = await findExistingDishImages(dishes);
+
+  return Promise.all(
+    dishes.map(async (dish, di) => {
+      const localMatch = localMatches.get(di);
+      try {
+        const existing = existingImagesByIndex.get(di) || null;
+        const existingImageUrl = isReusableExistingImageUrl(existing?.ai_image_url)
+          ? existing.ai_image_url
+          : null;
+        const cachedGeneratedImageUrl = localMatch
+          ? null
+          : await getCachedDishImageUrl(storageIdForGeneratedDishImage(dish));
+        const imageUrl = localMatch?.card || cachedGeneratedImageUrl || existingImageUrl || null;
+
+        return {
+          ...dish,
+          id: existing?.id || `temp-${crypto.randomUUID()}`,
+          name_translated: { zh: dish.name_translated },
+          description: { zh: dish.description || "" },
+          ai_image_url: imageUrl,
+          image_url: imageUrl,
+          image_source: localMatch ? "mixed" : (existing?.image_source || "ai"),
+        } as Dish;
+      } catch {
+        const imageUrl = localMatch?.card || null;
+        return {
+          ...dish,
+          id: `temp-${crypto.randomUUID()}`,
+          name_translated: { zh: dish.name_translated },
+          description: { zh: dish.description || "" },
+          ai_image_url: imageUrl,
+          image_url: imageUrl,
+          image_source: localMatch ? "mixed" : "ai",
+        } as Dish;
+      }
+    })
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -196,7 +277,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Fire background processing — buffers are in memory, safe to use after response
-    processImages(taskId, imageBuffers, targetLang, startTime, cacheKey, meta).catch(async (err) => {
+    const processor = FAST_FIRST_PASS ? processImagesFastFirstPass : processImages;
+    processor(taskId, imageBuffers, targetLang, startTime, cacheKey, meta).catch(async (err) => {
       console.error("translate:task_failed", {
         taskId,
         elapsedMs: Date.now() - startTime,
@@ -226,6 +308,131 @@ export async function POST(req: NextRequest) {
     console.error("Translate error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function processImagesFastFirstPass(
+  taskId: string,
+  imageBuffers: MenuImageInput[],
+  _targetLang: string,
+  startTime: number,
+  cacheKey?: string,
+  meta?: Record<string, string>,
+) {
+  const results: Array<Record<string, unknown>> = [];
+  const failedPages: Array<{ page_index: number; error: string; retry_allowed: boolean }> = [];
+  const usedImageIds = new Set<string>();
+
+  for (let batch = 0; batch < imageBuffers.length; batch += OCR_CONCURRENCY) {
+    const batchItems = imageBuffers.slice(batch, batch + OCR_CONCURRENCY);
+    await Promise.all(
+      batchItems.map(async (item, batchIdx) => {
+        const i = batch + batchIdx;
+        try {
+          const task = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
+          if (!task) return;
+
+          await updateTask(taskId, {
+            perPageStatus: task.perPageStatus.map((s, idx) =>
+              idx === i ? { ...s, status: "processing" } : s
+            ),
+          });
+
+          const raw = await analyzeMenuImageFast(item.base64, false, item.mimeType) as MenuAnalysisResult;
+          const dishRecords = await buildDishRecords(raw.dishes, raw.page_label, usedImageIds);
+
+          results[i] = {
+            page_index: i,
+            page_label: raw.page_label || "未分类",
+            page_type: raw.page_type,
+            page_description: raw.page_description,
+            source_language: raw.source_language,
+            dishes: dishRecords,
+          };
+
+          const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
+          if (currentTask) {
+            currentTask.perPageStatus[i].status = "done";
+            currentTask.progress.current = results.filter(Boolean).length;
+            await updateTask(taskId, {
+              perPageStatus: currentTask.perPageStatus,
+              progress: currentTask.progress,
+            });
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : "Unknown error";
+          console.error("translate:page_failed", {
+            taskId,
+            pageIndex: i,
+            elapsedMs: Date.now() - startTime,
+            error: message,
+            provider: process.env.MENU_AI_PROVIDER || "auto",
+            fastFirstPass: true,
+            ...meta,
+          });
+          failedPages.push({ page_index: i, error: message, retry_allowed: true });
+          const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
+          if (currentTask) {
+            currentTask.perPageStatus[i].status = "failed";
+            currentTask.progress.current = results.filter(Boolean).length + failedPages.length;
+            await updateTask(taskId, {
+              perPageStatus: currentTask.perPageStatus,
+              progress: currentTask.progress,
+              failedPages,
+            });
+          }
+        }
+      })
+    );
+  }
+
+  const status = failedPages.length === imageBuffers.length ? "failed"
+    : failedPages.length > 0 ? "partial"
+    : "done";
+  const sorted = results.filter(Boolean).sort(
+    (a, b) => (a as { page_index: number }).page_index - (b as { page_index: number }).page_index
+  );
+  const resultPayload = {
+    task_id: taskId,
+    status,
+    pages: sorted,
+    failed_pages: failedPages.length > 0 ? failedPages : undefined,
+    metadata: {
+      source_language: (sorted[0] as { source_language?: string })?.source_language || "unknown",
+      total_dishes: sorted.reduce(
+        (sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0
+      ),
+      cached: false,
+      processing_time_ms: Date.now() - startTime,
+      enrichment_status: "pending",
+    },
+  };
+
+  await updateTask(taskId, {
+    status,
+    result: resultPayload,
+    failedPages: failedPages.length > 0 ? failedPages : undefined,
+    estimatedRemaining: 0,
+  });
+
+  console.info("translate:task_first_pass_finished", {
+    taskId,
+    status,
+    elapsedMs: Date.now() - startTime,
+    pageCount: sorted.length,
+    failedCount: failedPages.length,
+    dishCount: resultPayload.metadata.total_dishes,
+    provider: process.env.MENU_AI_PROVIDER || "auto",
+    ...meta,
+  });
+
+  if (cacheKey) {
+    translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
+  }
+
+  enrichResultInBackground(taskId, imageBuffers, resultPayload, cacheKey, startTime, meta).catch((err) => {
+    console.error("Background menu enrichment failed:", err);
+  });
+
 }
 
 async function processImages(
@@ -300,60 +507,7 @@ async function processImages(
               )
             : raw.dishes;
 
-          // Pre-match local images with dedup — same knowledge DB image used only once per menu.
-          const localMatches = new Map<number, { card: string; hero: string; id: string } | null>();
-          for (let di = 0; di < refinedDishes.length; di++) {
-            const dish = refinedDishes[di];
-            const match = matchDishKnowledgeImage({ ...dish, page_label: raw.page_label });
-            if (match && !usedImageIds.has(match.id)) {
-              usedImageIds.add(match.id);
-              localMatches.set(di, match);
-            } else {
-              localMatches.set(di, null);
-            }
-          }
-
-          const existingImagesByIndex = await findExistingDishImages(refinedDishes);
-
-          const dishRecords = await Promise.all(
-            refinedDishes.map(async (dish: {
-              name_original: string;
-              name_translated?: string | Record<string, string>;
-              description?: string | Record<string, string>;
-              ingredients?: string[];
-              category?: string;
-            }, di: number) => {
-              const localMatch = localMatches.get(di);
-              try {
-                const existing = existingImagesByIndex.get(di) || null;
-                const existingImageUrl = isReusableExistingImageUrl(existing?.ai_image_url)
-                  ? existing.ai_image_url
-                  : null;
-                const cachedGeneratedImageUrl = localMatch
-                  ? null
-                  : await getCachedDishImageUrl(storageIdForGeneratedDishImage(dish));
-                // Priority: local knowledge DB > deterministic generated-image cache > DB cached AI image > null
-                const imageUrl = localMatch?.card || cachedGeneratedImageUrl || existingImageUrl || null;
-
-                return {
-                  ...dish,
-                  id: existing?.id || `temp-${crypto.randomUUID()}`,
-                  ai_image_url: imageUrl,
-                  image_url: imageUrl,
-                  image_source: localMatch ? "mixed" : (existing?.image_source || "ai"),
-                };
-              } catch {
-                const imageUrl = localMatch?.card || null;
-                return {
-                  ...dish,
-                  id: `temp-${crypto.randomUUID()}`,
-                  ai_image_url: imageUrl,
-                  image_url: imageUrl,
-                  image_source: localMatch ? "mixed" : "ai",
-                };
-              }
-            })
-          );
+          const dishRecords = await buildDishRecords(refinedDishes, raw.page_label, usedImageIds);
 
           results[i] = {
             page_index: i,
@@ -451,6 +605,100 @@ async function processImages(
   });
 }
 
+async function enrichResultInBackground(
+  taskId: string,
+  imageBuffers: MenuImageInput[],
+  resultPayload: Record<string, unknown>,
+  cacheKey?: string,
+  startTime?: number,
+  meta?: Record<string, string>,
+) {
+  const enrichedPages: Array<Record<string, unknown>> = [];
+  const usedImageIds = new Set<string>();
+
+  for (let i = 0; i < imageBuffers.length; i++) {
+    const item = imageBuffers[i];
+    let raw: MenuAnalysisResult;
+    const useRichMode = imageBuffers.length <= FULL_PROMPT_PAGE_LIMIT;
+    if (useRichMode) {
+      try {
+        raw = await analyzeMenuImage(item.base64, true, item.mimeType) as MenuAnalysisResult;
+      } catch {
+        raw = await analyzeMenuImage(item.base64, false, item.mimeType) as MenuAnalysisResult;
+      }
+    } else {
+      raw = await analyzeMenuImage(item.base64, false, item.mimeType) as MenuAnalysisResult;
+    }
+
+    const shouldRefine = raw.dishes.length <= 10;
+    const refinedDishes = shouldRefine
+      ? await Promise.all(
+          raw.dishes.map(async (dish) => {
+            const needsRefine =
+              dish._needsRetranslate ||
+              !hasChinese(dish.name_translated || "") ||
+              (REFINE_LOW_CONFIDENCE && dish.confidence < 0.5);
+            if (!needsRefine) return dish;
+            try {
+              const refined = await refineTranslation({
+                name_original: dish.name_original,
+                name_translated: dish.name_translated,
+                description: dish.description,
+                source_language: raw.source_language,
+              });
+              return { ...dish, ...refined };
+            } catch {
+              return dish;
+            }
+          })
+        )
+      : raw.dishes;
+
+    enrichedPages[i] = {
+      page_index: i,
+      page_label: raw.page_label || "未分类",
+      page_type: raw.page_type,
+      page_description: raw.page_description,
+      source_language: raw.source_language,
+      dishes: await buildDishRecords(refinedDishes, raw.page_label, usedImageIds),
+    };
+  }
+
+  const pages = enrichedPages.filter(Boolean).sort(
+    (a, b) => (a as { page_index: number }).page_index - (b as { page_index: number }).page_index
+  );
+  const enrichedPayload = {
+    ...resultPayload,
+    pages,
+    metadata: {
+      ...((resultPayload.metadata as Record<string, unknown>) || {}),
+      source_language: (pages[0] as { source_language?: string })?.source_language || "unknown",
+      total_dishes: pages.reduce(
+        (sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0
+      ),
+      enrichment_status: "done",
+      enrichment_time_ms: startTime ? Date.now() - startTime : undefined,
+    },
+  };
+
+  await updateTask(taskId, { result: enrichedPayload });
+  if (cacheKey) {
+    translationCache.set(cacheKey, { result: enrichedPayload, createdAt: Date.now() });
+  }
+  console.info("translate:task_enriched", {
+    taskId,
+    elapsedMs: startTime ? Date.now() - startTime : undefined,
+    pageCount: pages.length,
+    dishCount: (enrichedPayload.metadata as { total_dishes?: number }).total_dishes,
+    provider: process.env.MENU_AI_PROVIDER || "auto",
+    ...meta,
+  });
+
+  generateImagesInBackground(taskId, enrichedPayload, cacheKey).catch((err) => {
+    console.error("Background enriched image generation failed:", err);
+  });
+}
+
 async function generateImagesInBackground(
   taskId: string,
   resultPayload: Record<string, unknown>,
@@ -475,7 +723,8 @@ async function generateImagesInBackground(
 
       const storageId = storageIdForGeneratedDishImage(dish);
       const publicUrl = await uploadDishImage(storageId, tempUrl);
-      const finalUrl = publicUrl || tempUrl;
+      if (!publicUrl) return;
+      const finalUrl = publicUrl;
 
       // Persist image: upsert into dishes table so next translation reuses it
       const translated = typeof dish.name_translated === "string"

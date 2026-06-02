@@ -53,6 +53,24 @@ export async function analyzeMenuImage(base64Image: string, rich?: boolean, mime
   throw new Error(`All menu AI providers failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
 }
 
+export async function analyzeMenuImageFast(base64Image: string, rich?: boolean, mimeType?: string) {
+  let lastError: unknown = null;
+  for (const provider of providerOrder()) {
+    try {
+      const mod = await load(provider);
+      const fastAnalyze = "analyzeMenuImageFast" in mod
+        ? (mod as typeof import("./qwen")).analyzeMenuImageFast
+        : mod.analyzeMenuImage;
+      return await fastAnalyze(base64Image, rich, mimeType);
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Provider ${provider} failed during fast menu analysis: ${message}`);
+    }
+  }
+  throw new Error(`All fast menu AI providers failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+
 export async function refineTranslation(dish: {
   name_original: string;
   name_translated: string;

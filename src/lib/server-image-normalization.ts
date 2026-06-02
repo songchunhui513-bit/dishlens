@@ -1,6 +1,6 @@
 import {
-  SERVER_IMAGE_MAX_DIM,
-  SERVER_IMAGE_QUALITY,
+  getServerImageMaxDim,
+  getServerImageQuality,
   shouldNormalizeClientImage,
 } from "@/lib/image-input";
 
@@ -13,15 +13,18 @@ export async function normalizeServerMenuImage(
 
   try {
     const sharp = (await import("sharp")).default;
+    const maxDim = getServerImageMaxDim();
+    const quality = getServerImageQuality();
     const buffer = await sharp(input.buffer, { failOn: "none" })
       .rotate()
       .resize({
-        width: SERVER_IMAGE_MAX_DIM,
-        height: SERVER_IMAGE_MAX_DIM,
+        width: maxDim,
+        height: maxDim,
         fit: "inside",
         withoutEnlargement: true,
       })
-      .jpeg({ quality: SERVER_IMAGE_QUALITY, mozjpeg: true })
+      .sharpen({ sigma: 0.8, m1: 0.5, m2: 1.2 })
+      .jpeg({ quality, mozjpeg: true })
       .toBuffer();
 
     return { buffer, mimeType: "image/jpeg" };

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { shouldRetryEmptyMenuResult } from "@/lib/menu-analysis-utils";
+import { normalizeExtractedDishFields } from "@/lib/menu-analysis-normalization";
 
 const API_TIMEOUT = 75_000;
 
@@ -102,6 +103,98 @@ IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 
 Output ONLY valid JSON:
 { "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;
 
+const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `You are a fast restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate dish names into CHINESE (中文).
+
+Optimize for speed and recall. Read multi-column menus top-to-bottom and left-to-right. Do NOT generate recommendation, good_for, caution, long food advice, reviews, or rich commentary.
+
+For each dish, provide ONLY:
+1. name_original: exact original text from the menu. Include visible price if attached to the line.
+2. name_translated: short Chinese dish name.
+3. description: 8-24 Chinese chars, concise ingredient/type hint only.
+4. confidence: 0.0-1.0.
+
+Also provide page_label, page_type, page_description only for info pages, and source_language.
+
+IMPORTANT: Do NOT generate recommendation, good_for, or caution in this fast first pass.
+IMPORTANT: Extract every priced/orderable item; never collapse variants into one item.
+IMPORTANT: Keep dish names and descriptions separate. If a menu line has a dish name followed by smaller explanatory text, put only the dish name in name_original and summarize the explanatory text in description.
+
+Output ONLY valid JSON:
+{ "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;
+
+function normalizeMenuImageAnalysis(result: MenuImageAnalysis): MenuImageAnalysis {
+  if (!result.dishes || !Array.isArray(result.dishes)) {
+    throw new Error("AI response missing dishes array");
+  }
+
+  for (const dish of result.dishes) {
+    normalizeExtractedDishFields(dish);
+    if (!hasChinese(dish.name_translated || "")) {
+      dish._needsRetranslate = true;
+    }
+  }
+
+  return result;
+}
+
+async function analyzeWithPrompt(
+  base64Image: string,
+  systemPrompt: string,
+  mimeType: string,
+  maxTokens: number,
+): Promise<MenuImageAnalysis> {
+  const response = await qwen.chat.completions.create({
+    model: VL_MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${base64Image}` },
+          },
+          { type: "text", text: "Extract ALL orderable dishes from this menu photo. Priced dotted menu lines, numbered combos, tasting-menu courses, dessert/drink lines, and menu-board items are dishes. Ignore only brand/story pages with no orderable items. Remember: ALL translations must be in Chinese (中文)." },
+        ],
+      },
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.1,
+  });
+
+  const text = response.choices[0]?.message?.content || "";
+
+  if (!text || text.trim().length < 10) {
+    throw new Error("AI returned empty response");
+  }
+
+  return normalizeMenuImageAnalysis(parseAIJson<MenuImageAnalysis>(text));
+}
+
+export async function analyzeMenuImageFast(base64Image: string, _rich?: boolean, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
+  let lastError: Error | null = null;
+  const MAX_RETRIES = 1;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const result = await analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, 3072);
+
+      if (shouldRetryEmptyMenuResult(result, attempt, MAX_RETRIES)) {
+        lastError = new Error("AI found no dishes");
+        continue;
+      }
+
+      return result;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw new Error(
+    `Fast menu analysis failed after ${MAX_RETRIES} attempts: ${lastError?.message || "unknown error"}`
+  );
+}
+
 export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
   let lastError: Error | null = null;
   const MAX_RETRIES = 1;
@@ -109,51 +202,11 @@ export async function analyzeMenuImage(base64Image: string, rich?: boolean, mime
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await qwen.chat.completions.create({
-        model: VL_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${base64Image}` },
-              },
-              { type: "text", text: "Extract ALL orderable dishes from this menu photo. Priced dotted menu lines, numbered combos, tasting-menu courses, dessert/drink lines, and menu-board items are dishes. Ignore only brand/story pages with no orderable items. Remember: ALL translations must be in Chinese (中文)." },
-            ],
-          },
-        ],
-        max_tokens: rich ? 8192 : 4096,
-        temperature: 0.1,
-      });
-
-      const text = response.choices[0]?.message?.content || "";
-
-      if (!text || text.trim().length < 10) {
-        throw new Error("AI returned empty response");
-      }
-
-      const result = parseAIJson<MenuImageAnalysis>(text);
-
-      if (!result.dishes || !Array.isArray(result.dishes)) {
-        throw new Error("AI response missing dishes array");
-      }
+      const result = await analyzeWithPrompt(base64Image, systemPrompt, mimeType, rich ? 8192 : 4096);
 
       if (shouldRetryEmptyMenuResult(result, attempt, MAX_RETRIES)) {
         lastError = new Error("AI found no dishes");
         continue;
-      }
-
-      for (const dish of result.dishes) {
-        if (!hasChinese(dish.name_translated || "")) {
-          dish._needsRetranslate = true;
-        }
-        if (!dish.ingredients) dish.ingredients = [];
-        if (!dish.allergens) dish.allergens = [];
-        if (!dish.taste_profile) dish.taste_profile = [];
-        if (!dish.description) dish.description = "";
-        if (dish.confidence === undefined) dish.confidence = 0.7;
       }
 
       return result;

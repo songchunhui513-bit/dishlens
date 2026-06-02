@@ -192,6 +192,18 @@ export function getDishText(dish: Dish): DishText {
   return { originalName, translatedName, description, searchText };
 }
 
+function getDishIdentityText(dish: Dish): string {
+  return [
+    dish.name_original || "",
+    localized(dish.name_translated),
+    dish.category || "",
+    dish.cuisine_region || "",
+    ...(dish.ingredients || []),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
 export function getDishImageUrl(dish: Dish, size: "card" | "hero" = "card"): string {
   const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;
   if (dish.image_source === "user" && existingImage) return existingImage;
@@ -201,9 +213,10 @@ export function getDishImageUrl(dish: Dish, size: "card" | "hero" = "card"): str
   if (localImage) return size === "hero" ? localImage.hero : localImage.card;
 
   if (existingImage) return existingImage;
+  if (dish.image_source === "ai") return "";
 
   // Fallback to Unsplash keyword rules
-  const text = getDishText(dish).searchText;
+  const text = getDishIdentityText(dish);
   const matched = imageRules.find((rule) =>
     rule.patterns.some((pattern) => text.includes(pattern.toLowerCase()))
   );

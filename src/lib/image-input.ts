@@ -1,6 +1,6 @@
 export const MAX_MENU_IMAGES = 20;
-export const SERVER_IMAGE_MAX_DIM = 1280;
-export const SERVER_IMAGE_QUALITY = 68;
+export const DEFAULT_SERVER_IMAGE_MAX_DIM = 1024;
+export const DEFAULT_SERVER_IMAGE_QUALITY = 62;
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
@@ -30,4 +30,18 @@ export function shouldNormalizeClientImage(
   const mimeType = normalizeImageMimeType(file.type, file.name);
   if (mimeType === "image/webp") return true;
   return file.size >= maxRawBytes;
+}
+
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const value = Number.parseInt(process.env[name] || "", 10);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
+}
+
+export function getServerImageMaxDim(): number {
+  return envInt("MENU_SERVER_IMAGE_MAX_DIM", DEFAULT_SERVER_IMAGE_MAX_DIM, 768, 1600);
+}
+
+export function getServerImageQuality(): number {
+  return envInt("MENU_SERVER_IMAGE_QUALITY", DEFAULT_SERVER_IMAGE_QUALITY, 45, 82);
 }
