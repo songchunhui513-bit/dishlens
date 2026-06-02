@@ -47,13 +47,15 @@ interface DishDetailPageProps {
   onBack: () => void;
   onReview: () => void;
   showAllergens?: boolean;
+  targetLang?: string;
+  uiLang?: "zh" | "en";
   isFavorited?: boolean;
   onToggleFavorite?: (dishId: string, faved: boolean) => void;
   onShare?: () => void;
   imageGenProgress?: { done: number; total: number };
 }
 
-export default function DishDetailPage({ dish, onBack, onReview, showAllergens, isFavorited, onToggleFavorite, onShare, imageGenProgress }: DishDetailPageProps) {
+export default function DishDetailPage({ dish, onBack, onReview, showAllergens, targetLang = "zh", isFavorited, onToggleFavorite, onShare, imageGenProgress }: DishDetailPageProps) {
   const [faved, setFaved] = useState(isFavorited ?? false);
   const [reviews, setReviews] = useState<Array<{ text: string; author: string; time: string }>>([]);
 
@@ -80,8 +82,8 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
     );
   }
 
-  const dishText = getDishText(dish);
-  const insight = getDishInsight(dish);
+  const dishText = getDishText(dish, targetLang);
+  const insight = getDishInsight(dish, targetLang);
   const ingredients = (dish.ingredients || []).join("、");
 
   // Build tags

@@ -159,10 +159,13 @@ const diverseFallbacks = [
   "https://images.unsplash.com/photo-1467003909585-2f8a72700288",
 ];
 
-function localized(value: Dish["name_translated"] | Dish["description"] | string | undefined): string {
+export function localizedValue(
+  value: Dish["name_translated"] | Dish["description"] | string | undefined,
+  preferredLang = "zh",
+): string {
   if (!value) return "";
   if (typeof value === "string") return value;
-  return value.zh || value.en || Object.values(value)[0] || "";
+  return value[preferredLang] || value.zh || value.en || Object.values(value)[0] || "";
 }
 
 function hashStr(value: string): number {
@@ -173,9 +176,9 @@ function hashStr(value: string): number {
   return Math.abs(h);
 }
 
-export function getDishText(dish: Dish): DishText {
-  const translatedName = localized(dish.name_translated) || dish.name_original || "未命名菜品";
-  const description = localized(dish.description);
+export function getDishText(dish: Dish, preferredLang = "zh"): DishText {
+  const translatedName = localizedValue(dish.name_translated, preferredLang) || dish.name_original || "未命名菜品";
+  const description = localizedValue(dish.description, preferredLang);
   const originalName = dish.name_original || translatedName;
   const searchText = [
     originalName,
@@ -195,7 +198,7 @@ export function getDishText(dish: Dish): DishText {
 function getDishIdentityText(dish: Dish): string {
   return [
     dish.name_original || "",
-    localized(dish.name_translated),
+    localizedValue(dish.name_translated),
     dish.category || "",
     dish.cuisine_region || "",
     ...(dish.ingredients || []),
@@ -342,8 +345,8 @@ function buildSpecificRecommendation(
   return `${translatedName}适合想稳妥尝试这家菜单的人，点单时重点看${description ? "它的食材组合和风味强度" : "食材、做法和口味强度"}。如果描述里的主料正合你口味，可以放心尝试。`;
 }
 
-export function getDishInsight(dish: Dish): DishInsight {
-  const { translatedName, description, searchText } = getDishText(dish);
+export function getDishInsight(dish: Dish, preferredLang = "zh"): DishInsight {
+  const { translatedName, description, searchText } = getDishText(dish, preferredLang);
   const isVeg = isVegetarianDish(dish);
   const isFried = /fried|炸|煎|calamari|鱿鱼/.test(searchText);
   const isDessert = /dessert|cake|sweet|甜品|甜点|蛋糕|挞|布丁|雪糕|冰淇淋|tiramisu|gelato|panna cotta|mousse/.test(searchText);
@@ -359,9 +362,9 @@ export function getDishInsight(dish: Dish): DishInsight {
   const baseDescription = safeDescription || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
 
   // AI-generated fields take priority
-  const aiRecommendation = localized(dish.recommendation);
-  const aiGoodFor = localized(dish.good_for);
-  const aiCaution = localized(dish.caution);
+  const aiRecommendation = localizedValue(dish.recommendation, preferredLang);
+  const aiGoodFor = localizedValue(dish.good_for, preferredLang);
+  const aiCaution = localizedValue(dish.caution, preferredLang);
 
   const recommendation = buildSpecificRecommendation(translatedName, description, searchText, {
     isVeg,

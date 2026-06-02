@@ -39,11 +39,11 @@ async function load(provider: ProviderName): Promise<ProviderModule> {
   return mod;
 }
 
-export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType?: string) {
+export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType?: string, targetLang = "zh") {
   let lastError: unknown = null;
   for (const provider of providerOrder()) {
     try {
-      return await (await load(provider)).analyzeMenuImage(base64Image, rich, mimeType);
+      return await (await load(provider)).analyzeMenuImage(base64Image, rich, mimeType, targetLang);
     } catch (err) {
       lastError = err;
       const message = err instanceof Error ? err.message : String(err);
@@ -53,7 +53,7 @@ export async function analyzeMenuImage(base64Image: string, rich?: boolean, mime
   throw new Error(`All menu AI providers failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
 }
 
-export async function analyzeMenuImageFast(base64Image: string, rich?: boolean, mimeType?: string) {
+export async function analyzeMenuImageFast(base64Image: string, rich?: boolean, mimeType?: string, targetLang = "zh") {
   let lastError: unknown = null;
   for (const provider of providerOrder()) {
     try {
@@ -61,7 +61,7 @@ export async function analyzeMenuImageFast(base64Image: string, rich?: boolean, 
       const fastAnalyze = "analyzeMenuImageFast" in mod
         ? (mod as typeof import("./qwen")).analyzeMenuImageFast
         : mod.analyzeMenuImage;
-      return await fastAnalyze(base64Image, rich, mimeType);
+      return await fastAnalyze(base64Image, rich, mimeType, targetLang);
     } catch (err) {
       lastError = err;
       const message = err instanceof Error ? err.message : String(err);
@@ -76,11 +76,11 @@ export async function refineTranslation(dish: {
   name_translated: string;
   description: string;
   source_language: string;
-}) {
+}, targetLang = "zh") {
   let lastError: unknown = null;
   for (const provider of providerOrder()) {
     try {
-      return await (await load(provider)).refineTranslation(dish);
+      return await (await load(provider)).refineTranslation(dish, targetLang);
     } catch (err) {
       lastError = err;
       const message = err instanceof Error ? err.message : String(err);

@@ -35,8 +35,12 @@ export interface TranslationResult {
   pages: MenuPage[];
   metadata: {
     source_language: string;
+    target_language?: string;
     total_dishes: number;
     cached: boolean;
+    processing_time_ms?: number;
+    enrichment_status?: string;
+    enrichment_time_ms?: number;
   };
   failed_pages?: { page_index: number; error: string; retry_allowed: boolean }[];
 }

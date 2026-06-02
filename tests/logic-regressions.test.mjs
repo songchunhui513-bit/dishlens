@@ -137,7 +137,7 @@ test("fast overseas recognition returns a lightweight first result before enrich
 
   assert.match(qwen, /VL_SYSTEM_PROMPT_FAST_FIRST_PASS/);
   assert.match(qwen, /export async function analyzeMenuImageFast/);
-  assert.match(qwen, /analyzeWithPrompt\(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, 3072\)/);
+  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*3072,\s*targetLang\)/);
   assert.match(qwen, /Do NOT generate recommendation/);
   assert.match(qwen, /provide ONLY[\s\S]*name_original[\s\S]*name_translated[\s\S]*description[\s\S]*confidence/);
   assert.doesNotMatch(qwen.match(/const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `([\s\S]*?)`;/)?.[1] || "", /ingredients|allergens|taste_profile/);
@@ -206,6 +206,49 @@ test("dietary settings persist locally across page refreshes without an account"
   assert.match(appPage, /setSettings as setStoredSettings/);
   assert.match(appPage, /getStoredSettings\(\)/);
   assert.match(appPage, /setStoredSettings\(next\)/);
+});
+
+test("language settings affect API target language, cache keys, visible settings copy, and result text", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
+  const { getDishText } = await loadTsModule(`${ROOT}/src/lib/dish-presentation.ts`);
+  const apiClient = await readFile(`${ROOT}/src/lib/api-client.ts`, "utf8");
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
+  const settingsPage = await readFile(`${ROOT}/src/components/settings/SettingsPage.tsx`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+
+  assert.equal(
+    getDishText({
+      id: "dish-ja",
+      name_original: "TAIYAKI",
+      name_translated: { zh: "鲷鱼烧", ja: "たい焼き" },
+      description: { zh: "红豆甜点", ja: "あんこ入りの和菓子" },
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      image_source: "ai",
+    }, "ja").translatedName,
+    "たい焼き",
+  );
+
+  assert.match(apiClient, /postTranslation\(images:\s*File\[\],\s*targetLang/);
+  assert.match(apiClient, /formData\.append\("target_lang",\s*normalizeTargetLang\(targetLang\)\)/);
+  assert.doesNotMatch(apiClient, /formData\.append\("target_lang",\s*"zh"\)/);
+  assert.match(appPage, /createTranslation\(files,\s*settings\.targetLang\)/);
+  assert.match(appPage, /targetLang=\{settings\.targetLang\}/);
+  assert.match(appPage, /uiLang=\{settings\.uiLang\}/);
+  assert.match(route, /normalizeTargetLang/);
+  assert.match(route, /hashImageName\(targetLang/);
+  assert.match(route, /analyzeMenuImageFast\(item\.base64,\s*false,\s*item\.mimeType,\s*targetLang\)/);
+  assert.match(route, /target_language:\s*targetLang/);
+  assert.match(qwen, /TARGET_LANGUAGE_LABELS/);
+  assert.match(qwen, /targetLanguageInstruction/);
+  assert.match(qwen, /analyzeMenuImageFast\(base64Image:[\s\S]*targetLang/);
+  assert.match(settingsPage, /settingsCopy/);
+  assert.match(settingsPage, /const copy = settingsCopy\[s\.uiLang\]/);
+  assert.match(resultsPage, /targetLanguageName\(resultTargetLang/);
+  assert.match(resultsPage, /targetLanguageNativeName\(resultTargetLang\)/);
 });
 
 test("generated menu images use stable storage ids even for temporary dishes", async () => {

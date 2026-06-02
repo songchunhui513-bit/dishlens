@@ -7,6 +7,7 @@ import { generateImagesForDishes } from "@/lib/ai/image-gen";
 import { getCachedDishImageUrl, uploadDishImage } from "@/lib/storage/supabase-storage";
 import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
 import { MAX_MENU_IMAGES, normalizeImageMimeType } from "@/lib/image-input";
+import { normalizeTargetLang } from "@/lib/languages";
 import { normalizeServerMenuImage } from "@/lib/server-image-normalization";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
 import { dishNameLookupCandidates } from "@/lib/dish-name-normalization";
@@ -17,10 +18,10 @@ const translationCache = new Map<string, { result: Record<string, unknown>; crea
 const CACHE_MAX = 50;
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
-function hashImageName(name: string, size: number): string {
+function hashImageName(targetLang: string, name: string, size: number): string {
   // Lightweight cache key: filename + size is stable across re-encodes
   let h = 0;
-  const key = `${name}:${size}`;
+  const key = `${targetLang}:${name}:${size}`;
   for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
   return Math.abs(h).toString(36);
 }
@@ -142,6 +143,7 @@ async function buildDishRecords(
   dishes: AnalyzedDish[],
   pageLabel: string,
   usedImageIds: Set<string>,
+  targetLang: string,
 ): Promise<Dish[]> {
   const localMatches = new Map<number, { card: string; hero: string; id: string } | null>();
   for (let di = 0; di < dishes.length; di++) {
@@ -173,8 +175,8 @@ async function buildDishRecords(
         return {
           ...dish,
           id: existing?.id || `temp-${crypto.randomUUID()}`,
-          name_translated: { zh: dish.name_translated },
-          description: { zh: dish.description || "" },
+          name_translated: { [targetLang]: dish.name_translated },
+          description: { [targetLang]: dish.description || "" },
           ai_image_url: imageUrl,
           image_url: imageUrl,
           image_source: localMatch ? "mixed" : (existing?.image_source || "ai"),
@@ -184,8 +186,8 @@ async function buildDishRecords(
         return {
           ...dish,
           id: `temp-${crypto.randomUUID()}`,
-          name_translated: { zh: dish.name_translated },
-          description: { zh: dish.description || "" },
+          name_translated: { [targetLang]: dish.name_translated },
+          description: { [targetLang]: dish.description || "" },
           ai_image_url: imageUrl,
           image_url: imageUrl,
           image_source: localMatch ? "mixed" : "ai",
@@ -212,7 +214,7 @@ export async function POST(req: NextRequest) {
     const images = formData
       .getAll("images")
       .filter((item): item is File => item instanceof File && item.size > 0);
-    const targetLang = (formData.get("target_lang") as string) || "zh";
+    const targetLang = normalizeTargetLang(formData.get("target_lang"));
 
     if (!images || images.length === 0) {
       return NextResponse.json({ error: "No images provided" }, { status: 400 });
@@ -229,6 +231,7 @@ export async function POST(req: NextRequest) {
       imageCount: images.length,
       sizes: images.map((image) => image.size),
       provider: process.env.MENU_AI_PROVIDER || "auto",
+      targetLang,
       ...meta,
     });
 
@@ -253,7 +256,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Build stable cache key from filenames + sizes (survives re-encoding)
-    const cacheKey = imageBuffers.map((b) => hashImageName(b.name, b.size)).sort().join("|");
+    const cacheKey = imageBuffers.map((b) => hashImageName(targetLang, b.name, b.size)).sort().join("|");
 
     // Check in-memory cache
     const cached = translationCache.get(cacheKey);
@@ -313,7 +316,7 @@ export async function POST(req: NextRequest) {
 async function processImagesFastFirstPass(
   taskId: string,
   imageBuffers: MenuImageInput[],
-  _targetLang: string,
+  targetLang: string,
   startTime: number,
   cacheKey?: string,
   meta?: Record<string, string>,
@@ -337,8 +340,8 @@ async function processImagesFastFirstPass(
             ),
           });
 
-          const raw = await analyzeMenuImageFast(item.base64, false, item.mimeType) as MenuAnalysisResult;
-          const dishRecords = await buildDishRecords(raw.dishes, raw.page_label, usedImageIds);
+          const raw = await analyzeMenuImageFast(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
+          const dishRecords = await buildDishRecords(raw.dishes, raw.page_label, usedImageIds, targetLang);
 
           results[i] = {
             page_index: i,
@@ -398,6 +401,7 @@ async function processImagesFastFirstPass(
     failed_pages: failedPages.length > 0 ? failedPages : undefined,
     metadata: {
       source_language: (sorted[0] as { source_language?: string })?.source_language || "unknown",
+      target_language: targetLang,
       total_dishes: sorted.reduce(
         (sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0
       ),
@@ -429,7 +433,7 @@ async function processImagesFastFirstPass(
     translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
   }
 
-  enrichResultInBackground(taskId, imageBuffers, resultPayload, cacheKey, startTime, meta).catch((err) => {
+  enrichResultInBackground(taskId, imageBuffers, resultPayload, targetLang, cacheKey, startTime, meta).catch((err) => {
     console.error("Background menu enrichment failed:", err);
   });
 
@@ -466,13 +470,13 @@ async function processImages(
           const useRichMode = imageBuffers.length <= FULL_PROMPT_PAGE_LIMIT;
           if (useRichMode) {
             try {
-              raw = await analyzeMenuImage(item.base64, true, item.mimeType);
+              raw = await analyzeMenuImage(item.base64, true, item.mimeType, targetLang);
             } catch {
               // Rich mode may exceed max_tokens for dense menus, fallback to simple.
-              raw = await analyzeMenuImage(item.base64, false, item.mimeType);
+              raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang);
             }
           } else {
-            raw = await analyzeMenuImage(item.base64, false, item.mimeType);
+            raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang);
           }
 
           const shouldRefine = raw.dishes.length <= 10;
@@ -488,7 +492,7 @@ async function processImages(
                   }) => {
                     const needsRefine =
                       dish._needsRetranslate ||
-                      !hasChinese(dish.name_translated || "") ||
+                      (targetLang === "zh" && !hasChinese(dish.name_translated || "")) ||
                       (REFINE_LOW_CONFIDENCE && dish.confidence < 0.5);
                     if (!needsRefine) return dish;
                     try {
@@ -497,7 +501,7 @@ async function processImages(
                         name_translated: dish.name_translated,
                         description: dish.description,
                         source_language: raw.source_language,
-                      });
+                      }, targetLang);
                       return { ...dish, ...refined };
                     } catch {
                       return dish;
@@ -507,7 +511,7 @@ async function processImages(
               )
             : raw.dishes;
 
-          const dishRecords = await buildDishRecords(refinedDishes, raw.page_label, usedImageIds);
+          const dishRecords = await buildDishRecords(refinedDishes, raw.page_label, usedImageIds, targetLang);
 
           results[i] = {
             page_index: i,
@@ -569,6 +573,7 @@ async function processImages(
     failed_pages: failedPages.length > 0 ? failedPages : undefined,
     metadata: {
       source_language: (sorted[0] as { source_language?: string })?.source_language || "unknown",
+      target_language: targetLang,
       total_dishes: sorted.reduce(
         (sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0
       ),
@@ -609,6 +614,7 @@ async function enrichResultInBackground(
   taskId: string,
   imageBuffers: MenuImageInput[],
   resultPayload: Record<string, unknown>,
+  targetLang: string,
   cacheKey?: string,
   startTime?: number,
   meta?: Record<string, string>,
@@ -622,12 +628,12 @@ async function enrichResultInBackground(
     const useRichMode = imageBuffers.length <= FULL_PROMPT_PAGE_LIMIT;
     if (useRichMode) {
       try {
-        raw = await analyzeMenuImage(item.base64, true, item.mimeType) as MenuAnalysisResult;
+        raw = await analyzeMenuImage(item.base64, true, item.mimeType, targetLang) as MenuAnalysisResult;
       } catch {
-        raw = await analyzeMenuImage(item.base64, false, item.mimeType) as MenuAnalysisResult;
+        raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
       }
     } else {
-      raw = await analyzeMenuImage(item.base64, false, item.mimeType) as MenuAnalysisResult;
+      raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
     }
 
     const shouldRefine = raw.dishes.length <= 10;
@@ -636,7 +642,7 @@ async function enrichResultInBackground(
           raw.dishes.map(async (dish) => {
             const needsRefine =
               dish._needsRetranslate ||
-              !hasChinese(dish.name_translated || "") ||
+              (targetLang === "zh" && !hasChinese(dish.name_translated || "")) ||
               (REFINE_LOW_CONFIDENCE && dish.confidence < 0.5);
             if (!needsRefine) return dish;
             try {
@@ -645,7 +651,7 @@ async function enrichResultInBackground(
                 name_translated: dish.name_translated,
                 description: dish.description,
                 source_language: raw.source_language,
-              });
+              }, targetLang);
               return { ...dish, ...refined };
             } catch {
               return dish;
@@ -660,7 +666,7 @@ async function enrichResultInBackground(
       page_type: raw.page_type,
       page_description: raw.page_description,
       source_language: raw.source_language,
-      dishes: await buildDishRecords(refinedDishes, raw.page_label, usedImageIds),
+      dishes: await buildDishRecords(refinedDishes, raw.page_label, usedImageIds, targetLang),
     };
   }
 
@@ -673,6 +679,7 @@ async function enrichResultInBackground(
     metadata: {
       ...((resultPayload.metadata as Record<string, unknown>) || {}),
       source_language: (pages[0] as { source_language?: string })?.source_language || "unknown",
+      target_language: targetLang,
       total_dishes: pages.reduce(
         (sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0
       ),

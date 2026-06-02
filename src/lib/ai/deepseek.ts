@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { shouldRetryEmptyMenuResult } from "@/lib/menu-analysis-utils";
+import { TARGET_LANGUAGE_LABELS, normalizeTargetLang } from "@/lib/languages";
 
 const API_TIMEOUT = 75_000;
 
@@ -52,7 +53,7 @@ function parseAIJson<T>(text: string): T {
   }
 }
 
-const VL_SYSTEM_PROMPT_FULL = `You are a professional restaurant menu OCR translator and food advisor. Extract ALL ORDERABLE menu items from a photographed menu and translate them into CHINESE (中文).
+const VL_SYSTEM_PROMPT_FULL = `You are a professional restaurant menu OCR translator and food advisor. Extract ALL ORDERABLE menu items from a photographed menu and translate them into the requested target language.
 
 The photo may be a paper menu, menu board, fast-food lightbox, poster, two-page spread, narrow receipt-style tasting menu, or a low-resolution/distant phone photo. Read all visible columns and sections. If the image already contains food photos, still extract the text menu items next to them.
 
@@ -67,39 +68,46 @@ What to ignore:
 
 For each dish, provide:
 1. name_original: exact original text from the menu (any language). Include prices if visible.
-2. name_translated: MUST be in CHINESE (中文). NEVER output English/Latin script.
-3. description: 30-60 chars in Chinese: main ingredient + cooking method + taste/texture + serving style.
-4. recommendation: 40-70 chars in Chinese: explain who should order this, why it's worth trying, and what makes it special.
-5. good_for: 25-40 chars in Chinese: describe the best dining scenario.
-6. caution: 25-40 chars in Chinese: what to watch out for — potential allergens, richness level, portion size, or spice.
+2. name_translated: MUST be in the requested target language.
+3. description: 30-60 chars or equivalent short sentence in the requested target language: main ingredient + cooking method + taste/texture + serving style.
+4. recommendation: 40-70 chars or equivalent concise sentence in the requested target language: explain who should order this, why it's worth trying, and what makes it special.
+5. good_for: 25-40 chars or equivalent concise phrase in the requested target language: describe the best dining scenario.
+6. caution: 25-40 chars or equivalent concise phrase in the requested target language: what to watch out for — potential allergens, richness level, portion size, or spice.
 7. confidence: 0.0-1.0
-8. page_label: menu section in Chinese (前菜/主菜/甜点/饮品/混合)
+8. page_label: menu section in the requested target language.
 9. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. For menu pages with prices, never return empty.
 IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 Output ONLY valid JSON.`;
 
-const VL_SYSTEM_PROMPT_SIMPLE = `You are a professional restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate them into CHINESE (中文).
+const VL_SYSTEM_PROMPT_SIMPLE = `You are a professional restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate them into the requested target language.
 
 Extract priced menu lines and orderable items even if the page is tilted, warm-colored, partially cropped, distant, low-resolution, shown on a lightbox, or includes descriptions in another language. Read multi-column menus from top to bottom and left to right. Ignore brand headers, stories, tax notes, and sourcing/ingredient philosophy pages with no orderable priced items.
 
 Rules:
 1. name_original: exact original text from the menu (any language). Include prices if visible.
-2. name_translated: MUST be in CHINESE (中文). NEVER output English/Latin script.
-3. description: 30-60 chars in Chinese: main ingredient + cooking method + taste/texture + serving style.
+2. name_translated: MUST be in the requested target language.
+3. description: 30-60 chars or equivalent short sentence in the requested target language: main ingredient + cooking method + taste/texture + serving style.
 4. confidence: 0.0-1.0
-5. page_label: menu section in Chinese (前菜/主菜/甜点/饮品/混合)
+5. page_label: menu section in the requested target language.
 6. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. For non-orderable story pages, set page_label to "说明页" and page_type to "info" with a page_description.
 IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 Output ONLY valid JSON.`;
 
-export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
+function targetPrompt(targetLang: string): string {
+  const normalized = normalizeTargetLang(targetLang);
+  const label = TARGET_LANGUAGE_LABELS[normalized].prompt;
+  return `\n\nTARGET LANGUAGE: ${label}. All translated fields, including name_translated, description, recommendation, good_for, caution, page_label, and page_description, MUST be written in ${label}. Preserve name_original exactly as seen on the menu.`;
+}
+
+export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType = "image/jpeg", targetLang = "zh"): Promise<MenuImageAnalysis> {
   let lastError: Error | null = null;
   const MAX_RETRIES = 1;
-  const systemPrompt = rich ? VL_SYSTEM_PROMPT_FULL : VL_SYSTEM_PROMPT_SIMPLE;
+  const normalizedTargetLang = normalizeTargetLang(targetLang);
+  const systemPrompt = `${rich ? VL_SYSTEM_PROMPT_FULL : VL_SYSTEM_PROMPT_SIMPLE}${targetPrompt(normalizedTargetLang)}`;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
@@ -114,7 +122,7 @@ export async function analyzeMenuImage(base64Image: string, rich?: boolean, mime
                 type: "image_url",
                 image_url: { url: `data:${mimeType};base64,${base64Image}` },
               },
-              { type: "text", text: "Extract ALL orderable dishes from this menu photo. ALL translations must be in Chinese (中文)." },
+              { type: "text", text: `Extract ALL orderable dishes from this menu photo. ALL translated fields must be in ${TARGET_LANGUAGE_LABELS[normalizedTargetLang].prompt}.` },
             ],
           },
         ],
@@ -140,7 +148,7 @@ export async function analyzeMenuImage(base64Image: string, rich?: boolean, mime
       }
 
       for (const dish of result.dishes) {
-        if (!hasChinese(dish.name_translated || "")) {
+        if (normalizedTargetLang === "zh" && !hasChinese(dish.name_translated || "")) {
           dish._needsRetranslate = true;
         }
         if (!dish.ingredients) dish.ingredients = [];
@@ -167,11 +175,13 @@ export async function refineTranslation(dish: {
   name_translated: string;
   description: string;
   source_language: string;
-}): Promise<{ name_translated: string; description: string }> {
-  const needsChinese = !hasChinese(dish.name_translated);
+}, targetLang = "zh"): Promise<{ name_translated: string; description: string }> {
+  const normalizedTargetLang = normalizeTargetLang(targetLang);
+  const targetLabel = TARGET_LANGUAGE_LABELS[normalizedTargetLang].prompt;
+  const needsChinese = normalizedTargetLang === "zh" && !hasChinese(dish.name_translated);
   const instruction = needsChinese
     ? "The current translation is NOT in Chinese. You MUST translate to proper Chinese (中文)."
-    : "Refine the Chinese translation to sound more natural and appetizing.";
+    : `Refine the translation to sound more natural and appetizing in ${targetLabel}.`;
 
   const response = await deepseek.chat.completions.create({
     model: TEXT_MODEL,
@@ -180,13 +190,13 @@ export async function refineTranslation(dish: {
         role: "system",
         content: `You are a bilingual food editor. ${instruction}
 
-CRITICAL: name_translated and description MUST be in Chinese characters (中文).
+CRITICAL: name_translated and description MUST be in ${targetLabel}.
 Source language: ${dish.source_language}
 Return ONLY valid JSON: { "name_translated": "...", "description": "..." }`,
       },
       {
         role: "user",
-        content: `Original: ${dish.name_original}\nCurrent: ${dish.name_translated}\nDescription: ${dish.description}\n\nProvide proper CHINESE translations.`,
+        content: `Original: ${dish.name_original}\nCurrent: ${dish.name_translated}\nDescription: ${dish.description}\n\nProvide proper ${targetLabel} translations.`,
       },
     ],
     max_tokens: 256,

@@ -2,6 +2,7 @@
 
 import type { TranslationResult, TaskProgress, Review, UserProfile, TranslationRecord, Dish } from "@/types";
 import { shouldNormalizeClientImage } from "@/lib/image-input";
+import { normalizeTargetLang } from "@/lib/languages";
 
 // ── Image compression (for Vercel 4.5MB body limit) ───────────────
 
@@ -45,11 +46,11 @@ async function compressImage(file: File, maxDim = 1280, quality = 0.68): Promise
 
 // ── Translation ────────────────────────────────────────────────────
 
-async function postTranslation(images: File[]): Promise<TranslationResult> {
+async function postTranslation(images: File[], targetLang = "zh"): Promise<TranslationResult> {
   const formData = new FormData();
   const compressed = await Promise.all(images.map((img) => compressImage(img)));
   compressed.forEach((img) => formData.append("images", img));
-  formData.append("target_lang", "zh");
+  formData.append("target_lang", normalizeTargetLang(targetLang));
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), TRANSLATION_UPLOAD_TIMEOUT_MS);
@@ -75,12 +76,12 @@ async function postTranslation(images: File[]): Promise<TranslationResult> {
   return res.json();
 }
 
-export async function createTranslation(images: File[]): Promise<TranslationResult> {
-  return postTranslation(images);
+export async function createTranslation(images: File[], targetLang = "zh"): Promise<TranslationResult> {
+  return postTranslation(images, targetLang);
 }
 
-export async function translateMenu(images: File[]): Promise<TranslationResult> {
-  return postTranslation(images);
+export async function translateMenu(images: File[], targetLang = "zh"): Promise<TranslationResult> {
+  return postTranslation(images, targetLang);
 }
 
 export async function pollTask(taskId: string): Promise<TaskProgress> {

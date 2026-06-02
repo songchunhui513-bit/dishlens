@@ -2,6 +2,7 @@
 
 import type { Dish, TranslationResult } from "@/types";
 import { getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import { targetLanguageName, targetLanguageNativeName } from "@/lib/languages";
 import DishImageWithLoading from "@/components/shared/DishImageWithLoading";
 
 // ── Pill component ────────────────────────────────────────────────────
@@ -73,6 +74,8 @@ interface ResultsPageProps {
   loading?: boolean;
   showAllergens?: boolean;
   showVeg?: boolean;
+  targetLang?: string;
+  uiLang?: "zh" | "en";
   imageGenProgress?: { done: number; total: number };
 }
 
@@ -84,6 +87,8 @@ export default function ResultsPage({
   loading,
   showAllergens,
   showVeg,
+  targetLang = "zh",
+  uiLang = "zh",
   imageGenProgress,
 }: ResultsPageProps) {
   // ── Loading / Skeleton ──────────────────────────────────
@@ -119,6 +124,10 @@ export default function ResultsPage({
     ? (pages[0] as { page_description?: string }).page_description || ""
     : "";
   const sourceLang = (result?.metadata?.source_language || "?").toUpperCase();
+  const resultTargetLang = result?.metadata?.target_language || targetLang;
+  const targetLangLabel = uiLang === "en"
+    ? targetLanguageName(resultTargetLang, uiLang)
+    : targetLanguageNativeName(resultTargetLang);
   const pageLabel = pages.length > 0 ? pages[0]?.page_label || "菜单" : "菜单";
 
   const sourceLangNames: Record<string, string> = {
@@ -146,7 +155,7 @@ export default function ResultsPage({
           className="text-[7px] font-bold px-2 py-1 rounded-xl"
           style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}
         >
-          {sourceLang} → 中文
+          {sourceLang} → {targetLangLabel}
         </span>
         {isReal && onShare ? (
           <button
@@ -200,8 +209,8 @@ export default function ResultsPage({
         {/* Real AI dish cards */}
         {isReal ? (
           allDishes.map(({ dish }, i) => {
-            const dishText = getDishText(dish);
-            const insight = getDishInsight(dish);
+            const dishText = getDishText(dish, resultTargetLang);
+            const insight = getDishInsight(dish, resultTargetLang);
 
             const tags: { label: string; type: "green" | "warm" | "allergen" | "veg" }[] = [];
             for (const ing of (dish.ingredients || []).slice(0, 2)) {

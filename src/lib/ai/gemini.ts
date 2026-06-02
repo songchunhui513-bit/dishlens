@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { TARGET_LANGUAGE_LABELS, normalizeTargetLang } from "@/lib/languages";
 
 const gemini = new OpenAI({
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -23,7 +24,9 @@ interface MenuImageAnalysis {
 
 // ── Image → Structured extraction ──────────────────────────────────
 
-export async function analyzeMenuImage(base64Image: string, _rich?: boolean, mimeType = "image/jpeg"): Promise<MenuImageAnalysis> {
+export async function analyzeMenuImage(base64Image: string, _rich?: boolean, mimeType = "image/jpeg", targetLang = "zh"): Promise<MenuImageAnalysis> {
+  const normalizedTargetLang = normalizeTargetLang(targetLang);
+  const targetLabel = TARGET_LANGUAGE_LABELS[normalizedTargetLang].prompt;
   const systemPrompt = `You are a professional menu translator for restaurants.
 Analyze the menu photo and output ONLY valid JSON. No markdown, no explanation.
 
@@ -47,7 +50,9 @@ Output format:
   "dishes": [...],
   "page_label": "主菜",
   "source_language": "fr"
-}`;
+}
+
+TARGET LANGUAGE: ${targetLabel}. All translated fields, including name_translated, description, and page_label, MUST be written in ${targetLabel}. Preserve name_original exactly as seen on the menu.`;
 
   const response = await gemini.chat.completions.create({
     model: MODEL,
@@ -79,18 +84,20 @@ export async function refineTranslation(dish: {
   name_translated: string;
   description: string;
   source_language: string;
-}): Promise<{
+}, targetLang = "zh"): Promise<{
   name_translated: string;
   description: string;
 }> {
+  const targetLabel = TARGET_LANGUAGE_LABELS[normalizeTargetLang(targetLang)].prompt;
   const response = await gemini.chat.completions.create({
     model: MODEL,
     messages: [
       {
         role: "system",
-        content: `You are a bilingual food editor. Refine the Chinese translation of this dish to sound natural and appetizing. Keep the translation accurate but culturally adapted.
+        content: `You are a bilingual food editor. Refine this dish translation to sound natural and appetizing in ${targetLabel}. Keep the translation accurate but culturally adapted.
 
 Source language: ${dish.source_language}
+Target language: ${targetLabel}
 Return ONLY JSON: { "name_translated": "...", "description": "..." }`,
       },
       {

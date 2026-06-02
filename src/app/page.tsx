@@ -26,7 +26,7 @@ import {
   setSettings as setStoredSettings,
 } from "@/lib/local-storage";
 import { useDailyRecommendation } from "@/hooks/useDailyRecommendation";
-import { getDishImageUrl } from "@/lib/dish-presentation";
+import { getDishImageUrl, localizedValue } from "@/lib/dish-presentation";
 import { buildShareMenuMeta } from "@/lib/share-menu";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -235,7 +235,7 @@ export default function Page() {
       }
 
       try {
-        const preliminary = await createTranslation(files);
+        const preliminary = await createTranslation(files, settings.targetLang);
         setTranslationResult(preliminary as unknown as TranslationResult);
       } catch (err) {
         const message = err instanceof Error ? err.message : "";
@@ -247,7 +247,7 @@ export default function Page() {
         navigate("error");
       }
     },
-    [navigate]
+    [navigate, settings.targetLang]
   );
 
   const handleResultReceived = useCallback((result: Record<string, unknown>) => {
@@ -462,6 +462,8 @@ export default function Page() {
           onShare={handleShareMenu}
           showAllergens={settings.showAllergens}
           showVeg={settings.showVeg}
+          targetLang={settings.targetLang}
+          uiLang={settings.uiLang}
           imageGenProgress={imageGenProgress}
         />
       );
@@ -474,6 +476,8 @@ export default function Page() {
           onBack={() => navigate("results", "back")}
           onReview={handleReview}
           showAllergens={settings.showAllergens}
+          targetLang={settings.targetLang}
+          uiLang={settings.uiLang}
           isFavorited={selectedDish ? checkFavorited(selectedDish.id) : false}
           onToggleFavorite={handleToggleFavorite}
           onShare={handleShareMenu}
@@ -608,9 +612,7 @@ export default function Page() {
             .filter((h) => h.result_summary?.pages?.some((p) => p.dishes?.length))
             .slice(0, 8).map((h) => {
               const firstDish = h.result_summary?.pages?.find((p) => p.dishes?.length)?.dishes?.[0];
-              const zhName = firstDish?.name_translated
-                ? (typeof firstDish.name_translated === "string" ? firstDish.name_translated : firstDish.name_translated.zh || "")
-                : "";
+              const zhName = firstDish ? localizedValue(firstDish.name_translated, h.target_lang || settings.targetLang) : "";
               const enName = firstDish?.name_original || h.restaurant_name;
               return {
                 id: h.id,
