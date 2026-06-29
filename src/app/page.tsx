@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import HomePage from "@/components/home/HomePage";
 import CameraPage from "@/components/camera/CameraPage";
