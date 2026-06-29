@@ -4,6 +4,7 @@ export const DishSchema = z.object({
   name_original: z.string(),
   name_translated: z.string(),
   description: z.string(),
+  included_items: z.array(z.string()).default([]),
   ingredients: z.array(z.string()),
   allergens: z.array(z.string()),
   taste_profile: z.array(z.string()),

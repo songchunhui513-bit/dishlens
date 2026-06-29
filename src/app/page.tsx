@@ -13,7 +13,10 @@ import HistoryPage from "@/components/history/HistoryPage";
 import FavoritesPage from "@/components/favorites/FavoritesPage";
 import SettingsPage from "@/components/settings/SettingsPage";
 import ShareSheet from "@/components/share/ShareSheet";
-import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish, UserSettings } from "@/types";
+import OrderConfirmPage from "@/components/order/OrderConfirmPage";
+import OrderedPage from "@/components/order/OrderedPage";
+import OrderedDetailPage from "@/components/order/OrderedDetailPage";
+import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish, OrderedVisit, OrderNote, OrderQuantityMap, UserSettings } from "@/types";
 import { createTranslation } from "@/lib/api-client";
 import {
   getHistory as getStoredHistory,
@@ -22,12 +25,21 @@ import {
   addFavorite,
   removeFavorite,
   isFavorited as checkFavorited,
+  getOrderedVisits as getStoredOrderedVisits,
+  addOrderedVisit,
+  markOrderedDishReviewed,
   getSettings as getStoredSettings,
   setSettings as setStoredSettings,
 } from "@/lib/local-storage";
 import { useDailyRecommendation } from "@/hooks/useDailyRecommendation";
-import { getDishImageUrl, localizedValue } from "@/lib/dish-presentation";
+import { getDishImageUrl } from "@/lib/dish-presentation";
+import { buildDishDisplayTags } from "@/lib/dish-display-tags";
 import { buildShareMenuMeta } from "@/lib/share-menu";
+import { buildOrderedVisit, buildOrderItems, formatOrderPrice, setOrderQuantity, summarizeOrder } from "@/lib/order-state";
+import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
+import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
+import { buildRecentMenuRecords } from "@/lib/recent-menu-records";
+import type { RestaurantSource } from "@/lib/location-recommendation";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -39,10 +51,45 @@ type Screen =
   | "detail"
   | "review"
   | "confirm"
+  | "orderConfirm"
+  | "ordered"
+  | "orderedDetail"
   | "history"
   | "favorites"
   | "settings"
   | "error";
+
+const ORDER_NOTES: Record<string, OrderNote[]> = {
+  ja: [
+    { id: "no-peanuts", zh: "不要花生", original: "ピーナッツ抜きでお願いします。" },
+    { id: "no-cilantro", zh: "不要香菜", original: "パクチー抜きでお願いします。" },
+    { id: "no-scallions", zh: "不要葱花", original: "ネギ抜きでお願いします。" },
+    { id: "less-spicy", zh: "少辣", original: "辛さ控えめでお願いします。" },
+    { id: "no-dairy", zh: "不要乳制品", original: "乳製品抜きでお願いします。" },
+    { id: "no-pork", zh: "不要猪肉", original: "豚肉抜きでお願いします。" },
+  ],
+  fr: [
+    { id: "no-peanuts", zh: "不要花生", original: "Sans cacahuètes, s'il vous plaît." },
+    { id: "no-cilantro", zh: "不要香菜", original: "Sans coriandre, s'il vous plaît." },
+    { id: "no-scallions", zh: "不要葱花", original: "Sans oignons verts, s'il vous plaît." },
+    { id: "less-spicy", zh: "少辣", original: "Peu épicé, s'il vous plaît." },
+    { id: "no-dairy", zh: "不要乳制品", original: "Sans produits laitiers, s'il vous plaît." },
+    { id: "no-pork", zh: "不要猪肉", original: "Sans porc, s'il vous plaît." },
+  ],
+  _default: [
+    { id: "no-peanuts", zh: "不要花生", original: "No peanuts, please." },
+    { id: "no-cilantro", zh: "不要香菜", original: "No cilantro, please." },
+    { id: "no-scallions", zh: "不要葱花", original: "No scallions, please." },
+    { id: "less-spicy", zh: "少辣", original: "Less spicy, please." },
+    { id: "no-dairy", zh: "不要乳制品", original: "No dairy, please." },
+    { id: "no-pork", zh: "不要猪肉", original: "No pork, please." },
+  ],
+};
+
+function getOrderNotes(sourceLang?: string): OrderNote[] {
+  if (sourceLang && ORDER_NOTES[sourceLang]) return ORDER_NOTES[sourceLang];
+  return ORDER_NOTES._default;
+}
 
 // ── AppPhone State Manager ─────────────────────────────────────────
 
@@ -53,6 +100,11 @@ export default function Page() {
   const [translationResult, setTranslationResult] = useState<TranslationResult | null>(null);
   const latestResultRef = useRef<TranslationResult | null>(null);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [selectedDishRestaurantSource, setSelectedDishRestaurantSource] = useState<RestaurantSource | null>(null);
+  const [orderQuantities, setOrderQuantities] = useState<OrderQuantityMap>({});
+  const [selectedOrderNoteIds, setSelectedOrderNoteIds] = useState<string[]>([]);
+  const [selectedOrderedVisit, setSelectedOrderedVisit] = useState<OrderedVisit | null>(null);
+  const [reviewReturn, setReviewReturn] = useState<"normal" | "orderedDetail">("normal");
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
   const [history, setHistory] = useState<Screen[]>(["home"]);
@@ -67,10 +119,13 @@ export default function Page() {
   const [favoritesData, setFavoritesData] = useState<FavoriteDish[]>(() =>
     typeof window === "undefined" ? [] : getStoredFavorites()
   );
+  const [orderedVisits, setOrderedVisits] = useState<OrderedVisit[]>(() =>
+    typeof window === "undefined" ? [] : getStoredOrderedVisits()
+  );
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setMounted(true));
-    return () => window.cancelAnimationFrame(frame);
+    const timer = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Refresh history from localStorage when returning to home
@@ -79,13 +134,26 @@ export default function Page() {
     const frame = window.requestAnimationFrame(() => {
       setHistoryEntries(getStoredHistory());
       setFavoritesData(getStoredFavorites());
+      setOrderedVisits(getStoredOrderedVisits());
     });
     return () => window.cancelAnimationFrame(frame);
   }, [screen]);
 
   // Daily recommendation
-  const { dish: dailyDish, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation(settings.uiLang);
+  const { dish: dailyDish, restaurant: dailyRestaurantSource, contextLabel: recommendationContext, reason: recommendationReason } = useDailyRecommendation(settings.uiLang);
   const shareTaskId = translationResult?.task_id || "";
+  const currentOrderItems = useMemo(() => buildOrderItems(translationResult, orderQuantities), [orderQuantities, translationResult]);
+  const currentOrderSummary = useMemo(() => summarizeOrder(currentOrderItems), [currentOrderItems]);
+  const currentOrderTotalLabel = useMemo(() => formatOrderPrice(currentOrderSummary), [currentOrderSummary]);
+  const selectedDishSmartTags = useMemo(() => {
+    if (!selectedDish) return [];
+    return buildDishDisplayTags({
+      dish: selectedDish,
+      signature: translationResult?.metadata?.signature,
+      showAllergens: settings.showAllergens,
+      maxTags: 4,
+    });
+  }, [selectedDish, settings.showAllergens, translationResult?.metadata?.signature]);
   const shareMeta = useMemo(() => {
     if (!translationResult || !shareTaskId) return null;
     const origin = typeof window === "undefined" ? undefined : window.location.origin;
@@ -95,6 +163,10 @@ export default function Page() {
   // Compute AI image generation progress
   const imageGenProgress = useMemo(() => {
     if (!translationResult?.pages) return undefined;
+    const metadataProgress = translationResult.metadata?.image_generation_progress;
+    if (metadataProgress?.total) {
+      return { done: metadataProgress.current, total: metadataProgress.total };
+    }
     const allDishes = translationResult.pages.flatMap((p) => p.dishes || []);
     const total = allDishes.length;
     if (total === 0) return undefined;
@@ -112,17 +184,21 @@ export default function Page() {
     const firstDish = pages.find((page) => page.dishes?.length)?.dishes?.[0];
     const totalDishes = pages.reduce((sum, p) => sum + (p.dishes?.length || 0), 0);
     if (totalDishes === 0) return;
+    const sourceLang = resolveMenuSourceLanguage(result) || result.metadata?.source_language || "";
+    const restaurant = getRestaurantDisplayMeta(
+      sourceLang,
+      settings.targetLang,
+      result.metadata?.restaurant,
+    );
     const entry: HistoryEntry = {
       id: result.task_id,
-      restaurant_name: result.metadata?.source_language
-        ? `翻译 #${result.task_id.slice(0, 6)}`
-        : "菜单翻译",
-      city: "",
+      restaurant_name: restaurant.display_name,
+      city: restaurant.city,
       dish_count: result.metadata?.total_dishes || 0,
       page_count: pages.length,
       date: new Date().toISOString(),
       thumbnail: firstDish ? getDishImageUrl(firstDish) : "",
-      source_lang: result.metadata?.source_language || "",
+      source_lang: sourceLang,
       target_lang: settings.targetLang,
       result_summary: result,
     };
@@ -181,7 +257,7 @@ export default function Page() {
       if (direction === "back") {
         setHistory((h) => h.slice(0, -1));
         const prev = history[history.length - 2] || "home";
-        const validScreens: Screen[] = ["home", "camera", "results", "detail", "review", "history", "favorites", "settings", "error"];
+        const validScreens: Screen[] = ["home", "camera", "results", "detail", "review", "confirm", "orderConfirm", "ordered", "orderedDetail", "history", "favorites", "settings", "error"];
         if (validScreens.includes(prev as Screen)) {
           setScreen(prev as Screen);
         } else {
@@ -192,6 +268,7 @@ export default function Page() {
 
       if (ctx && typeof ctx === "object" && "id" in (ctx as Record<string, unknown>)) {
         setSelectedDish(ctx as Dish);
+        setSelectedDishRestaurantSource(null);
       }
 
       setHistory((h) => [...h, to as Screen]);
@@ -278,6 +355,7 @@ export default function Page() {
   const handleDishDetail = useCallback(
     (dish: Dish) => {
       setSelectedDish(dish);
+      setSelectedDishRestaurantSource(null);
       navigate("detail");
     },
     [navigate]
@@ -306,16 +384,27 @@ export default function Page() {
       rating_avg: dailyDish.reviews?.[0]?.rating || 4.7,
       review_count: dailyDish.reviews?.length || 0,
     });
+    setSelectedDishRestaurantSource(dailyRestaurantSource);
     navigate("detail");
-  }, [dailyDish, navigate]);
+  }, [dailyDish, dailyRestaurantSource, navigate]);
 
   const handleReview = useCallback(() => {
+    setReviewReturn("normal");
     navigate("review");
   }, [navigate]);
 
   const handleReviewConfirm = useCallback(() => {
+    if (reviewReturn === "orderedDetail" && selectedOrderedVisit && selectedDish) {
+      markOrderedDishReviewed(selectedOrderedVisit.id, selectedDish.id);
+      const nextVisits = getStoredOrderedVisits();
+      setOrderedVisits(nextVisits);
+      setSelectedOrderedVisit(nextVisits.find((visit) => visit.id === selectedOrderedVisit.id) || selectedOrderedVisit);
+      setReviewReturn("normal");
+      navigate("orderedDetail");
+      return;
+    }
     navigate("confirm");
-  }, [navigate]);
+  }, [navigate, reviewReturn, selectedDish, selectedOrderedVisit]);
 
   const handleBackToMenu = useCallback(() => {
     setHistory(["home"]);
@@ -324,6 +413,37 @@ export default function Page() {
 
   const handleKeepBrowsing = useCallback(() => {
     navigate("results");
+  }, [navigate]);
+
+  const handleOrderQuantityChange = useCallback((dish: Dish, quantity: number) => {
+    setOrderQuantities((current) => setOrderQuantity(current, dish, quantity));
+  }, []);
+
+  const handleToggleOrderNote = useCallback((noteId: string) => {
+    setSelectedOrderNoteIds((current) => (
+      current.includes(noteId) ? current.filter((id) => id !== noteId) : [...current, noteId]
+    ));
+  }, []);
+
+  const handleSaveOrderedVisit = useCallback(() => {
+    if (!translationResult || currentOrderItems.length === 0) return;
+    const sourceLang = resolveMenuSourceLanguage(translationResult) || translationResult.metadata?.source_language;
+    const notes = getOrderNotes(sourceLang).filter((note) => selectedOrderNoteIds.includes(note.id));
+    const visit = buildOrderedVisit(translationResult, currentOrderItems, notes, settings.targetLang);
+    addOrderedVisit(visit);
+    const nextVisits = getStoredOrderedVisits();
+    setOrderedVisits(nextVisits);
+    setSelectedOrderedVisit(visit);
+    setOrderQuantities({});
+    setSelectedOrderNoteIds([]);
+    navigate("ordered");
+  }, [currentOrderItems, navigate, selectedOrderNoteIds, settings.targetLang, translationResult]);
+
+  const handleOrderedDishReview = useCallback((dish: Dish) => {
+    setSelectedDish(dish);
+    setSelectedDishRestaurantSource(null);
+    setReviewReturn("orderedDetail");
+    navigate("review");
   }, [navigate]);
 
   const handleShareStatus = useCallback((message: string) => {
@@ -346,13 +466,25 @@ export default function Page() {
 
     const taskId = translationResult.task_id;
     let active = true;
-    let count = 0;
-    const MAX_POLLS = 20;
+    let idlePolls = 0;
+    const MAX_IDLE_POLLS = 24;
     let lastSyncedImages = 0;
+    const imageDoneStatus = new Set(["done", "partial", "failed"]);
+    const hasPendingImages = (result: TranslationResult) => {
+      const imageStatus = result.metadata?.image_generation_status;
+      if (imageStatus && !imageDoneStatus.has(imageStatus)) return true;
+      if (imageStatus && imageDoneStatus.has(imageStatus)) return false;
+      return result.pages
+        .flatMap((page) => page.dishes || [])
+        .some((dish) => {
+          if (dish.image_status === "done" || dish.image_status === "failed") return false;
+          const url = dish.ai_image_url || (dish as { image_url?: string }).image_url;
+          return !url;
+        });
+    };
 
     const poll = async () => {
-      if (!active || count >= MAX_POLLS) return;
-      count++;
+      if (!active || idlePolls >= MAX_IDLE_POLLS) return;
 
       try {
         const res = await fetch(`/api/v1/task/${taskId}`);
@@ -369,27 +501,36 @@ export default function Page() {
                 const newDish = newResult.pages[p].dishes[d];
                 const oldDish = prev.pages[p]?.dishes?.[d];
                 if (newDish?.ai_image_url) imageCount++;
-                if (newDish?.ai_image_url && newDish.ai_image_url !== oldDish?.ai_image_url) {
+                if (
+                  (newDish?.ai_image_url && newDish.ai_image_url !== oldDish?.ai_image_url) ||
+                  newDish?.image_status !== oldDish?.image_status
+                ) {
                   changed = true;
                 }
               }
             }
+            if (changed || hasPendingImages(newResult)) idlePolls = 0;
+            else idlePolls++;
             // Re-save history with updated thumbnails when new images arrive
             if (changed && imageCount > lastSyncedImages) {
               lastSyncedImages = imageCount;
               const firstDish = newResult.pages.find((p) => p.dishes?.length)?.dishes?.[0];
               if (firstDish?.ai_image_url) {
+                const sourceLang = resolveMenuSourceLanguage(newResult) || newResult.metadata?.source_language || "";
+                const restaurant = getRestaurantDisplayMeta(
+                  sourceLang,
+                  settings.targetLang,
+                  newResult.metadata?.restaurant,
+                );
                 const entry: HistoryEntry = {
                   id: newResult.task_id,
-                  restaurant_name: newResult.metadata?.source_language
-                    ? `翻译 #${newResult.task_id.slice(0, 6)}`
-                    : "菜单翻译",
-                  city: "",
+                  restaurant_name: restaurant.display_name,
+                  city: restaurant.city,
                   dish_count: newResult.metadata?.total_dishes || 0,
                   page_count: newResult.pages.length,
                   date: new Date().toISOString(),
                   thumbnail: getDishImageUrl(firstDish),
-                  source_lang: newResult.metadata?.source_language || "",
+                  source_lang: sourceLang,
                   target_lang: settings.targetLang,
                   result_summary: newResult,
                 };
@@ -403,15 +544,22 @@ export default function Page() {
             if (!prevDish) return prevDish;
             for (const page of newResult.pages || []) {
               const matched = (page.dishes || []).find((dish) => dish.id === prevDish.id || dish.name_original === prevDish.name_original);
-              if (matched?.ai_image_url && matched.ai_image_url !== prevDish.ai_image_url) return matched;
+              if (
+                (matched?.ai_image_url && matched.ai_image_url !== prevDish.ai_image_url) ||
+                (matched && matched.image_status !== prevDish.image_status)
+              ) return matched;
             }
             return prevDish;
           });
+        } else {
+          idlePolls++;
         }
-      } catch {}
+      } catch {
+        idlePolls++;
+      }
 
-      if (active && count < MAX_POLLS) {
-        setTimeout(poll, 5000);
+      if (active && idlePolls < MAX_IDLE_POLLS) {
+        setTimeout(poll, 4000);
       }
     };
 
@@ -465,6 +613,11 @@ export default function Page() {
           targetLang={settings.targetLang}
           uiLang={settings.uiLang}
           imageGenProgress={imageGenProgress}
+          orderQuantities={orderQuantities}
+          onOrderQuantityChange={handleOrderQuantityChange}
+          orderTotalQuantity={currentOrderSummary.totalQuantity}
+          orderTotalLabel={currentOrderTotalLabel}
+          onOpenOrderConfirm={() => navigate("orderConfirm")}
         />
       );
       break;
@@ -482,6 +635,13 @@ export default function Page() {
           onToggleFavorite={handleToggleFavorite}
           onShare={handleShareMenu}
           imageGenProgress={imageGenProgress}
+          smartTags={selectedDishSmartTags}
+          orderQuantity={selectedDish ? orderQuantities[selectedDish.id] || 0 : 0}
+          orderTotalQuantity={currentOrderSummary.totalQuantity}
+          orderTotalLabel={currentOrderTotalLabel}
+          restaurantSource={selectedDishRestaurantSource}
+          onOrderQuantityChange={handleOrderQuantityChange}
+          onOpenOrderConfirm={() => navigate("orderConfirm")}
         />
       );
       break;
@@ -492,6 +652,50 @@ export default function Page() {
           dish={selectedDish || undefined}
           onBack={() => navigate("detail", "back")}
           onConfirm={handleReviewConfirm}
+        />
+      );
+      break;
+
+    case "orderConfirm":
+      ScreenComponent = (
+        <OrderConfirmPage
+          items={currentOrderItems}
+          sourceLang={resolveMenuSourceLanguage(translationResult) || translationResult?.metadata?.source_language}
+          result={translationResult}
+          notes={getOrderNotes(resolveMenuSourceLanguage(translationResult) || translationResult?.metadata?.source_language)}
+          selectedNoteIds={selectedOrderNoteIds}
+          onToggleNote={handleToggleOrderNote}
+          onBack={() => navigate("detail", "back")}
+          onSave={handleSaveOrderedVisit}
+          onBackToResults={() => navigate("results", "back")}
+        />
+      );
+      break;
+
+    case "ordered":
+      ScreenComponent = (
+        <OrderedPage
+          visits={orderedVisits}
+          onBack={() => { setHistory(["home"]); setScreen("home"); }}
+          onSelect={(visit) => {
+            setSelectedOrderedVisit(visit);
+            navigate("orderedDetail");
+          }}
+        />
+      );
+      break;
+
+    case "orderedDetail":
+      ScreenComponent = (
+        <OrderedDetailPage
+          visit={selectedOrderedVisit}
+          onBack={() => navigate("ordered", "back")}
+          onDishDetail={(dish) => {
+            setSelectedDish(dish);
+            setSelectedDishRestaurantSource(null);
+            navigate("detail");
+          }}
+          onReviewDish={handleOrderedDishReview}
         />
       );
       break;
@@ -528,6 +732,7 @@ export default function Page() {
             }
             if (foundDish) {
               setSelectedDish(foundDish);
+              setSelectedDishRestaurantSource(null);
               navigate("detail");
             }
           }}
@@ -556,6 +761,7 @@ export default function Page() {
                 image_source: "ai",
               };
               setSelectedDish(dish);
+              setSelectedDishRestaurantSource(null);
               navigate("detail");
             }
           }}
@@ -596,7 +802,7 @@ export default function Page() {
 
     default:
       ScreenComponent = (
-        <HomePage
+            <HomePage
           onNavigate={navigate}
           onCapture={handleCapture}
           onAlbumAnalyze={handleAnalyze}
@@ -608,19 +814,7 @@ export default function Page() {
               navigate("results");
             }
           }}
-          recentHistory={historyEntries
-            .filter((h) => h.result_summary?.pages?.some((p) => p.dishes?.length))
-            .slice(0, 8).map((h) => {
-              const firstDish = h.result_summary?.pages?.find((p) => p.dishes?.length)?.dishes?.[0];
-              const zhName = firstDish ? localizedValue(firstDish.name_translated, h.target_lang || settings.targetLang) : "";
-              const enName = firstDish?.name_original || h.restaurant_name;
-              return {
-                id: h.id,
-                zh: zhName || enName,
-                en: enName,
-                img: h.thumbnail,
-              };
-            })}
+          recentHistory={buildRecentMenuRecords(historyEntries, { targetLang: settings.targetLang })}
           dailyDish={dailyDish ? {
             id: dailyDish.id,
             name_en: dailyDish.names[0] || "",
@@ -636,18 +830,16 @@ export default function Page() {
           } : undefined}
           recommendationContext={recommendationContext}
           recommendationReason={recommendationReason}
+          restaurantSource={dailyRestaurantSource}
           uiLang={settings.uiLang}
         />
       );
   }
 
-  if (!mounted) {
-    return (
-      <div className="w-full flex justify-center" style={{ minHeight: "100dvh", background: "#F0EBE3" }}>
-        <div className="w-full relative flex flex-col overflow-hidden" style={{ maxWidth: 430, height: "100dvh", background: "var(--bg)" }} />
-      </div>
-    );
-  }
+  // SSR: render the full component tree immediately instead of an empty shell.
+  // All useState initial values already use typeof window === "undefined" guards,
+  // so the initial SSR HTML matches the client hydration, preventing white flash.
+  if (!mounted) { /* hydration guard — fall through to normal render */ }
 
   return (
     <div className="w-full flex justify-center" style={{ minHeight: "100dvh", background: "#F0EBE3" }}>

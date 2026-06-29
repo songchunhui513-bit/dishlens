@@ -216,13 +216,13 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
               <div className="absolute bottom-0 left-0 right-0 text-center text-[7px] py-px" style={{ background: "rgba(0,0,0,0.5)", color: "#FFF", fontFamily: "var(--font-body)" }}>
                 {pageLabels[i] || `第${i + 1}页`}
               </div>
-              <button
-                onClick={(e) => handleDelete(i, e)}
-                className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] cursor-pointer"
-                style={{ background: "#555", color: "#FFF" }}
-              >
-                ✕
-              </button>
+          <button
+            onClick={(e) => handleDelete(i, e)}
+            className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] cursor-pointer"
+            style={{ minWidth: 30, minHeight: 30, background: "#555", color: "#FFF" }}
+          >
+            ✕
+          </button>
             </div>
           ))}
           <button
@@ -248,7 +248,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
           aria-label="从相册选择菜单照片"
           className="justify-self-start flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform duration-150 active:scale-[0.94]"
           style={{
-            minWidth: 58,
+            minWidth: 68,
             minHeight: 58,
             color: "rgba(255,255,255,0.58)",
             fontFamily: "var(--font-body)",
@@ -259,8 +259,8 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
           <span
             className="flex items-center justify-center"
             style={{
-              width: 34,
-              height: 34,
+              width: 38,
+              height: 38,
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,0.36)",
               background: "rgba(255,255,255,0.06)",
@@ -281,8 +281,8 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
           aria-label="拍摄菜单照片"
           className="justify-self-center flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-[0.92]"
           style={{
-            width: 58,
-            height: 58,
+            width: 64,
+            height: 64,
             borderRadius: "50%",
             border: "3px solid rgba(255,255,255,0.5)",
             background: "none",
@@ -299,7 +299,7 @@ export default function CameraPage({ onBack, onAnalyze }: CameraPageProps) {
             className="justify-self-end flex flex-col items-center justify-center transition-transform duration-150 active:scale-[0.96]"
             style={{
               minWidth: 68,
-              minHeight: 48,
+              minHeight: 50,
               padding: "8px 12px",
               borderRadius: 18,
               border: "none",

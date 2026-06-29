@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import type { HistoryEntry } from "@/types";
+import { sourceLanguageName } from "@/lib/order-state";
+import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 
 const fallbackHistoryImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
 
@@ -17,16 +19,28 @@ interface HistoryItem {
 }
 
 function toHistoryItems(entries: HistoryEntry[]): HistoryItem[] {
-  return entries.map((e) => ({
-    id: e.id,
-    restaurant: e.restaurant_name,
-    city: e.city,
-    lang: e.source_lang,
-    dishCount: e.dish_count,
-    pageCount: e.page_count,
-    date: e.date,
-    img: e.thumbnail,
-  }));
+  return entries.map((e) => {
+    const restaurantMeta = getRestaurantDisplayMeta(
+      e.source_lang,
+      e.target_lang,
+      e.result_summary?.metadata?.restaurant,
+    );
+    const legacyNames = [
+      `${sourceLanguageName(e.source_lang)}菜单`,
+      "菜单翻译",
+    ];
+    const isLegacyName = legacyNames.includes(e.restaurant_name) || /^翻译 #[a-z0-9]+$/i.test(e.restaurant_name);
+    return {
+      id: e.id,
+      restaurant: e.restaurant_name && !isLegacyName ? e.restaurant_name : restaurantMeta.display_name,
+      city: e.city || restaurantMeta.city,
+      lang: e.source_lang,
+      dishCount: e.dish_count,
+      pageCount: e.page_count,
+      date: e.date,
+      img: e.thumbnail,
+    };
+  });
 }
 
 function groupByMonth(items: HistoryItem[]) {

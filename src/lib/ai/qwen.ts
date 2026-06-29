@@ -3,16 +3,16 @@ import { shouldRetryEmptyMenuResult } from "@/lib/menu-analysis-utils";
 import { normalizeExtractedDishFields } from "@/lib/menu-analysis-normalization";
 import { TARGET_LANGUAGE_LABELS, normalizeTargetLang } from "@/lib/languages";
 
-const API_TIMEOUT = 75_000;
+const API_TIMEOUT = 120_000;
 
 const qwen = new OpenAI({
-  baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  baseURL: process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1",
   apiKey: process.env.QWEN_API_KEY || "",
   timeout: API_TIMEOUT,
 });
 
-const VL_MODEL = "qwen-vl-max";
-const TEXT_MODEL = "qwen-plus";
+const VL_MODEL = process.env.QWEN_VL_MODEL || "qwen-vl-max";
+const TEXT_MODEL = process.env.QWEN_TEXT_MODEL || "qwen-plus";
 
 interface MenuDishAnalysis {
   name_original: string;
@@ -21,11 +21,30 @@ interface MenuDishAnalysis {
   recommendation?: string;
   good_for?: string;
   caution?: string;
+  category?: string;
   ingredients: string[];
+  included_items?: string[];
   allergens: string[];
   taste_profile: string[];
   confidence: number;
   _needsRetranslate?: boolean;
+}
+
+interface MenuMetadataAnalysis {
+  restaurant?: {
+    display_name?: string;
+    restaurant_type?: string;
+    rating_estimate?: number;
+  };
+  insight?: {
+    summary?: string;
+    occasion_tags?: string[];
+    cuisine_style?: string;
+  };
+  signature?: {
+    dish_indexes?: number[];
+    reason?: string;
+  };
 }
 
 interface MenuImageAnalysis {
@@ -34,6 +53,7 @@ interface MenuImageAnalysis {
   page_type?: "menu" | "info";
   page_description?: string;
   source_language: string;
+  menu_metadata?: MenuMetadataAnalysis;
 }
 
 export function hasChinese(text: string): boolean {
@@ -69,56 +89,110 @@ What to ignore:
 - For non-orderable story/brand/ingredient philosophy pages, set page_type to "info".
 
 For each dish, provide:
-1. name_original: exact original text from the menu (any language). Include prices if visible.
+1. name_original: exact dish/course title from the menu (any language). Include prices only if attached to the title line. Do NOT include comma-separated garnishes, sauces, wine pairings, or ingredient explanations in name_original.
 2. name_translated: MUST be in the requested target language.
 3. description: 30-60 chars or equivalent short sentence in the requested target language: main ingredient + cooking method + taste/texture + serving style.
 4. recommendation: 40-70 chars or equivalent concise sentence in the requested target language: explain who should order this, why it's worth trying, and what makes it special. Be specific about taste and dining context.
 5. good_for: 25-40 chars or equivalent concise phrase in the requested target language: describe the best dining scenario — is it for sharing, solo dining, appetizer, or a hearty main? Mention pairing suggestions.
 6. caution: 25-40 chars or equivalent concise phrase in the requested target language: what to watch out for — potential allergens, richness level, portion size, or spice. Be helpful, not alarmist.
-7. confidence: 0.0-1.0
-8. page_label: menu section in the requested target language (appetizer/main/dessert/drinks/mixed equivalent)
-9. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
+7. included_items: array of visible combo/set contents when this item is a meal/set/combo/menu deal. Include main item, fries/sides, drink names, sauce, dessert, or upgrades if visible. Use the requested target language. Return [] for ordinary single dishes.
+8. category: one of "appetizer","main","staple","dessert","drink" — classify each dish by its primary role in the meal structure. Appetizer=starter/sharing plates/cold dishes/salad, Main=core protein/entree/hot dish, Staple=noodle/rice/bread, Dessert=sweet, Drink=beverage/alcohol (only when the item IS the drink, not cooked-with-alcohol dishes).
+9. confidence: 0.0-1.0
+10. page_label: menu section in the requested target language (appetizer/main/dessert/drinks/mixed equivalent)
+11. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. Do not confuse a restaurant story page with a dish list. For menu pages with prices, never return empty.
+IMPORTANT: Keep dish names and descriptions separate. Fine-dining menus often write one course as "Main protein, garnish, sauce, side, puree". This is ONE dish, not many dishes. Put only the main course title in name_original/name_translated; move garnishes, sauces, sides, and preparation notes into description, ingredients, or included_items.
 IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
-Example: {"name_original":"Foie Gras","name_translated":"鹅肝酱","description":"黄油煎鹅肝配无花果酱与烤面包片，外脆内滑，甜咸交织。","recommendation":"如果你喜欢法式经典前菜，强烈推荐。鹅肝的丰腴与无花果的酸甜平衡得恰到好处，适合特殊场合或想犒劳自己的时候点。","good_for":"适合作为前菜，两个人分食体验更佳。建议搭配甜白葡萄酒。","caution":"脂肪含量较高，热量不低。对鹅肝过敏或素食者需避开。分量通常较小，价格偏高。","confidence":0.95}
+Example: {"name_original":"Foie Gras","name_translated":"鹅肝酱","description":"黄油煎鹅肝配无花果酱与烤面包片，外脆内滑，甜咸交织。","recommendation":"如果你喜欢法式经典前菜，强烈推荐。鹅肝的丰腴与无花果的酸甜平衡得恰到好处，适合特殊场合或想犒劳自己的时候点。","good_for":"适合作为前菜，两个人分食体验更佳。建议搭配甜白葡萄酒。","caution":"脂肪含量较高，热量不低。对鹅肝过敏或素食者需避开。分量通常较小，价格偏高。","category":"appetizer","confidence":0.95}
 
 Output ONLY valid JSON:
-{ "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;
+{
+  "dishes": [...],
+  "page_label": "主菜",
+  "page_type": "menu",
+  "page_description": "（说明页时必填）",
+  "source_language": "fr",
+  "menu_metadata": {
+    "restaurant": {
+      "display_name": "餐厅名 + 类型（必须基于菜单/语种推断，如「巴黎小馆 Le Petit Bistro」「江南私房菜」）",
+      "restaurant_type": "小馆 / 酒馆 / 街边店 / 米其林 / 私房菜 等中文标签",
+      "rating_estimate": "0.0-5.0 基于菜品丰富度和组合推断"
+    },
+    "insight": {
+      "summary": "30-60 字总结这份菜单的料理风格、招牌特色和口味基调（必须用目标语言）",
+      "occasion_tags": ["3-5 个用餐场景标签如约会小聚/朋友聚餐/商务宴请/配红酒/配啤酒"],
+      "cuisine_style": "主菜系名称如勃艮第料理/江浙菜"
+    },
+    "signature": {
+      "dish_indexes": [0, 2],
+      "reason": "10-25 字推荐这几道招牌菜的理由"
+    }
+  }
+}`;
 
 const VL_SYSTEM_PROMPT_SIMPLE = `You are a professional restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate them into the requested target language.
 
 Extract priced menu lines and orderable items even if the page is tilted, warm-colored, partially cropped, distant, low-resolution, shown on a lightbox, or includes descriptions in another language. Read multi-column menus from top to bottom and left to right. Ignore brand headers, stories, tax notes, and sourcing/ingredient philosophy pages with no orderable priced items.
 
 Rules:
-1. name_original: exact original text from the menu (any language). Include prices if visible.
+1. name_original: exact dish/course title from the menu (any language). Include prices only if attached to the title line. Do NOT include comma-separated garnishes, sauces, wine pairings, or ingredient explanations in name_original.
 2. name_translated: MUST be in the requested target language.
 3. description: 30-60 chars or equivalent short sentence in the requested target language: main ingredient + cooking method + taste/texture + serving style.
-4. confidence: 0.0-1.0
-5. page_label: menu section in the requested target language (appetizer/main/dessert/drinks/mixed equivalent)
-6. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
+4. included_items: array of visible combo/set contents when this item is a meal/set/combo/menu deal. Include main item, fries/sides, drink names, sauce, dessert, or upgrades if visible. Use the requested target language. Return [] for ordinary single dishes.
+5. category: one of "appetizer","main","staple","dessert","drink" — classify each dish by its primary role in the meal structure. Appetizer=starter/sharing plates/cold dishes/salad, Main=core protein/entree/hot dish, Staple=noodle/rice/bread, Dessert=sweet, Drink=beverage/alcohol (only when the item IS the drink, not cooked-with-alcohol dishes).
+6. confidence: 0.0-1.0
+7. page_label: menu section in the requested target language (appetizer/main/dessert/drinks/mixed equivalent)
+8. source_language: ISO 639-1 code (fr, ja, it, es, de, ko, th, en, etc.)
 
 IMPORTANT: Extract EVERY orderable dish. Return empty dishes ONLY if the page has no orderable items. For non-orderable story/brand/ingredient philosophy pages, set page_label to "说明页" and page_type to "info", and provide page_description: a 30-60 char Chinese summary of what this page describes.
+IMPORTANT: Keep dish names and descriptions separate. Fine-dining menus often write one course as "Main protein, garnish, sauce, side, puree". This is ONE dish, not many dishes. Put only the main course title in name_original/name_translated; move garnishes, sauces, sides, and preparation notes into description, ingredients, or included_items.
 IMPORTANT: Alcohol used in cooking is not a beverage category. Examples such as 啤酒鸭, 红酒炖牛肉, 花雕焗蟹, 绍兴酒蒸鱼, and 紫苏辣酒煮花螺 are food dishes; describe the solid ingredient and cooking method, not a drink.
 
 Output ONLY valid JSON:
-{ "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;
+{
+  "dishes": [...],
+  "page_label": "主菜",
+  "page_type": "menu",
+  "page_description": "（说明页时必填）",
+  "source_language": "fr",
+  "menu_metadata": {
+    "restaurant": {
+      "display_name": "餐厅名 + 类型（基于菜单/语种推断）",
+      "restaurant_type": "小馆 / 酒馆 / 街边店 / 米其林 / 私房菜 等中文标签",
+      "rating_estimate": "0.0-5.0 基于菜品丰富度和组合推断"
+    },
+    "insight": {
+      "summary": "30-60 字总结这份菜单的料理风格、招牌特色和口味基调（必须用目标语言）",
+      "occasion_tags": ["3-5 个用餐场景标签"],
+      "cuisine_style": "主菜系名称"
+    },
+    "signature": {
+      "dish_indexes": [0, 2],
+      "reason": "10-25 字推荐这几道招牌菜的理由"
+    }
+  }
+}`;
 
 const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `You are a fast restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate dish names into the requested target language.
 
 Optimize for speed and recall. Read multi-column menus top-to-bottom and left-to-right. Do NOT generate recommendation, good_for, caution, long food advice, reviews, or rich commentary.
 
 For each dish, provide ONLY:
-1. name_original: exact original text from the menu. Include visible price if attached to the line.
+1. name_original: exact dish/course title from the menu. Include visible price only if attached to the title line. Do NOT include comma-separated garnishes, sauces, wine pairings, or ingredient explanations in name_original.
 2. name_translated: short dish name in the requested target language.
 3. description: concise ingredient/type hint only in the requested target language.
-4. confidence: 0.0-1.0.
+4. included_items: array of visible combo/set contents when this item is a meal/set/combo/menu deal. Include main item, fries/sides, drink names, sauce, dessert, or upgrades if visible. Use the requested target language. Return [] for ordinary single dishes.
+5. category: one of "appetizer","main","staple","dessert","drink".
+6. confidence: 0.0-1.0.
 
 Also provide page_label, page_type, page_description only for info pages, and source_language.
 
 IMPORTANT: Do NOT generate recommendation, good_for, or caution in this fast first pass.
 IMPORTANT: Extract every priced/orderable item; never collapse variants into one item.
 IMPORTANT: Keep dish names and descriptions separate. If a menu line has a dish name followed by smaller explanatory text, put only the dish name in name_original and summarize the explanatory text in description.
+IMPORTANT: Fine-dining menus often write one course as "Main protein, garnish, sauce, side, puree". This is ONE dish, not many dishes. Keep only the main course title in name_original/name_translated; move garnishes, sauces, sides, and preparation notes into description or included_items.
+IMPORTANT: For meal/set/combo items, do not hide the contents in generic description only. Put visible sides and drinks into included_items.
 
 Output ONLY valid JSON:
 { "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;

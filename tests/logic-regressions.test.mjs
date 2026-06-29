@@ -30,12 +30,56 @@ async function loadTsModule(file) {
     'from "@/lib/dish-name-normalization"',
     'from "./dish-name-normalization.mjs"',
   );
+  compiled = compiled.replaceAll(
+    'from "@/lib/results-categories"',
+    'from "./results-categories.mjs"',
+  );
+  compiled = compiled.replaceAll(
+    'from "@/lib/dish-presentation"',
+    'from "./dish-presentation.mjs"',
+  );
+  compiled = compiled.replaceAll(
+    'from "@/lib/order-state"',
+    'from "./order-state.mjs"',
+  );
+  compiled = compiled.replaceAll(
+    'from "@/lib/restaurant-display"',
+    'from "./restaurant-display.mjs"',
+  );
+  compiled = compiled.replaceAll(
+    'from "@/lib/menu-source-language"',
+    'from "./menu-source-language.mjs"',
+  );
+  compiled = compiled.replaceAll(
+    'from "@/lib/location-recommendation"',
+    'from "./location-recommendation.mjs"',
+  );
+  compiled = compiled.replaceAll(
+    'from "@/lib/region-landmarks"',
+    'from "./region-landmarks.mjs"',
+  );
   const rel = relative(ROOT, file).replace(/\.ts$/, ".mjs");
   const outFile = join(TMP_ROOT, rel);
   await mkdir(dirname(outFile), { recursive: true });
   await mkdir(join(TMP_ROOT, "public"), { recursive: true });
   await copyFile(join(ROOT, "public/dish-knowledge-db.json"), join(TMP_ROOT, "public/dish-knowledge-db.json"));
   await writeFile(outFile, compiled);
+  const dependencyMap = [
+    { pattern: 'from "./dish-image-match.mjs"', file: `${ROOT}/src/lib/dish-image-match.ts` },
+    { pattern: 'from "./dish-name-normalization.mjs"', file: `${ROOT}/src/lib/dish-name-normalization.ts` },
+    { pattern: 'from "./results-categories.mjs"', file: `${ROOT}/src/lib/results-categories.ts` },
+    { pattern: 'from "./dish-presentation.mjs"', file: `${ROOT}/src/lib/dish-presentation.ts` },
+    { pattern: 'from "./order-state.mjs"', file: `${ROOT}/src/lib/order-state.ts` },
+    { pattern: 'from "./restaurant-display.mjs"', file: `${ROOT}/src/lib/restaurant-display.ts` },
+    { pattern: 'from "./menu-source-language.mjs"', file: `${ROOT}/src/lib/menu-source-language.ts` },
+    { pattern: 'from "./location-recommendation.mjs"', file: `${ROOT}/src/lib/location-recommendation.ts` },
+    { pattern: 'from "./region-landmarks.mjs"', file: `${ROOT}/src/lib/region-landmarks.ts` },
+  ];
+  for (const dep of dependencyMap) {
+    if (file !== dep.file && compiled.includes(dep.pattern)) {
+      await loadTsModule(dep.file);
+    }
+  }
   return import(`${pathToFileURL(outFile).href}?t=${Date.now()}`);
 }
 
@@ -52,6 +96,154 @@ test("information pages with zero dishes do not trigger menu OCR retry", async (
     shouldRetryEmptyMenuResult({ dishes: [], page_label: "主菜", source_language: "fr" }, 0, 2),
     true,
   );
+});
+
+test("location recommendation formats distance and selects navigation providers", async () => {
+  const {
+    chooseLocationProvider,
+    formatDistanceLabel,
+    shouldShowDistance,
+    buildNavigationUrl,
+    getLocationRecommendation,
+  } = await loadTsModule(`${ROOT}/src/lib/location-recommendation.ts`);
+
+  assert.equal(chooseLocationProvider("CN"), "amap");
+  assert.equal(chooseLocationProvider("HK"), "amap");
+  assert.equal(chooseLocationProvider("IT"), "google");
+  assert.equal(formatDistanceLabel(1800, "zh"), "<2km");
+  assert.equal(formatDistanceLabel(2300, "zh"), "2.3km");
+  assert.equal(formatDistanceLabel(950, "en"), "<1km");
+  assert.equal(shouldShowDistance(49_900), true);
+  assert.equal(shouldShowDistance(50_001), false);
+
+  assert.match(
+    buildNavigationUrl({
+      provider: "amap",
+      name: "附近小馆",
+      latitude: 31.2304,
+      longitude: 121.4737,
+    }),
+    /^https:\/\/uri\.amap\.com\/navigation\?/,
+  );
+  assert.match(
+    buildNavigationUrl({
+      provider: "google",
+      name: "Maison Champignon",
+      latitude: 48.8566,
+      longitude: 2.3522,
+    }),
+    /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=/,
+  );
+
+  const result = await getLocationRecommendation({
+    lat: 48.8566,
+    lon: 2.3522,
+    country: "FR",
+    locale: "zh",
+    env: {},
+    fetcher: async () => {
+      throw new Error("network should not be called without a key");
+    },
+  });
+  assert.equal(result, null);
+});
+
+test("region landmark resolver covers common travel menu regions", async () => {
+  const { resolveRegionLandmark } = await loadTsModule(
+    `${ROOT}/src/lib/region-landmarks.ts`,
+  );
+
+  assert.equal(resolveRegionLandmark({ cuisine: "Italian pizzeria" }).key, "it");
+  assert.equal(resolveRegionLandmark({ sourceLang: "fr" }).key, "fr");
+  assert.equal(resolveRegionLandmark({ sourceLang: "ja-JP" }).key, "ja");
+  assert.equal(resolveRegionLandmark({ cuisine: "Thai street food" }).key, "th");
+  assert.equal(resolveRegionLandmark({ cuisine: "Indian curry and paneer" }).key, "in");
+  assert.equal(resolveRegionLandmark({ cuisine: "Mexican tacos" }).key, "mx");
+  assert.equal(resolveRegionLandmark({ cuisine: "unknown cuisine" }).key, "international");
+});
+
+test("region landmark icons use local warm PNG assets instead of inline SVG drawings", async () => {
+  const component = await readFile(`${ROOT}/src/components/shared/RegionLandmarkIcon.tsx`, "utf8");
+  const landmarks = await readFile(`${ROOT}/src/lib/region-landmarks.ts`, "utf8");
+
+  for (const key of ["fr", "it", "ja", "zh", "ko", "th", "de", "es", "en", "in", "mx", "vn", "tr", "gr", "br", "international"]) {
+    assert.match(landmarks, new RegExp(`"${key}"`));
+    const image = await readFile(`${ROOT}/public/icons/landmarks/${key}.png`);
+    assert.equal(image.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  }
+
+  assert.match(component, /\/icons\/landmarks\/\$\{landmark\.key\}\.png/);
+  assert.doesNotMatch(component, /const ICONS:/);
+  assert.doesNotMatch(component, /<svg[\s\S]*<Icon/);
+});
+
+test("region landmark icons avoid inner white rings on warm cards", async () => {
+  const component = await readFile(`${ROOT}/src/components/shared/RegionLandmarkIcon.tsx`, "utf8");
+
+  assert.doesNotMatch(component, /overflow:\s*"hidden"/);
+  assert.doesNotMatch(component, /rgba\(255,227,191,0\.55\)/);
+  assert.match(component, /background:\s*"rgba\(254,230,203,0\.64\)"/);
+  assert.match(component, /landmarkImageSize/);
+});
+
+test("recent translations are menu records with landmark stamps, not first-dish cards", async () => {
+  const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
+  const { buildRecentMenuRecords } = await loadTsModule(
+    `${ROOT}/src/lib/recent-menu-records.ts`,
+  );
+
+  const records = buildRecentMenuRecords([
+    {
+      id: "history-italy",
+      restaurant_name: "Pecora Negra Pizzeria",
+      city: "Roma",
+      dish_count: 17,
+      page_count: 1,
+      date: "2026-06-09T08:00:00.000Z",
+      thumbnail: "/generated-dishes/generated-la-pesto.png",
+      source_lang: "it",
+      target_lang: "zh",
+      result_summary: {
+        task_id: "history-italy",
+        status: "done",
+        pages: [{
+          page_index: 0,
+          page_label: "Pizza",
+          image_thumbnail: "",
+          dishes: [
+            {
+              id: "marinara",
+              name_original: "LA MARINARA",
+              name_translated: { zh: "玛琳娜披萨" },
+              description: { zh: "番茄酱、牛至和蒜油。" },
+              ingredients: ["番茄酱"],
+              allergens: [],
+              taste_profile: [],
+              category: "staple",
+              image_source: "ai",
+            },
+          ],
+        }],
+        metadata: {
+          source_language: "it",
+          target_language: "zh",
+          total_dishes: 17,
+          cached: false,
+          insight: { summary: "", occasion_tags: [], cuisine_style: "Italian pizzeria" },
+        },
+      },
+    },
+  ], { now: new Date("2026-06-09T10:00:00.000Z") });
+
+  assert.equal(records.length, 1);
+  assert.equal(records[0].restaurantName, "Pecora Negra Pizzeria");
+  assert.equal(records[0].sourceLabel, "IT");
+  assert.equal(records[0].targetLabel, "中文");
+  assert.equal(records[0].dishCount, 17);
+  assert.equal(records[0].landmarkKey, "it");
+  assert.notEqual(records[0].restaurantName, "玛琳娜披萨");
+  assert.match(homePage, /onClick=\{\(\) => item\.id && onRecentClick\?\.\(item\.id\)\}/);
+  assert.doesNotMatch(homePage, /font:\s*"800 13px var\(--font-ui\)"[\s\S]*?>→<\/span>/);
 });
 
 test("common short menu names resolve to prebuilt local dish images", async () => {
@@ -75,6 +267,185 @@ test("pizza variants do not collapse to the same generic fallback image", async 
   assert.equal(matchDishKnowledgeImage({ name_original: "LA REINE", description: "ham mushrooms and olives" })?.id, "pizza-prosciutto-funghi");
   assert.equal(matchDishKnowledgeImage({ name_original: "LA GENOVESE", description: "Pesto Genovese, Fior di latte mozzarella and Grana Padano" })?.id, "pizza-genovese");
   assert.equal(matchDishKnowledgeImage({ name_original: "LA TROIS FROMAGES", description: "aged Comté, mozzarella and fresh goat cheese" })?.id, "pizza-quattro-formaggi");
+  assert.match(
+    matchDishKnowledgeImage({
+      name_original: "LA PIZZA « CIOCCOLATO »",
+      name_translated: { zh: "巧克力披萨" },
+      description: "甜味披萨，搭配有机榛子奶油和切碎榛子。",
+    })?.id || "",
+    /^pizza-/,
+  );
+});
+
+test("meal combos keep included items visible and avoid generic paneer images", async () => {
+  const { matchDishKnowledgeImage } = await loadTsModule(
+    `${ROOT}/src/lib/dish-image-match.ts`,
+  );
+  const { buildDishImagePrompt, classifyDishImageKind } = await loadTsModule(
+    `${ROOT}/src/lib/ai/image-gen.ts`,
+  );
+  const { getDishIncludedItems } = await loadTsModule(
+    `${ROOT}/src/lib/dish-presentation.ts`,
+  );
+  const types = await readFile(`${ROOT}/src/types/index.ts`, "utf8");
+  const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+
+  const spicyWrapMeal = {
+    id: "spicy-wrap-meal",
+    name_original: "BigSpicy Paneer Wrap Meal",
+    name_translated: { zh: "辣味奶酪卷套餐" },
+    description: { zh: "香辣印度奶酪包裹在薄饼中，配薯条和可乐。" },
+    ingredients: ["paneer wrap", "fries", "cola"],
+    included_items: ["辣味奶酪卷", "薯条", "可乐"],
+    allergens: ["dairy", "wheat"],
+    taste_profile: ["spicy", "rich"],
+    category: "main",
+    image_source: "ai",
+  };
+  const mcpaneerMeal = {
+    ...spicyWrapMeal,
+    id: "mcpaneer-meal",
+    name_original: "McSpicy™ Paneer Meal",
+    name_translated: { zh: "麦辣奶酪套餐" },
+    description: { zh: "酥脆炸奶酪汉堡，搭配生菜和酱料，配薯条与可乐。" },
+    ingredients: ["paneer burger", "lettuce", "fries", "cola"],
+    included_items: ["麦辣奶酪汉堡", "薯条", "可乐"],
+  };
+
+  assert.match(types, /included_items\?:\s*string\[\]/);
+  assert.match(qwen, /included_items/);
+  assert.deepEqual(getDishIncludedItems(spicyWrapMeal), ["辣味奶酪卷", "薯条", "可乐"]);
+  assert.equal(matchDishKnowledgeImage(spicyWrapMeal), null);
+  assert.equal(matchDishKnowledgeImage(mcpaneerMeal), null);
+  assert.equal(classifyDishImageKind(spicyWrapMeal), "meal");
+  assert.equal(classifyDishImageKind(mcpaneerMeal), "meal");
+  assert.notEqual(buildDishImagePrompt(spicyWrapMeal), buildDishImagePrompt(mcpaneerMeal));
+  assert.match(buildDishImagePrompt(spicyWrapMeal), /combo meal|fries|cola|wrap/i);
+  assert.match(buildDishImagePrompt(mcpaneerMeal), /combo meal|fries|cola|burger/i);
+  assert.match(buildDishImagePrompt(mcpaneerMeal), /ALL included items must be visible/i);
+  assert.match(buildDishImagePrompt(mcpaneerMeal), /do not generate only the main item/i);
+  assert.match(resultsPage, /getDishIncludedItems/);
+  assert.match(resultsPage, /套餐包含/);
+  assert.ok(resultsPage.includes('includedItems.join(" / ")'));
+  assert.doesNotMatch(resultsPage, /includedItems\.map\(\(item\)/);
+  assert.match(detailPage, /getDishIncludedItems/);
+  assert.match(detailPage, /套餐包含/);
+});
+
+test("dish image prompts prioritize real dish identity over generic category framing", async () => {
+  const { buildDishImagePrompt, classifyDishImageKind } = await loadTsModule(
+    `${ROOT}/src/lib/ai/image-gen.ts`,
+  );
+
+  const prompt = buildDishImagePrompt({
+    name_original: "Rouget Barbet",
+    name_translated: { zh: "红鲻鱼" },
+    description: { zh: "红鲻鱼配海盐、黑胡椒、橄榄油、欧芹和柠檬。" },
+    ingredients: ["红鲻鱼", "海盐", "黑胡椒", "橄榄油", "欧芹", "柠檬"],
+    category: "main",
+  });
+
+  assert.equal(
+    classifyDishImageKind({
+      name_original: "Rouget Barbet",
+      name_translated: { zh: "红鲻鱼" },
+      description: { zh: "红鲻鱼配海盐、黑胡椒、橄榄油、欧芹和柠檬。" },
+      ingredients: ["红鲻鱼", "海盐", "黑胡椒", "橄榄油", "欧芹", "柠檬"],
+      category: "main",
+    }),
+    "seafood",
+  );
+  assert.match(prompt, /small Mediterranean red mullet/i);
+  assert.match(prompt, /red-orange skin/i);
+  assert.match(prompt, /not sea bass/i);
+  assert.match(prompt, /not salmon/i);
+  assert.match(prompt, /not a large generic grilled fish/i);
+});
+
+test("dish image prompts include specific visual identity for foie gras, scallop, escargots, and burrata", async () => {
+  const { buildDishImagePrompt } = await loadTsModule(
+    `${ROOT}/src/lib/ai/image-gen.ts`,
+  );
+
+  // Foie gras
+  const foieGrasPrompt = buildDishImagePrompt({
+    name_original: "Foie Gras",
+    name_translated: { zh: "鹅肝" },
+    description: { zh: "香煎鹅肝配无花果酱" },
+    ingredients: ["鹅肝", "无花果", "黄油"],
+    category: "appetizer",
+  });
+  assert.match(foieGrasPrompt, /foie gras is a luxurious duck or goose liver/i);
+  assert.match(foieGrasPrompt, /not a large meat steak/i);
+  assert.match(foieGrasPrompt, /not a whole liver organ raw/i);
+
+  // Scallop
+  const scallopPrompt = buildDishImagePrompt({
+    name_original: "Coquilles Saint-Jacques",
+    name_translated: { zh: "焗烤扇贝" },
+    description: { zh: "法式焗烤扇贝配奶油白酱" },
+    ingredients: ["扇贝", "奶油", "白酱"],
+    category: "appetizer",
+  });
+  assert.match(scallopPrompt, /scallops are round, pale-cream medallions/i);
+  assert.match(scallopPrompt, /not a whole fish/i);
+  assert.match(scallopPrompt, /not a generic fried seafood platter/i);
+
+  // Escargots
+  const escargotPrompt = buildDishImagePrompt({
+    name_original: "Escargots de Bourgogne",
+    name_translated: { zh: "勃艮第蜗牛" },
+    description: { zh: "经典蒜香黄油焗蜗牛" },
+    ingredients: ["蜗牛", "大蒜", "欧芹", "黄油"],
+    category: "appetizer",
+  });
+  assert.match(escargotPrompt, /escargots are.*land snails/i);
+  assert.match(escargotPrompt, /garlic-parsley butter/i);
+  assert.match(escargotPrompt, /not a bowl of pasta shells/i);
+  assert.match(escargotPrompt, /not a soup/i);
+
+  // Burrata
+  const burrataPrompt = buildDishImagePrompt({
+    name_original: "Burrata",
+    name_translated: { zh: "布拉塔奶酪" },
+    description: { zh: "新鲜布拉塔奶酪配樱桃番茄和罗勒" },
+    ingredients: ["布拉塔奶酪", "樱桃番茄", "罗勒"],
+    category: "appetizer",
+  });
+  assert.match(burrataPrompt, /burrata is a round, white, pillow-soft italian cheese/i);
+  assert.match(burrataPrompt, /creamy stracciatella interior/i);
+  assert.match(burrataPrompt, /not a hard cheese wedge/i);
+  assert.match(burrataPrompt, /not fried mozzarella sticks/i);
+});
+
+test("dish image prompts guard against dessert-drink confusion and generic steak", async () => {
+  const { buildDishImagePrompt } = await loadTsModule(
+    `${ROOT}/src/lib/ai/image-gen.ts`,
+  );
+
+  // Affogato (dessert with coffee + ice cream)
+  const affogatoPrompt = buildDishImagePrompt({
+    name_original: "Affogato",
+    name_translated: { zh: "阿芙佳朵" },
+    description: { zh: "浓缩咖啡浇在香草冰淇淋上" },
+    ingredients: ["浓缩咖啡", "香草冰淇淋"],
+    category: "dessert",
+  });
+  assert.match(affogatoPrompt, /dessert.*food|DESSERT FOOD/i);
+
+  // Steak
+  const steakPrompt = buildDishImagePrompt({
+    name_original: "Entrecôte",
+    name_translated: { zh: "法式肋眼牛排" },
+    description: { zh: "炭烤肋眼牛排配黑胡椒汁" },
+    ingredients: ["肋眼牛排", "黑胡椒", "黄油"],
+    category: "main",
+  });
+  assert.match(steakPrompt, /steak is a thick-cut beef slice/i);
+  assert.match(steakPrompt, /not a thin sliced stir-fry/i);
+  assert.match(steakPrompt, /not a stew or braise/i);
 });
 
 test("image generation prompt keeps a strict food-photo quality spec", async () => {
@@ -150,6 +521,442 @@ test("fast overseas recognition returns a lightweight first result before enrich
   assert.match(route, /translate:task_first_pass_finished/);
 });
 
+test("fast first-pass returns text results without waiting for remote image cache lookups", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+
+  assert.match(route, /type DishRecordOptions/);
+  assert.match(route, /imageLookup\?:\s*"full" \| "local-only"/);
+  assert.match(route, /const imageLookup = options\.imageLookup \|\| "full"/);
+  assert.match(route, /imageLookup === "full"[\s\S]*findExistingDishImages/);
+  assert.match(route, /imageLookup === "full"[\s\S]*getCachedDishImageUrl/);
+  assert.match(route, /processImagesFastFirstPass[\s\S]*buildDishRecords\(raw\.dishes,\s*raw\.page_label,\s*usedImageIds,\s*targetLang,\s*\{\s*imageLookup:\s*"local-only"\s*\}\)/);
+  assert.match(route, /MENU_IMAGE_GENERATION_CONCURRENCY \|\| "1"/);
+});
+
+test("loading screen copy does not imply blocking AI image generation", async () => {
+  const loadingPage = await readFile(`${ROOT}/src/components/results/LoadingPage.tsx`, "utf8");
+
+  assert.doesNotMatch(loadingPage, /正在匹配图片/);
+  assert.match(loadingPage, /正在准备结果/);
+});
+
+test("result-page AI fields are requested in fast and enriched menu analysis", async () => {
+  const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
+
+  assert.match(qwen, /process\.env\.QWEN_BASE_URL \|\| "https:\/\/dashscope\.aliyuncs\.com\/compatible-mode\/v1"/);
+  assert.match(qwen, /process\.env\.QWEN_VL_MODEL \|\| "qwen-vl-max"/);
+  assert.match(qwen, /process\.env\.QWEN_TEXT_MODEL \|\| "qwen-plus"/);
+
+  const fastPrompt = qwen.match(/const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `([\s\S]*?)`;/)?.[1] || "";
+  assert.match(fastPrompt, /category:\s*one of "appetizer","main","staple","dessert","drink"/);
+  assert.match(fastPrompt, /Do NOT generate recommendation/);
+  assert.doesNotMatch(fastPrompt.match(/Output ONLY valid JSON:([\s\S]*)/)?.[1] || "", /recommendation|good_for|caution/);
+
+  const simplePrompt = qwen.match(/const VL_SYSTEM_PROMPT_SIMPLE = `([\s\S]*?)`;/)?.[1] || "";
+  assert.match(simplePrompt, /category:\s*one of "appetizer","main","staple","dessert","drink"/);
+  assert.match(simplePrompt, /"menu_metadata":/);
+  assert.match(simplePrompt, /"restaurant":/);
+  assert.match(simplePrompt, /"insight":/);
+  assert.match(simplePrompt, /"signature":/);
+});
+
+test("fast first-pass and enrichment preserve results summary metadata", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+
+  assert.match(route, /type MenuAnalysisResult[\s\S]*menu_metadata\?:/);
+  assert.match(route, /function needsTargetLanguageCorrection/);
+  assert.match(route, /refineDishesForTargetLanguage/);
+  assert.doesNotMatch(route, /const shouldRefine = raw\.dishes\.length <= 10;/);
+  assert.match(route, /processImagesFastFirstPass[\s\S]*restaurant:\s*extractRestaurantMeta\(sorted\)/);
+  assert.match(route, /processImagesFastFirstPass[\s\S]*insight:\s*extractMenuInsight\(sorted\)/);
+  assert.match(route, /processImagesFastFirstPass[\s\S]*signature:\s*extractSignature\(sorted\)/);
+  assert.match(route, /enrichedPayload[\s\S]*restaurant:\s*extractRestaurantMeta\(pages\)/);
+  assert.match(route, /enrichedPayload[\s\S]*insight:\s*extractMenuInsight\(pages\)/);
+  assert.match(route, /enrichedPayload[\s\S]*signature:\s*extractSignature\(pages\)/);
+});
+
+test("results categories infer useful tabs from dish text and restore AI and girl-favorite tabs", async () => {
+  const { buildCategoryList, filterDishesByCategory } = await loadTsModule(
+    `${ROOT}/src/lib/results-categories.ts`,
+  );
+
+  const result = {
+    task_id: "dessert-menu",
+    status: "done",
+    pages: [{
+      page_index: 0,
+      page_label: "Desserts",
+      image_thumbnail: "",
+      dishes: [
+        {
+          id: "tiramisu",
+          name_original: "TIRAMISU MAISON",
+          name_translated: { zh: "自制提拉米苏" },
+          description: { zh: "咖啡酒浸手指饼配马斯卡彭奶油，甜点。" },
+          ingredients: ["马斯卡彭", "咖啡"],
+          allergens: [],
+          taste_profile: [],
+          image_source: "ai",
+          rating_avg: 4.8,
+        },
+        {
+          id: "mousse",
+          name_original: "MOUSSE AU CHOCOLAT",
+          name_translated: { zh: "巧克力慕斯" },
+          description: { zh: "浓郁巧克力甜品，口感柔滑。" },
+          ingredients: ["巧克力"],
+          allergens: [],
+          taste_profile: [],
+          image_source: "ai",
+        },
+        {
+          id: "pizza",
+          name_original: "LA DIAVOLA 16,00€",
+          name_translated: { zh: "恶魔披萨" },
+          description: { zh: "有机番茄酱、Fior di latte 马苏里拉奶酪和辣味萨拉米。" },
+          ingredients: ["番茄酱", "Fior di latte", "萨拉米"],
+          allergens: ["dairy"],
+          taste_profile: ["spicy"],
+          category: "main",
+          image_source: "ai",
+        },
+        {
+          id: "chocolate-pizza",
+          name_original: "LA PIZZA « CIOCCOLATO » 12,00€",
+          name_translated: { zh: "巧克力披萨" },
+          description: { zh: "甜味披萨，搭配有机榛子奶油、自制焦糖和切碎榛子。" },
+          ingredients: ["披萨面饼", "巧克力", "榛子"],
+          allergens: ["gluten", "tree_nut"],
+          taste_profile: ["sweet"],
+          category: "dessert",
+          image_source: "ai",
+        },
+        {
+          id: "pommeau-glace",
+          name_original: "POMMEAU GLACÉ 12,00€",
+          name_translated: { zh: "苹果冰沙配卡尔瓦多斯" },
+          description: { zh: "苹果冰沙加入卡尔瓦多斯苹果酒，清爽微醺。" },
+          ingredients: ["Pommeau", "Calvados", "苹果"],
+          allergens: [],
+          taste_profile: ["refreshing"],
+          category: "dessert",
+          image_source: "ai",
+        },
+      ],
+    }],
+    metadata: {
+      source_language: "fr",
+      target_language: "zh",
+      total_dishes: 3,
+      cached: false,
+      signature: { dish_ids: ["tiramisu"], reason: "经典甜点" },
+    },
+  };
+
+  const categories = buildCategoryList(result);
+  const categoryKeys = categories.map((c) => c.key);
+  assert.ok(categories.length >= 5, `expected compact smart categories, got ${categoryKeys.join(",")}`);
+  assert.ok(categories.length <= 6, `small menus should stay compact, got ${categoryKeys.join(",")}`);
+  for (const key of ["all", "must_order", "ai_recommend", "girl_favorite", "staple", "dessert"]) {
+    assert.ok(categoryKeys.includes(key), `missing ${key}`);
+  }
+  assert.equal(categories.find((c) => c.key === "dessert")?.count, 2);
+  assert.equal(categories.find((c) => c.key === "girl_favorite")?.count, 4);
+  assert.equal(categories.find((c) => c.key === "ai_recommend")?.count, 1);
+  assert.equal(categories.find((c) => c.key === "staple")?.count, 2);
+  assert.equal(categories.find((c) => c.key === "main"), undefined);
+  assert.equal(categories.find((c) => c.key === "drink"), undefined);
+  assert.equal(filterDishesByCategory(result, "dessert").length, 2);
+  assert.deepEqual(filterDishesByCategory(result, "drink").map((dish) => dish.id), ["pommeau-glace"]);
+  assert.deepEqual(filterDishesByCategory(result, "staple").map((dish) => dish.id), ["pizza", "chocolate-pizza"]);
+});
+
+test("results categories adapt count to menu size instead of forcing sparse menus into seven filters", async () => {
+  const { buildCategoryList, filterDishesByCategory } = await loadTsModule(
+    `${ROOT}/src/lib/results-categories.ts`,
+  );
+
+  const result = {
+    task_id: "pizza-menu",
+    status: "done",
+    pages: [{
+      page_index: 0,
+      page_label: "Pizza",
+      image_thumbnail: "",
+      dishes: [
+        {
+          id: "marinara",
+          name_original: "LA MARINARA 11,50€",
+          name_translated: { zh: "玛琳娜披萨" },
+          description: { zh: "有机番茄酱、牛至和蒜油，经典招牌。" },
+          ingredients: ["番茄酱", "牛至", "蒜油"],
+          allergens: [],
+          taste_profile: ["classic", "light"],
+          category: "main",
+          image_source: "ai",
+        },
+        {
+          id: "margherita",
+          name_original: "LA MARGHERITA 13,50€",
+          name_translated: { zh: "玛格丽特披萨" },
+          description: { zh: "番茄酱、Fior di latte 马苏里拉奶酪、罗勒，适合分享。" },
+          ingredients: ["番茄酱", "Fior di latte", "罗勒"],
+          allergens: ["dairy"],
+          taste_profile: ["vegetarian", "fresh"],
+          category: "main",
+          image_source: "ai",
+        },
+        {
+          id: "diavola",
+          name_original: "LA DIAVOLA 16,00€",
+          name_translated: { zh: "恶魔披萨" },
+          description: { zh: "番茄酱、Fior di latte 马苏里拉奶酪和辣味萨拉米。" },
+          ingredients: ["番茄酱", "Fior di latte", "萨拉米"],
+          allergens: ["dairy"],
+          taste_profile: ["spicy"],
+          category: "main",
+          image_source: "ai",
+        },
+        {
+          id: "tonno",
+          name_original: "LA THON ET OIGNONS 19,50€",
+          name_translated: { zh: "金枪鱼洋葱披萨" },
+          description: { zh: "金枪鱼腩、红洋葱和牛至，海鲜鲜味明显。" },
+          ingredients: ["金枪鱼", "洋葱"],
+          allergens: ["fish"],
+          taste_profile: ["umami"],
+          category: "main",
+          image_source: "ai",
+        },
+      ],
+    }],
+    metadata: {
+      source_language: "fr",
+      target_language: "zh",
+      total_dishes: 4,
+      cached: false,
+      signature: { dish_ids: ["marinara", "margherita"], reason: "菜单精选推荐" },
+    },
+  };
+
+  const categories = buildCategoryList(result);
+  const keys = categories.map((c) => c.key);
+  assert.ok(categories.length >= 5, `expected compact useful categories, got ${keys.join(",")}`);
+  assert.ok(categories.length <= 6, `small menus should not feel over-categorized, got ${keys.join(",")}`);
+  assert.ok(keys.includes("ai_recommend"));
+  assert.ok(keys.includes("girl_favorite"));
+  assert.ok(keys.includes("safe_pick"));
+  assert.equal(categories.find((c) => c.key === "drink"), undefined);
+  assert.equal(categories.find((c) => c.key === "main"), undefined);
+  assert.equal(categories.find((c) => c.key === "staple"), undefined);
+  assert.equal(filterDishesByCategory(result, "spicy").map((dish) => dish.id).join(","), "diavola");
+  assert.equal(filterDishesByCategory(result, "seafood").map((dish) => dish.id).join(","), "tonno");
+});
+
+test("results categories still provide richer filters for larger menus", async () => {
+  const { buildCategoryList } = await loadTsModule(
+    `${ROOT}/src/lib/results-categories.ts`,
+  );
+
+  const dishes = Array.from({ length: 12 }, (_, index) => {
+    const id = `dish-${index + 1}`;
+    const variants = [
+      { name: "招牌牛排", desc: "主厨经典牛排，浓郁酱汁，适合肉食爱好者。", category: "main", ingredients: ["牛肉"] },
+      { name: "海鲜意面", desc: "虾和贝类搭配番茄酱，适合分享。", category: "staple", ingredients: ["虾", "意面"] },
+      { name: "罗勒番茄沙拉", desc: "清爽开胃，适合素食者。", category: "appetizer", ingredients: ["番茄", "罗勒"] },
+      { name: "奶酪拼盘", desc: "当地奶酪组合，适合分享。", category: "appetizer", ingredients: ["奶酪"] },
+      { name: "巧克力慕斯", desc: "浓郁甜点，适合饭后。", category: "dessert", ingredients: ["巧克力"] },
+      { name: "柠檬苏打", desc: "清爽饮品。", category: "drink", ingredients: ["柠檬"] },
+    ][index % 6];
+    return {
+      id,
+      name_original: variants.name,
+      name_translated: { zh: variants.name },
+      description: { zh: variants.desc },
+      ingredients: variants.ingredients,
+      category: variants.category,
+      allergens: [],
+      taste_profile: [],
+      image_source: "ai",
+    };
+  });
+
+  const categories = buildCategoryList({
+    task_id: "large-menu",
+    status: "done",
+    pages: [{ page_index: 0, page_label: "Menu", image_thumbnail: "", dishes }],
+    metadata: {
+      source_language: "fr",
+      target_language: "zh",
+      total_dishes: dishes.length,
+      cached: false,
+      signature: { dish_ids: ["dish-1", "dish-2", "dish-4"], reason: "招牌菜" },
+    },
+  });
+  const keys = categories.map((c) => c.key);
+  assert.ok(categories.length >= 7, `larger menus should expose richer filters, got ${keys.join(",")}`);
+  assert.ok(keys.includes("ai_recommend"));
+  assert.ok(keys.includes("girl_favorite"));
+  assert.ok(keys.includes("drink"));
+  assert.ok(keys.includes("dessert"));
+});
+
+test("dish cards and detail can show smart category labels as normal dish pills", async () => {
+  const { buildDishDisplayTags } = await loadTsModule(
+    `${ROOT}/src/lib/dish-display-tags.ts`,
+  );
+
+  const dish = {
+    id: "margherita",
+    name_original: "LA MARGHERITA 13,50€",
+    name_translated: { zh: "玛格丽特披萨" },
+    description: { zh: "有机番茄酱、Fior di latte 马苏里拉奶酪、橄榄油和罗勒，适合分享。" },
+    ingredients: ["番茄酱", "Fior di latte", "罗勒"],
+    allergens: ["dairy"],
+    taste_profile: ["vegetarian", "fresh"],
+    category: "main",
+    image_source: "ai",
+  };
+  const tags = buildDishDisplayTags({
+    dish,
+    signature: { dish_ids: ["margherita"], reason: "菜单精选推荐" },
+    maxTags: 4,
+  });
+
+  assert.deepEqual(tags.map((tag) => tag.label), ["本店必点", "AI 推荐", "女生喜欢", "素食"]);
+  assert.ok(tags.every((tag) => tag.type === "green" || tag.type === "veg"));
+
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  assert.match(resultsPage, /buildDishDisplayTags/);
+  assert.match(resultsPage, /signature:\s*result\?\.metadata\?\.signature/);
+  assert.match(detailPage, /smartTags/);
+  assert.match(appPage, /buildDishDisplayTags/);
+  assert.match(appPage, /smartTags=\{selectedDishSmartTags\}/);
+});
+
+test("sparse menus stay compact and avoid fake filter entry points", async () => {
+  const { buildCategoryList, filterDishesByCategory } = await loadTsModule(
+    `${ROOT}/src/lib/results-categories.ts`,
+  );
+
+  const result = {
+    task_id: "sparse-menu",
+    status: "done",
+    pages: [{
+      page_index: 0,
+      page_label: "Menu",
+      image_thumbnail: "",
+      dishes: [
+        {
+          id: "unknown",
+          name_original: "MENU ITEM",
+          name_translated: { zh: "菜单菜品" },
+          description: {},
+          ingredients: [],
+          allergens: [],
+          taste_profile: [],
+          image_source: "ai",
+        },
+      ],
+    }],
+    metadata: {
+      source_language: "en",
+      target_language: "zh",
+      total_dishes: 1,
+      cached: false,
+    },
+  };
+
+  const categories = buildCategoryList(result);
+  assert.deepEqual(categories.map((c) => c.key), ["all"]);
+  assert.deepEqual(filterDishesByCategory(result, "all").map((dish) => dish.id), ["unknown"]);
+  assert.deepEqual(filterDishesByCategory(result, "safe_pick"), []);
+});
+
+test("menu summary tags prioritize four dish-aware user-need labels", async () => {
+  const { buildMenuSmartTags } = await loadTsModule(
+    `${ROOT}/src/lib/results-menu-tags.ts`,
+  );
+
+  const pizzaDishes = [
+    {
+      id: "margherita",
+      name_original: "LA MARGHERITA",
+      name_translated: { zh: "玛格丽特披萨" },
+      description: { zh: "番茄酱、Fior di latte 马苏里拉奶酪、罗勒，适合分享。" },
+      ingredients: ["番茄酱", "Fior di latte", "罗勒"],
+      taste_profile: ["vegetarian", "fresh"],
+      image_source: "ai",
+    },
+    {
+      id: "diavola",
+      name_original: "LA DIAVOLA",
+      name_translated: { zh: "恶魔披萨" },
+      description: { zh: "辣味萨拉米、马苏里拉奶酪和番茄酱。" },
+      ingredients: ["萨拉米", "马苏里拉奶酪"],
+      taste_profile: ["spicy"],
+      image_source: "ai",
+    },
+    {
+      id: "tonno",
+      name_original: "LA THON ET OIGNONS",
+      name_translated: { zh: "金枪鱼洋葱披萨" },
+      description: { zh: "金枪鱼、洋葱和牛至，鲜味明显。" },
+      ingredients: ["金枪鱼", "洋葱"],
+      taste_profile: ["umami"],
+      image_source: "ai",
+    },
+  ];
+
+  const tags = buildMenuSmartTags({
+    sourceLang: "it",
+    dishes: pizzaDishes,
+    aiTags: ["约会小聚", "朋友聚餐", "配红酒", "主厨推荐", "第 5 个"],
+  });
+
+  assert.equal(tags.length, 4);
+  assert.deepEqual(tags, ["适合分享", "奶酪爱好", "辣味选择", "海鲜鲜味"]);
+  assert.doesNotMatch(tags.join(","), /约会小聚|朋友聚餐|配红酒|主厨推荐|第 5 个/);
+
+  const sparseTags = buildMenuSmartTags({
+    sourceLang: "fr",
+    dishes: [{ id: "x", name_original: "MENU ITEM", name_translated: { zh: "菜单菜品" }, description: {}, ingredients: [], taste_profile: [], image_source: "ai" }],
+    aiTags: [],
+  });
+  assert.equal(sparseTags.length, 4);
+  assert.deepEqual(sparseTags, ["稳妥选择", "适合分享", "当地特色", "轻松聚餐"]);
+});
+
+test("menu source language is corrected from dish and restaurant evidence", async () => {
+  const { resolveMenuSourceLanguage } = await loadTsModule(
+    `${ROOT}/src/lib/menu-source-language.ts`,
+  );
+
+  const italianMenu = {
+    metadata: {
+      source_language: "fr",
+      target_language: "zh",
+      total_dishes: 3,
+      cached: false,
+      restaurant: { display_name: "Pecora Negra Pizzeria", restaurant_type: "Pizzeria", rating_estimate: 4.2 },
+    },
+    pages: [{
+      page_index: 0,
+      page_label: "菜单",
+      image_thumbnail: "",
+      dishes: [
+        { id: "margherita", name_original: "LA MARGHERITA 13,50€", name_translated: { zh: "玛格丽特披萨" }, description: { zh: "番茄、马苏里拉和罗勒。" }, ingredients: ["Fior di latte", "basilico"], allergens: [], taste_profile: [], image_source: "ai" },
+        { id: "diavola", name_original: "LA DIAVOLA 16,00€", name_translated: { zh: "恶魔披萨" }, description: { zh: "辣味萨拉米披萨。" }, ingredients: ["salame piccante"], allergens: [], taste_profile: [], image_source: "ai" },
+        { id: "espresso", name_original: "ESPRESSO 2,50€", name_translated: { zh: "浓缩咖啡" }, description: { zh: "意式浓缩。" }, ingredients: [], allergens: [], taste_profile: [], image_source: "ai" },
+      ],
+    }],
+  };
+
+  assert.equal(resolveMenuSourceLanguage(italianMenu), "it");
+});
+
 test("menu analysis normalization separates multiline names from descriptions", async () => {
   const { normalizeExtractedDishFields } = await loadTsModule(
     `${ROOT}/src/lib/menu-analysis-normalization.ts`,
@@ -165,6 +972,38 @@ test("menu analysis normalization separates multiline names from descriptions", 
   assert.equal(dish.name_original, "枝豆");
   assert.equal(dish.description, "塩ゆで枝豆");
   assert.equal(dish.confidence, 0.8);
+});
+
+test("menu analysis normalization keeps fine-dining dish names separate from garnish descriptions", async () => {
+  const { normalizeExtractedDishFields } = await loadTsModule(
+    `${ROOT}/src/lib/menu-analysis-normalization.ts`,
+  );
+
+  const foie = normalizeExtractedDishFields({
+    name_original: "Half-Baked Duck Foie Gras Marinated with Cognac, Tahitian Vanilla & Fives Spices, Sauternes Wine Jelly, Cherry Tomato Jam, Toasted Ginger & Goji Berry Brioche.",
+    name_translated: "半烤鸭肝鹅肝配干邑、塔希提香草与五香料，苏玳酒冻，樱桃番茄酱，烤姜与枸杞面包",
+    description: "",
+    category: "drink",
+    confidence: 0.82,
+  });
+
+  assert.equal(foie.name_original, "Half-Baked Duck Foie Gras");
+  assert.equal(foie.name_translated, "半烤鸭肝鹅肝");
+  assert.match(foie.description, /Cognac|Tahitian Vanilla|Sauternes|Brioche/);
+  assert.equal(foie.category, "appetizer");
+
+  const scallops = normalizeExtractedDishFields({
+    name_original: "Pan Fried Japanese Hokkaido Sea Scallops, Grilled King Oyster Mushrooms, Mashed Pumpkin with Spices, Sautéed Asparagus, Scallop Crispy Tuile, Salmon Roe, Citrus Foam, Lemon Gel, Coconut Reduction, Yuzu Sauce.",
+    name_translated: "煎日本北海道扇贝，烤杏鲍菇，香料南瓜泥，炒芦笋，扇贝脆片，鲑鱼子，柑橘泡沫，柠檬凝胶，椰奶浓缩汁，柚子酱",
+    description: "",
+    category: "dessert",
+    confidence: 0.84,
+  });
+
+  assert.equal(scallops.name_original, "Pan Fried Japanese Hokkaido Sea Scallops");
+  assert.equal(scallops.name_translated, "煎日本北海道扇贝");
+  assert.match(scallops.description, /King Oyster Mushrooms|Yuzu Sauce/);
+  assert.equal(scallops.category, "appetizer");
 });
 
 test("global menu recognition is resilient to slow overseas uploads and provider failures", async () => {
@@ -189,6 +1028,20 @@ test("global menu recognition is resilient to slow overseas uploads and provider
   assert.match(loadingPage, /onTimeout/);
   assert.match(appPage, /handleLoadingTimeout/);
   assert.match(appPage, /海外网络/);
+});
+
+test("local translation tasks fall back to memory but production task creation fails loudly", async () => {
+  const taskStore = await readFile(`${ROOT}/src/lib/cache/task-store.ts`, "utf8");
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+
+  assert.match(taskStore, /const memoryTasks = new Map/);
+  assert.match(taskStore, /allowMemoryFallback\?:\s*boolean/);
+  assert.match(taskStore, /if \(error\)/);
+  assert.match(taskStore, /Task store unavailable/);
+  assert.match(taskStore, /updates\.status \|\| existing\.status/);
+  assert.match(route, /isLocalTaskFallbackRequest\(req\)/);
+  assert.match(route, /allowMemoryFallback/);
+  assert.match(route, /localhost|127\\.0\\.0\\.1|\[::1\]/);
 });
 
 test("dietary settings persist locally across page refreshes without an account", async () => {
@@ -258,7 +1111,13 @@ test("home page responds to interface language settings beyond the settings scre
 
   assert.match(appPage, /uiLang=\{settings\.uiLang\}/);
   assert.match(appPage, /useDailyRecommendation\(settings\.uiLang\)/);
+  assert.match(appPage, /restaurantSource=\{dailyRestaurantSource\}/);
+  assert.match(appPage, /selectedDishRestaurantSource/);
+  assert.match(appPage, /restaurantSource=\{selectedDishRestaurantSource\}/);
+  assert.match(appPage, /setSelectedDishRestaurantSource\(dailyRestaurantSource\)/);
+  assert.match(appPage, /setSelectedDishRestaurantSource\(null\)/);
   assert.match(homePage, /uiLang\?:\s*"zh"\s*\|\s*"en"/);
+  assert.match(homePage, /restaurantSource\?:/);
   assert.match(homePage, /const homeCopy =/);
   assert.match(homePage, /const copy = homeCopy\[uiLang === "en" \? "en" : "zh"\]/);
   assert.match(homePage, /copy\.captureCta/);
@@ -278,10 +1137,23 @@ test("home page responds to interface language settings beyond the settings scre
   assert.match(homePage, /Italian cuisine/);
   assert.match(homePage, /Creamy/);
   assert.match(recommendationHook, /export function useDailyRecommendation\(uiLang: "zh" \| "en" = "zh"\)/);
+  assert.match(recommendationHook, /restaurant,\s*loading,\s*contextLabel,\s*reason/);
+  assert.match(recommendationHook, /setDish\(cached\)/);
+  assert.match(recommendationHook, /fetchNearbyRestaurant/);
+  assert.match(recommendationHook, /location-rec-demo/);
   assert.match(recommendationHook, /getTimeLabel\(now\.getHours\(\),\s*uiLang\)/);
-  assert.match(recommendationHook, /buildReason\(recommended,\s*temperature,\s*now\.getHours\(\),\s*uiLang\)/);
+  assert.match(recommendationHook, /buildReason\(recommended,\s*temperature,\s*now\.getHours\(\),\s*uiLang,\s*nearbyRestaurant\)/);
   assert.match(recommendationHook, /Unknown weather/);
   assert.match(recommendationHook, /Dinner/);
+});
+
+test("location recommendation demo data is gated to local review only", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/recommendations/location/route.ts`, "utf8");
+
+  assert.match(route, /process\.env\.NODE_ENV !== "production"/);
+  assert.match(route, /searchParams\.get\("demo"\) === "1"/);
+  assert.match(route, /providerConfigured:\s*true,\s*demo:\s*true/);
+  assert.match(route, /chooseLocationProvider\(country\)/);
 });
 
 test("generated menu images use stable storage ids even for temporary dishes", async () => {
@@ -402,6 +1274,15 @@ test("missing dish images are treated as pending instead of real food placeholde
   );
 });
 
+test("dish image pending UI falls back instead of showing a permanent percent", async () => {
+  const component = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
+
+  assert.match(component, /IMAGE_PENDING_STALE_MS/);
+  assert.match(component, /hasWaitedLong/);
+  assert.match(component, /图片生成较慢，先用示意图/);
+  assert.match(component, /clearTimeout/);
+});
+
 test("dish image matching avoids generic drink and repeated platter mismatches", async () => {
   await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
   const { getDishImageUrl, isDishImagePending } = await loadTsModule(
@@ -478,6 +1359,18 @@ test("AI image generation prompt uses category-specific framing for drinks, soup
   assert.match(drinkPrompt, /distinct beverage texture|foam|ice|garnish/i);
   assert.doesNotMatch(drinkPrompt, /white ceramic plate/i);
 
+  const tiramisuWithCoffee = {
+    name_original: "TIRAMISU MAISON",
+    name_translated: { zh: "自制提拉米苏" },
+    description: { zh: "咖啡酒浸手指饼配马斯卡彭奶油，经典甜点。" },
+    ingredients: ["coffee", "mascarpone", "ladyfingers"],
+    category: "dessert",
+  };
+  const tiramisuPrompt = buildDishImagePrompt(tiramisuWithCoffee);
+  assert.equal(classifyDishImageKind(tiramisuWithCoffee), "dessert");
+  assert.match(tiramisuPrompt, /dessert photography|dessert plate|cream texture/i);
+  assert.doesNotMatch(tiramisuPrompt, /single beverage|appropriate cup|distinct beverage texture/i);
+
   const soupPrompt = buildDishImagePrompt({
     name_original: "Miso Soup",
     name_translated: { zh: "味噌汤" },
@@ -512,11 +1405,35 @@ test("AI image generation prompt uses category-specific framing for drinks, soup
   assert.equal(classifyDishImageKind(wineCookedConch), "seafood");
   assert.match(conchPrompt, /seafood|shellfish|conch|whelk|sea snail/i);
   assert.doesNotMatch(conchPrompt, /single beverage|appropriate cup|wine glass|clear tumbler|distinct beverage texture/i);
+
+  const chocolatePizza = {
+    name_original: "LA PIZZA « CIOCCOLATO »",
+    name_translated: { zh: "巧克力披萨" },
+    description: { zh: "甜味披萨，搭配有机榛子奶油、自制焦糖和切碎榛子。" },
+    ingredients: ["pizza dough", "chocolate", "hazelnut"],
+    category: "dessert",
+  };
+  const chocolatePizzaPrompt = buildDishImagePrompt(chocolatePizza);
+  assert.equal(classifyDishImageKind(chocolatePizza), "pizza");
+  assert.match(chocolatePizzaPrompt, /single pizza|visible crust|toppings/i);
+  assert.doesNotMatch(chocolatePizzaPrompt, /single beverage|appropriate cup|dessert photography/i);
+
+  const pommeauGlace = {
+    name_original: "POMMEAU GLACÉ",
+    name_translated: { zh: "苹果冰沙配卡尔瓦多斯" },
+    description: { zh: "苹果冰沙加入卡尔瓦多斯苹果酒，清爽微醺。" },
+    ingredients: ["Pommeau", "Calvados", "apple"],
+    category: "dessert",
+  };
+  const pommeauPrompt = buildDishImagePrompt(pommeauGlace);
+  assert.equal(classifyDishImageKind(pommeauGlace), "drink");
+  assert.match(pommeauPrompt, /single beverage|cup|glass|ice/i);
+  assert.doesNotMatch(pommeauPrompt, /single pizza|white ceramic plate/i);
 });
 
 test("dish insight fallback recommendations are specific to each dish", async () => {
   await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
-  const { getDishInsight } = await loadTsModule(
+  const { getDishInsight, isVegetarianDish } = await loadTsModule(
     `${ROOT}/src/lib/dish-presentation.ts`,
   );
 
@@ -574,6 +1491,55 @@ test("dish insight fallback recommendations are specific to each dish", async ()
     category: "seafood",
     image_source: "ai",
   }).summary;
+  const pizzaRecommendation = getDishInsight({
+    name_original: "LA DIAVOLA 16,00€",
+    name_translated: { zh: "恶魔披萨" },
+    description: { zh: "有机番茄酱、Fior di latte 马苏里拉奶酪和辣味萨拉米。" },
+    ingredients: ["番茄酱", "Fior di latte", "萨拉米"],
+    category: "pizza",
+    image_source: "ai",
+  }).recommendation;
+  const chocolatePizzaRecommendation = getDishInsight({
+    name_original: "LA PIZZA « CIOCCOLATO » 12,00€",
+    name_translated: { zh: "巧克力披萨" },
+    description: { zh: "甜味披萨，搭配有机榛子奶油、自制焦糖和切碎榛子。" },
+    ingredients: ["披萨面饼", "巧克力", "榛子"],
+    category: "dessert",
+    image_source: "ai",
+  }).recommendation;
+  const pommeauRecommendation = getDishInsight({
+    name_original: "POMMEAU GLACÉ 12,00€",
+    name_translated: { zh: "苹果冰沙配卡尔瓦多斯" },
+    description: { zh: "苹果冰沙加入卡尔瓦多斯苹果酒，清爽微醺。" },
+    ingredients: ["Pommeau", "Calvados", "苹果"],
+    category: "dessert",
+    image_source: "ai",
+  }).recommendation;
+  const tiramisuRecommendation = getDishInsight({
+    name_original: "TIRAMISU MAISON",
+    name_translated: { zh: "自制提拉米苏" },
+    description: { zh: "咖啡酒浸手指饼配马斯卡彭奶油，经典甜点。" },
+    ingredients: ["咖啡", "马斯卡彭", "手指饼"],
+    category: "dessert",
+    image_source: "ai",
+  }).recommendation;
+  const diavolaPizza = {
+    name_original: "LA DIAVOLA 16,00€",
+    name_translated: { zh: "恶魔披萨" },
+    description: { zh: "有机番茄酱、Fior di latte 马苏里拉奶酪和辣味萨拉米。" },
+    ingredients: ["番茄酱", "Fior di latte", "萨拉米"],
+    taste_profile: ["vegetarian"],
+    category: "main",
+    image_source: "ai",
+  };
+  const tunaPizza = {
+    name_original: "LA THON ET OIGNONS 19,50€",
+    name_translated: { zh: "金枪鱼洋葱披萨" },
+    description: { zh: "含金枪鱼腩、橄榄和红洋葱。" },
+    ingredients: ["金枪鱼", "橄榄", "洋葱"],
+    category: "main",
+    image_source: "ai",
+  };
 
   assert.equal(new Set(recommendations).size, dishes.length);
   assert.match(recommendations[0], /豆酱|酱香|斗仑/);
@@ -585,6 +1551,15 @@ test("dish insight fallback recommendations are specific to each dish", async ()
   assert.doesNotMatch(recommendations[5], /饮品|点一杯|补一杯|冷饮|热饮|餐后慢慢喝/);
   assert.match(staleDrinkSummary, /膏蟹|花雕|酒香/);
   assert.doesNotMatch(staleDrinkSummary, /饮品|冷饮|热饮/);
+  assert.match(pizzaRecommendation, /恶魔披萨|主食|披萨|口味|风味|菜/);
+  assert.doesNotMatch(pizzaRecommendation, /饮品|点一杯|补一杯|冷饮|热饮|单独喝|餐后慢慢喝/);
+  assert.match(chocolatePizzaRecommendation, /巧克力披萨|披萨|分享|主食|甜味/);
+  assert.doesNotMatch(chocolatePizzaRecommendation, /饮品|点一杯|补一杯|冷饮|热饮|单独喝|餐后慢慢喝/);
+  assert.match(pommeauRecommendation, /苹果冰沙配卡尔瓦多斯|饮品|佐餐|餐后|一杯|慢慢喝/);
+  assert.match(tiramisuRecommendation, /自制提拉米苏|甜点|餐后|甜度|分享/);
+  assert.doesNotMatch(tiramisuRecommendation, /饮品|点一杯|补一杯|冷饮|热饮|单独喝|餐后慢慢喝/);
+  assert.equal(isVegetarianDish(diavolaPizza), false);
+  assert.equal(isVegetarianDish(tunaPizza), false);
   assert.doesNotMatch(recommendations.join("\n"), /如果你想点一杯佐餐或餐后的饮品/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你想补一杯饮品|冷饮或热饮/);
   assert.doesNotMatch(recommendations.join("\n"), /如果你还有胃口，强烈推荐用这道甜品/);
@@ -593,6 +1568,8 @@ test("dish insight fallback recommendations are specific to each dish", async ()
 test("AI generated dish images are cached with deterministic keys before generating again", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
   const storage = await readFile(`${ROOT}/src/lib/storage/supabase-storage.ts`, "utf8");
+  const imageGen = await readFile(`${ROOT}/src/lib/ai/image-gen.ts`, "utf8");
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
   assert.match(route, /getCachedDishImageUrl/);
   assert.match(route, /getSupabaseAdminClient/);
   assert.match(route, /storageIdForGeneratedDishImage/);
@@ -607,9 +1584,52 @@ test("AI generated dish images are cached with deterministic keys before generat
   const uploadDishImageBody = storage.match(/export async function uploadDishImage[\s\S]*?\n}\n\nexport async function getCachedDishImageUrl/)?.[0] || "";
   assert.match(uploadDishImageBody, /const client = getSupabaseAdminClient\(\)/);
   assert.doesNotMatch(uploadDishImageBody, /getSupabaseAdminClient\(\) \|\| getSupabaseClient\(\)/);
-  assert.match(route, /if \(!publicUrl\) return/);
+  assert.match(route, /metadata\.image_generation_status = status/);
+  assert.match(route, /updateImageGenerationTask\("processing"\)/);
+  assert.match(route, /finalStatus = failures\.length === 0\s*\n\s*\? "done"/);
+  assert.match(route, /"failed" : "partial"/);
+  assert.match(route, /image_generation_progress/);
+  assert.match(route, /image_generation_failed/);
+  assert.match(route, /generationOrder/);
+  assert.doesNotMatch(route, /if \(!publicUrl\) return/);
   assert.doesNotMatch(route, /publicUrl \|\| tempUrl/);
   assert.doesNotMatch(route, /generateImagesForDishes\([\s\S]*,\s*1,\s*\)/);
+  assert.doesNotMatch(route, /dishesForGeneration[\s\S]*?\.slice\(/);
+  assert.match(imageGen, /await onImageReady/);
+  assert.match(imageGen, /onImageFailed/);
+  assert.match(imageGen, /retries = IMAGE_GENERATION_RETRIES/);
+  assert.match(imageGen, /idx >= queue\.length && running === 0\) resolve/);
+  assert.doesNotMatch(imageGen, /queue\.length >= idx && running === 0\) resolve/);
+  assert.match(appPage, /hasPendingImages/);
+  assert.match(appPage, /MAX_IDLE_POLLS/);
+  assert.doesNotMatch(appPage, /const MAX_POLLS = 20/);
+});
+
+test("AI image generation queue drains every dish after the first concurrent batch", async () => {
+  const previousProvider = process.env.IMAGE_PROVIDER;
+  process.env.IMAGE_PROVIDER = "pollinations";
+  try {
+    const { generateImagesForDishes } = await loadTsModule(`${ROOT}/src/lib/ai/image-gen.ts`);
+    const completed = [];
+    await generateImagesForDishes(
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `dish-${index + 1}`,
+        name_original: `Dish ${index + 1}`,
+        name_translated: { zh: `菜品 ${index + 1}` },
+        description: "测试菜品",
+      })),
+      async (index, url) => {
+        completed.push({ index, url });
+      },
+      2,
+    );
+
+    assert.deepEqual(completed.map((item) => item.index), [0, 1, 2, 3, 4]);
+    assert.equal(completed.every((item) => typeof item.url === "string" && item.url.length > 0), true);
+  } finally {
+    if (previousProvider === undefined) delete process.env.IMAGE_PROVIDER;
+    else process.env.IMAGE_PROVIDER = previousProvider;
+  }
 });
 
 test("stale local generated image URLs from the database are not reused as valid cached images", async () => {
@@ -749,6 +1769,54 @@ test("global menu sharing builds platform links without private WeChat deep link
   assert.equal(buildShareHref("copy", meta), null);
 });
 
+test("share metadata uses corrected source language for Italian pizzeria menus", async () => {
+  const { buildShareMenuMeta } = await loadTsModule(`${ROOT}/src/lib/share-menu.ts`);
+
+  const meta = buildShareMenuMeta({
+    task_id: "it-pizzeria",
+    status: "done",
+    pages: [
+      {
+        page_index: 0,
+        page_label: "Menu",
+        image_thumbnail: "",
+        dishes: [
+          {
+            id: "diavola",
+            name_original: "LA DIAVOLA 16,00€",
+            name_translated: { zh: "恶魔披萨" },
+            description: { zh: "辣味萨拉米披萨。" },
+            ingredients: ["Fior di latte", "salame piccante"],
+            allergens: [],
+            taste_profile: [],
+            image_source: "mixed",
+          },
+          {
+            id: "espresso",
+            name_original: "ESPRESSO 2,50€",
+            name_translated: { zh: "浓缩咖啡" },
+            description: {},
+            ingredients: [],
+            allergens: [],
+            taste_profile: [],
+            image_source: "mixed",
+          },
+        ],
+      },
+    ],
+    metadata: {
+      source_language: "fr",
+      target_language: "zh",
+      total_dishes: 2,
+      cached: false,
+      restaurant: { display_name: "Pecora Negra Pizzeria", restaurant_type: "Pizzeria", rating_estimate: 4.2 },
+    },
+  }, "https://dishlens.wukongmkt.com", "it-pizzeria");
+
+  assert.equal(meta.sourceTitle, "意大利语菜单");
+  assert.match(meta.text, /意大利语菜单/);
+});
+
 test("global share UI is wired through a reusable sheet and dynamic metadata", async () => {
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
   const sharedMenu = await readFile(`${ROOT}/src/components/share/SharedMenuPage.tsx`, "utf8");
@@ -853,4 +1921,271 @@ test("knowledge image downloader can materialize existing files without long net
   assert.match(script, /DOWNLOAD_LIMIT/);
   assert.match(script, /fileExists/);
   assert.match(script, /continue/);
+});
+
+test("ordering state supports quantity changes and unknown menu prices", async () => {
+  const {
+    changeOrderQuantity,
+    buildOrderItems,
+    summarizeOrder,
+  } = await loadTsModule(`${ROOT}/src/lib/order-state.ts`);
+
+  const result = {
+    task_id: "task-order",
+    status: "done",
+    pages: [{
+      page_index: 0,
+      page_label: "Menu",
+      image_thumbnail: "",
+      dishes: [
+        {
+          id: "escargots",
+          name_original: "ESCARGOTS DE BOURGOGNE",
+          name_translated: { zh: "勃艮第蜗牛" },
+          description: {},
+          ingredients: [],
+          allergens: [],
+          taste_profile: [],
+          image_source: "ai",
+          price_text: "14€",
+        },
+        {
+          id: "cheese",
+          name_original: "PLANCHE DE FROMAGES ITALIENS",
+          name_translated: { zh: "意大利奶酪拼盘" },
+          description: {},
+          ingredients: [],
+          allergens: [],
+          taste_profile: [],
+          image_source: "ai",
+        },
+      ],
+    }],
+    metadata: { source_language: "fr", target_language: "zh", total_dishes: 2, cached: false },
+  };
+
+  let quantities = {};
+  quantities = changeOrderQuantity(quantities, result.pages[0].dishes[0], 1);
+  quantities = changeOrderQuantity(quantities, result.pages[0].dishes[0], 1);
+  quantities = changeOrderQuantity(quantities, result.pages[0].dishes[1], 1);
+  quantities = changeOrderQuantity(quantities, result.pages[0].dishes[1], -1);
+
+  assert.deepEqual(quantities, { escargots: 2 });
+
+  const items = buildOrderItems(result, quantities);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].quantity, 2);
+  assert.equal(items[0].unitPrice?.amount, 14);
+
+  const summary = summarizeOrder(items);
+  assert.equal(summary.totalQuantity, 2);
+  assert.equal(summary.knownTotal, 28);
+  assert.equal(summary.hasUnknownPrices, false);
+
+  const withUnknown = buildOrderItems(result, { escargots: 1, cheese: 1 });
+  const unknownSummary = summarizeOrder(withUnknown);
+  assert.equal(unknownSummary.totalQuantity, 2);
+  assert.equal(unknownSummary.knownTotal, 14);
+  assert.equal(unknownSummary.hasUnknownPrices, true);
+});
+
+test("ordered visits persist locally and dishes can be marked reviewed", async () => {
+  const localStorage = await readFile(`${ROOT}/src/lib/local-storage.ts`, "utf8");
+  const types = await readFile(`${ROOT}/src/types/index.ts`, "utf8");
+
+  assert.match(types, /export interface OrderedVisit/);
+  assert.match(types, /export interface OrderedDishItem/);
+  assert.match(localStorage, /dishlens_ordered_visits/);
+  assert.match(localStorage, /export function getOrderedVisits/);
+  assert.match(localStorage, /export function addOrderedVisit/);
+  assert.match(localStorage, /export function markOrderedDishReviewed/);
+});
+
+test("ordered visits reuse the result-page restaurant name and cuisine illustration", async () => {
+  const { buildOrderedVisit } = await loadTsModule(`${ROOT}/src/lib/order-state.ts`);
+  const { getRestaurantDisplayMeta } = await loadTsModule(`${ROOT}/src/lib/restaurant-display.ts`);
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const historyPage = await readFile(`${ROOT}/src/components/history/HistoryPage.tsx`, "utf8");
+  const summaryCard = await readFile(`${ROOT}/src/components/results/SummaryInsightCard.tsx`, "utf8");
+  const orderedPage = await readFile(`${ROOT}/src/components/order/OrderedPage.tsx`, "utf8");
+  const orderedDetailPage = await readFile(`${ROOT}/src/components/order/OrderedDetailPage.tsx`, "utf8");
+
+  const baseResult = {
+    task_id: "ordered-restaurant",
+    status: "done",
+    pages: [],
+    metadata: {
+      source_language: "fr",
+      target_language: "zh",
+      total_dishes: 0,
+      cached: false,
+    },
+  };
+  const fallbackVisit = buildOrderedVisit(baseResult, [], [], "zh");
+  assert.equal(fallbackVisit.restaurant_name, "巴黎小馆 Le Petit Bistro");
+  assert.equal(fallbackVisit.city, "巴黎");
+  assert.equal(fallbackVisit.country, "法国");
+
+  const englishFallbackVisit = buildOrderedVisit(baseResult, [], [], "en");
+  assert.equal(englishFallbackVisit.restaurant_name, "Le Petit Bistro");
+
+  const namedVisit = buildOrderedVisit({
+    ...baseResult,
+    metadata: {
+      ...baseResult.metadata,
+      restaurant: { display_name: "Le Petit Bistro", restaurant_type: "餐厅", rating_estimate: 4.2 },
+    },
+  }, [], [], "zh");
+  assert.equal(namedVisit.restaurant_name, "巴黎小馆 Le Petit Bistro");
+  assert.equal(namedVisit.city, "巴黎");
+
+  const pizzeriaZh = getRestaurantDisplayMeta(
+    "it",
+    "zh",
+    { display_name: "Pecora Negra Pizzeria", restaurant_type: "Pizzeria", rating_estimate: 4.2 },
+  );
+  assert.equal(pizzeriaZh.display_name, "罗马小馆 Pecora Negra Pizzeria");
+
+  const pizzeriaEn = getRestaurantDisplayMeta(
+    "it",
+    "en",
+    { display_name: "Pecora Negra Pizzeria", restaurant_type: "Pizzeria", rating_estimate: 4.2 },
+  );
+  assert.equal(pizzeriaEn.display_name, "Pecora Negra Pizzeria");
+
+  assert.match(appPage, /getRestaurantDisplayMeta/);
+  assert.doesNotMatch(appPage, /\$\{sourceLanguageName\(result\.metadata\.source_language\)\}菜单/);
+  assert.doesNotMatch(appPage, /翻译 #\$\{newResult\.task_id\.slice\(0, 6\)\}/);
+  assert.match(historyPage, /getRestaurantDisplayMeta/);
+  assert.match(historyPage, /isLegacyName/);
+  assert.match(summaryCard, /getRestaurantDisplayMeta/);
+  assert.doesNotMatch(summaryCard, /restaurant \|\|/);
+  assert.match(orderedPage, /getRestaurantDisplayMeta/);
+  assert.match(orderedPage, /CuisineIllustration/);
+  assert.match(orderedPage, /isLegacyMenuName/);
+  assert.match(orderedDetailPage, /getRestaurantDisplayMeta/);
+  assert.match(orderedDetailPage, /isLegacyMenuName/);
+  assert.doesNotMatch(orderedPage, /function FrenchIllustration/);
+  assert.doesNotMatch(orderedPage, /function JapaneseIllustration/);
+});
+
+test("ordering UI is added as minimal increments to existing H5 screens", async () => {
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const dishDetailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+
+  assert.match(appPage, /orderConfirm/);
+  assert.match(appPage, /orderedDetail/);
+  assert.match(appPage, /getOrderedVisits as getStoredOrderedVisits/);
+  assert.match(homePage, /navOrdered/);
+  assert.match(homePage, /screen:\s*"ordered"/);
+  assert.match(resultsPage, /OrderQuantityControl/);
+  assert.doesNotMatch(resultsPage, /几道菜品/);
+  assert.match(dishDetailPage, /OrderSummaryDock/);
+  assert.match(dishDetailPage, /paddingBottom:\s*onOrderQuantityChange/);
+  assert.doesNotMatch(dishDetailPage, /confidenceLabel/);
+  assert.doesNotMatch(dishDetailPage, /AI 推荐参考/);
+  const orderSummaryDock = await readFile(`${ROOT}/src/components/order/OrderSummaryDock.tsx`, "utf8");
+  assert.match(orderSummaryDock, /background:\s*"rgba\(255,250,242,0\.96\)"/);
+  assert.match(orderSummaryDock, /已选 · \$\{totalLabel\}/);
+  assert.match(orderSummaryDock, /aria-label="当前菜品数量"/);
+  assert.match(orderSummaryDock, /aria-label="查看点单"/);
+  assert.match(orderSummaryDock, /import OrderQuantityControl/);
+  assert.match(orderSummaryDock, /<OrderQuantityControl/);
+  assert.match(orderSummaryDock, /expanded/);
+  assert.doesNotMatch(orderSummaryDock, /hasCurrentDish \? "查看点单" : "选择这道菜"/);
+  assert.doesNotMatch(orderSummaryDock, /hasCurrentDish \? `已选 · \$\{totalLabel\}` : "加入点单"/);
+  assert.doesNotMatch(orderSummaryDock, /if \(hasAnyOrder\) \{/);
+  assert.match(orderSummaryDock, /borderRadius:\s*999/);
+  assert.match(orderSummaryDock, /width:\s*24/);
+  assert.doesNotMatch(orderSummaryDock, /height:\s*44/);
+  assert.doesNotMatch(orderSummaryDock, /background:\s*"var\(--primary\)"/);
+  assert.doesNotMatch(orderSummaryDock, /选择这道菜后，可给店员核对/);
+  assert.doesNotMatch(orderSummaryDock, /先选一份/);
+  assert.doesNotMatch(orderSummaryDock, /这道菜/);
+  assert.doesNotMatch(orderSummaryDock, /加入这道菜/);
+});
+
+test("primary mobile H5 actions keep thumb-friendly hit targets", async () => {
+  const quantityControl = await readFile(`${ROOT}/src/components/order/OrderQuantityControl.tsx`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+  const summaryDock = await readFile(`${ROOT}/src/components/order/OrderSummaryDock.tsx`, "utf8");
+  const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
+  const settingsPage = await readFile(`${ROOT}/src/components/settings/SettingsPage.tsx`, "utf8");
+  const cameraPage = await readFile(`${ROOT}/src/components/camera/CameraPage.tsx`, "utf8");
+
+  assert.match(quantityControl, /const addSize = compact \? 44 : 46/);
+  assert.match(quantityControl, /minHeight: 44/);
+  assert.doesNotMatch(quantityControl, /group-hover:inline-flex/);
+  assert.match(resultsPage, /const orderControlOffset = onOrderQuantityChange \? 58 : 0/);
+  assert.match(resultsPage, /minHeight: 44/);
+  assert.match(detailPage, /minWidth: 44/);
+  assert.match(detailPage, /minHeight: 44/);
+  assert.match(summaryDock, /env\(safe-area-inset-bottom\)/);
+  assert.match(homePage, /minHeight: 44/);
+  assert.match(settingsPage, /width: 48/);
+  assert.match(settingsPage, /height: 44/);
+  assert.match(cameraPage, /minWidth: 68/);
+});
+
+test("results dish cards preserve the production information hierarchy when ordering is added", async () => {
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+
+  assert.match(resultsPage, /<button[\s\S]*onClick=\{\(\) => onDishDetail\(dish\)\}/);
+  assert.match(resultsPage, /const orderControlOffset = onOrderQuantityChange \? 58 : 0/);
+  assert.match(resultsPage, /\{insight\.recommendation\}/);
+  assert.doesNotMatch(resultsPage, /const pd = parseDishPrice\(dish\); return pd \? `\$\{pd\.amount\}\$\{pd\.currency\}` : "";/);
+  assert.doesNotMatch(resultsPage, /fontSize:\s*14,\s*fontWeight:\s*800/);
+});
+
+test("dish prices are displayed beside translated names instead of only inside original names", async () => {
+  const { getDishPriceDisplay, stripPriceFromOriginalName } = await loadTsModule(
+    `${ROOT}/src/lib/dish-price-display.ts`,
+  );
+  const display = await readFile(`${ROOT}/src/lib/dish-price-display.ts`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+
+  assert.match(display, /export function getDishPriceDisplay/);
+  assert.match(display, /export function stripPriceFromOriginalName/);
+  assert.match(resultsPage, /getDishPriceDisplay/);
+  assert.match(resultsPage, /stripPriceFromOriginalName\(dishText\.originalName\)/);
+  assert.match(resultsPage, /dishPriceLabel/);
+  assert.match(detailPage, /getDishPriceDisplay/);
+  assert.match(detailPage, /stripPriceFromOriginalName\(dishText\.originalName\)/);
+  assert.match(detailPage, /dishPriceLabel/);
+  assert.equal(
+    getDishPriceDisplay({
+      id: "pizza-marinara",
+      name_original: "LA MARINARA 11,50€",
+      name_translated: { zh: "玛琳娜披萨" },
+      description: {},
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+      image_source: "ai",
+    }),
+    "11,50€",
+  );
+  assert.equal(stripPriceFromOriginalName("LA MARINARA 11,50€"), "LA MARINARA");
+});
+
+test("waiter order confirmation shows dish images and separates translated notes", async () => {
+  const orderConfirmPage = await readFile(`${ROOT}/src/components/order/OrderConfirmPage.tsx`, "utf8");
+
+  assert.match(orderConfirmPage, /import DishImageWithLoading/);
+  assert.match(orderConfirmPage, /<DishImageWithLoading/);
+  assert.match(orderConfirmPage, /order-confirm-thumb/);
+  assert.match(orderConfirmPage, /gridTemplateColumns:\s*"42px minmax\(0, 1fr\) 34px auto"/);
+  assert.match(orderConfirmPage, /previewDish/);
+  assert.match(orderConfirmPage, /setPreviewDish\(item\.dish\)/);
+  assert.match(orderConfirmPage, /aria-label=\{`查看 \$\{item\.dish\.name_translated\?\.zh \|\| item\.dish\.name_original\} 大图`\}/);
+  assert.match(orderConfirmPage, /\{item\.quantity\}份/);
+  assert.doesNotMatch(orderConfirmPage, /left:\s*3,\s*bottom:\s*3/);
+  assert.match(orderConfirmPage, /selectedNotes\.map\(\(note\)/);
+  assert.match(orderConfirmPage, /note\.original/);
+  assert.match(orderConfirmPage, /note\.zh/);
+  assert.doesNotMatch(orderConfirmPage, /selectedNotes\.map\(\(note\) => `\$\{note\.original\} · \$\{note\.zh\}`\)\.join/);
 });

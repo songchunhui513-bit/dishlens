@@ -55,6 +55,13 @@ const LOCAL_IMAGE_OVERRIDES: Array<{
     hero: "/dishes/pizza-quattro-stagioni.png",
     names: ["Pizza Quattro Stagioni", "La Jardin", "花园披萨"],
   },
+  {
+    patterns: ["la pizza cioccolato", "pizza cioccolato", "pizza chocolate", "chocolate pizza", "巧克力披萨", "甜味披萨"],
+    id: "pizza-margherita",
+    card: "/dishes/pizza-margherita.png",
+    hero: "/dishes/pizza-margherita.png",
+    names: ["Pizza al Cioccolato", "La Pizza Cioccolato", "巧克力披萨"],
+  },
 ];
 
 const DIRECT_ALIASES: Array<{ patterns: string[]; id: string }> = [
@@ -78,7 +85,7 @@ const DIRECT_ALIASES: Array<{ patterns: string[]; id: string }> = [
   { patterns: ["cannoli", "奶油卷"], id: "cannoli-siciliani" },
   { patterns: ["gelato", "意式冰淇淋"], id: "gelato-italiano" },
   { patterns: ["focaccia", "佛卡夏"], id: "focaccia-italiana" },
-  { patterns: ["paneer tikka", "paneer wrap", "paneer meal", "芝士块"], id: "paneer-tikka" },
+  { patterns: ["paneer tikka", "芝士块"], id: "paneer-tikka" },
 ];
 
 const STOPWORDS = new Set([
@@ -127,6 +134,10 @@ function textForDish(dish: DishLike): string {
   ].join(" ");
 }
 
+function isComboMealText(text: string): boolean {
+  return /\b(?:meal|combo|set|menu deal|value meal|box meal|with fries|with drink|fries and drink|chips and drink)\b|套餐|组合餐|套饭|配薯条|配饮料|含饮品|含薯条/.test(text);
+}
+
 function scoreEntry(queryText: string, queryTokens: string[], entry: DishKnowledgeEntry): number {
   const entryNames = entry.names.map(normalizeDishText);
   const normalizedQuery = normalizeDishText(queryText);
@@ -151,6 +162,8 @@ function scoreEntry(queryText: string, queryTokens: string[], entry: DishKnowled
 export function matchDishKnowledgeImage(dish: DishLike): DishImageMatch | null {
   const queryText = textForDish(dish);
   const normalizedQuery = normalizeDishText(queryText);
+
+  if (isComboMealText(normalizedQuery)) return null;
 
   for (const override of LOCAL_IMAGE_OVERRIDES) {
     if (override.patterns.some((pattern) => normalizedQuery.includes(normalizeDishText(pattern)))) {

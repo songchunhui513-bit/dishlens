@@ -189,6 +189,7 @@ export default function SettingsPage({ onBack, settings, onChange }: SettingsPag
           </SettingRow>
         </div>
 
+
         {/* Group 3: About */}
         <div style={{ marginBottom: 20 }}>
           <div className="uppercase" style={{ fontFamily: "var(--font-body)", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "var(--muted)", marginBottom: 8, paddingLeft: 2 }}>
@@ -253,12 +254,14 @@ function Toggle({ active, onToggle, onLabel = "开启", offLabel = "关闭" }: {
   return (
     <button
       onClick={() => onToggle(!active)}
-      className="relative flex-shrink-0 transition-colors duration-200"
+      className="flex flex-shrink-0 items-center justify-center transition-opacity duration-200 active:scale-95"
       style={{
-        width: 40,
-        height: 24,
-        borderRadius: 12,
-        background: active ? "var(--primary)" : "var(--rule)",
+        width: 48,
+        height: 44,
+        minWidth: 48,
+        minHeight: 44,
+        borderRadius: 22,
+        background: "transparent",
         border: "none",
         cursor: "pointer",
         padding: 0,
@@ -266,18 +269,27 @@ function Toggle({ active, onToggle, onLabel = "开启", offLabel = "关闭" }: {
       }}
       aria-label={active ? onLabel : offLabel}
     >
-      <div
-        className="absolute rounded-full transition-transform duration-200"
+      <span
+        className="relative block rounded-full transition-colors duration-200"
         style={{
-          width: 20,
-          height: 20,
-          top: 2,
-          left: 2,
-          background: "#FFF",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-          transform: active ? "translateX(16px)" : "translateX(0)",
+          width: 40,
+          height: 24,
+          background: active ? "var(--primary)" : "var(--rule)",
         }}
-      />
+      >
+        <span
+          className="absolute rounded-full transition-transform duration-200"
+          style={{
+            width: 20,
+            height: 20,
+            top: 2,
+            left: 2,
+            background: "#FFF",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            transform: active ? "translateX(16px)" : "translateX(0)",
+          }}
+        />
+      </span>
     </button>
   );
 }

@@ -1,15 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, type ChangeEvent } from "react";
+import { useRef, type ChangeEvent, type ReactNode } from "react";
 import type { CapturedPhoto } from "@/types";
-
-interface RecentItem {
-  id: string;
-  zh: string;
-  en: string;
-  img: string;
-}
+import type { RestaurantSource } from "@/lib/location-recommendation";
+import RegionLandmarkIcon from "@/components/shared/RegionLandmarkIcon";
+import { getDefaultRecentMenuRecords, type RecentMenuRecord } from "@/lib/recent-menu-records";
 
 interface DailyDishData {
   id: string;
@@ -31,18 +27,14 @@ interface HomePageProps {
   onAlbumAnalyze?: (photos: CapturedPhoto[]) => void;
   onDailyDishDetail?: () => void;
   onRecentClick?: (id: string) => void;
-  recentHistory?: RecentItem[];
+  recentHistory?: RecentMenuRecord[];
   dailyDish?: DailyDishData;
   recommendationContext?: string;
   recommendationReason?: string;
+  restaurantSource?: RestaurantSource | null;
   uiLang?: "zh" | "en";
 }
 
-const defaultRecent: RecentItem[] = [
-  { id: "", zh: "马赛鱼汤", en: "Bouillabaisse", img: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=120&h=120&fit=crop&auto=format" },
-  { id: "", zh: "油封鸭腿", en: "Confit de Canard", img: "https://images.unsplash.com/photo-1544025162-d76694265947?w=120&h=120&fit=crop&auto=format" },
-  { id: "", zh: "焦糖苹果挞", en: "Tarte Tatin", img: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=120&h=120&fit=crop&auto=format" },
-];
 const fallbackRecentImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
 
 const CUISINE_LABELS: Record<string, string> = {
@@ -91,7 +83,9 @@ const homeCopy = {
     emptySubtitle: "拍下第一张菜单，开启你的美食之旅",
     navHistory: "历史",
     navFavorites: "收藏",
+    navOrdered: "点过",
     navSettings: "设置",
+    restaurantFallback: "附近小馆",
   },
   en: {
     recommendationContextFallback: "Recommended for now",
@@ -109,7 +103,9 @@ const homeCopy = {
     emptySubtitle: "Take your first menu photo to start exploring.",
     navHistory: "History",
     navFavorites: "Favorites",
+    navOrdered: "Ordered",
     navSettings: "Settings",
+    restaurantFallback: "Nearby restaurant",
   },
 };
 
@@ -123,11 +119,12 @@ export default function HomePage({
   dailyDish,
   recommendationContext,
   recommendationReason,
+  restaurantSource,
   uiLang = "zh",
 }: HomePageProps) {
   const albumInputRef = useRef<HTMLInputElement>(null);
   const copy = homeCopy[uiLang === "en" ? "en" : "zh"];
-  const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : defaultRecent;
+  const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : getDefaultRecentMenuRecords();
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
 
@@ -257,35 +254,34 @@ export default function HomePage({
           style={{
             background: "var(--card)",
             borderRadius: "var(--radius-xl)",
-            padding: 16,
+            padding: "18px 18px 18px 20px",
             boxShadow: "var(--shadow-lg)",
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: "minmax(0,1fr) 112px",
             alignItems: "center",
-            gap: 16,
+            gap: 14,
             animation: "fadeSlideUp 0.4s ease-out",
             cursor: onDailyDishDetail ? "pointer" : "default",
+            minHeight: 150,
           }}
         >
-          <div
-            className="absolute z-[1]"
-            style={{
-              top: 10,
-              left: 12,
-              fontFamily: "var(--font-ui)",
-              fontSize: 7,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#FFF",
-              background: "var(--accent)",
-              padding: "3px 10px",
-              borderRadius: 12,
-              animation: "gentleGlow 3s infinite",
-            }}
-          >
-            {copy.todayPick}
-          </div>
-          <div style={{ flex: 1, paddingTop: 18 }}>
+          <div style={{ minWidth: 0 }}>
+            <div
+              className="inline-flex items-center"
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 7,
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                color: "#FFF",
+                background: "var(--accent)",
+                padding: "4px 10px",
+                borderRadius: 14,
+                marginBottom: 8,
+              }}
+            >
+              {copy.todayPick}
+            </div>
             <div
               style={{
                 fontFamily: "var(--font-body)",
@@ -294,11 +290,46 @@ export default function HomePage({
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 color: "var(--primary)",
-                marginBottom: 4,
+                marginBottom: restaurantSource ? 8 : 4,
               }}
             >
-                {formatCuisine(dailyDish?.cuisine || "french", uiLang) || copy.cuisineFallback} · {formatCategory(dailyDish?.category, uiLang) || copy.categoryFallback}
+              {formatCuisine(dailyDish?.cuisine || "french", uiLang) || copy.cuisineFallback} · {formatCategory(dailyDish?.category, uiLang) || copy.categoryFallback}
             </div>
+            {restaurantSource ? (
+              <div
+                className="flex items-center"
+                style={{
+                  gap: 7,
+                  marginBottom: 8,
+                  color: "var(--ink-soft)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  minWidth: 0,
+                }}
+              >
+                <RestaurantIcon />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                  {restaurantSource.localizedName || restaurantSource.name || copy.restaurantFallback}
+                </span>
+                {restaurantSource.distanceLabel ? (
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      padding: "2px 7px",
+                      borderRadius: 12,
+                      background: "rgba(76,175,80,0.10)",
+                      color: "var(--primary)",
+                      fontFamily: "var(--font-ui)",
+                      fontSize: 7,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {restaurantSource.distanceLabel}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <h2
               style={{
                 fontFamily: "var(--font-display)",
@@ -307,7 +338,7 @@ export default function HomePage({
                 color: "var(--ink)",
                 letterSpacing: "-0.01em",
                 marginBottom: 4,
-                lineHeight: 1.2,
+                lineHeight: 1.18,
               }}
             >
               {dailyDish?.name_en || "Boeuf Bourguignon"}
@@ -332,14 +363,14 @@ export default function HomePage({
           </div>
           <div
             className="relative flex-shrink-0 overflow-hidden"
-            style={{ width: 100, height: 100, borderRadius: "var(--radius-lg)" }}
+            style={{ width: 112, height: 112, borderRadius: "var(--radius-lg)", justifySelf: "end" }}
           >
             <Image
               src={dailyDish?.image_url || "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=200&h=200&fit=crop&auto=format"}
               alt={dailyDish?.name_en || "Boeuf"}
               fill
               loading="eager"
-              sizes="100px"
+              sizes="112px"
               style={{ objectFit: "cover" }}
             />
           </div>
@@ -417,7 +448,7 @@ export default function HomePage({
           <span
             onClick={() => onNavigate?.("history")}
             style={{
-              fontFamily: "var(--font-body)",
+              fontFamily: "var(--font-ui)",
               fontSize: 9,
               fontWeight: 600,
               color: "var(--primary)",
@@ -458,57 +489,62 @@ export default function HomePage({
           </p>
         </div>
       ) : (
-        <div
-          className="flex gap-2.5 overflow-x-auto flex-shrink-0"
-          style={{ padding: "4px 20px 10px", scrollbarWidth: "none" }}
-        >
-          {recentItems.map((item, i) => (
-            <div
-              key={i}
-              className="flex-shrink-0 flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-200"
+        <div className="flex flex-col gap-2 flex-shrink-0" style={{ padding: "4px 20px 10px" }}>
+          {recentItems.slice(0, 3).map((item, i) => (
+            <button
+              key={`${item.id || item.restaurantName}-${i}`}
+              className="w-full text-left transition-all duration-150 active:scale-[0.99]"
+              onClick={() => item.id && onRecentClick?.(item.id)}
               style={{
-                width: 88,
-                textAlign: "center",
-                animation: "popIn 0.3s ease-out",
+                display: "grid",
+                gridTemplateColumns: i === 0 ? "54px minmax(0,1fr)" : "42px minmax(0,1fr)",
+                gap: i === 0 ? 12 : 10,
+                alignItems: "center",
+                padding: i === 0 ? "12px 13px" : "10px 12px",
+                borderRadius: i === 0 ? 24 : 20,
+                border: "1px solid rgba(232,213,192,0.78)",
+                background: i === 0 ? "rgba(254,230,203,0.64)" : "rgba(255,240,221,0.55)",
+                boxShadow: i === 0 ? "0 6px 22px rgba(0,0,0,0.035)" : "none",
+                cursor: item.id ? "pointer" : "default",
               }}
-              onClick={() => onRecentClick?.(item.id)}
             >
-              <div
-                className="relative overflow-hidden"
-                style={{ width: 68, height: 68, borderRadius: "var(--radius)" }}
-              >
-                <Image
-                  src={item.img || fallbackRecentImage}
-                  alt={item.zh}
-                  fill
-                  loading={i === 0 ? "eager" : "lazy"}
-                  sizes="60px"
-                  style={{ objectFit: "cover" }}
-                />
+              <RegionLandmarkIcon landmarkKey={item.landmarkKey} size={i === 0 ? 52 : 40} />
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: i === 0 ? 13.5 : 11.5,
+                    fontWeight: 800,
+                    color: "var(--ink)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    lineHeight: 1.25,
+                    marginBottom: 5,
+                  }}
+                >
+                  {item.restaurantName}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <RecentPill>{item.sourceLabel} → {item.targetLabel}</RecentPill>
+                  <span style={{ font: "700 8px var(--font-ui)", color: "var(--muted)" }}>
+                    {item.dishCount} 道菜 · {item.timeLabel}
+                  </span>
+                </div>
+                {i === 0 ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, minWidth: 0 }}>
+                    {item.thumbnails.slice(0, 3).map((src, index) => (
+                      <span key={`${src}-${index}`} className="relative overflow-hidden" style={{ width: 26, height: 26, borderRadius: 9, border: "1px solid rgba(255,255,255,0.65)", flexShrink: 0 }}>
+                        <Image src={src || fallbackRecentImage} alt="" fill loading="lazy" sizes="26px" style={{ objectFit: "cover" }} />
+                      </span>
+                    ))}
+                    <span style={{ font: "650 8px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.summary}
+                    </span>
+                  </div>
+                ) : null}
               </div>
-              <span
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: 9,
-                  fontWeight: 600,
-                  color: "var(--ink)",
-                  letterSpacing: "0.02em",
-                  lineHeight: 1.3,
-                }}
-              >
-                {item.zh}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--font-ui)",
-                  fontSize: 7,
-                  fontWeight: 500,
-                  color: "var(--muted)",
-                }}
-              >
-                {item.en}
-              </span>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -553,6 +589,17 @@ export default function HomePage({
             ),
           },
           {
+            label: copy.navOrdered,
+            screen: "ordered",
+            icon: (
+              <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+                <path d="M7 8h10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path d="M7 12h7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path d="M5 4h14a2 2 0 0 1 2 2v13l-4-2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ),
+          },
+          {
             label: copy.navSettings,
             screen: "settings",
             icon: (
@@ -568,6 +615,8 @@ export default function HomePage({
             onClick={() => onNavigate?.(screen)}
             className="flex flex-col items-center gap-0.5 transition-all duration-150"
             style={{
+              minWidth: 56,
+              minHeight: 44,
               fontFamily: "var(--font-body)",
               fontSize: 8,
               fontWeight: 500,
@@ -575,7 +624,7 @@ export default function HomePage({
               background: "none",
               border: "none",
               cursor: "pointer",
-              padding: "2px 8px",
+              padding: "5px 8px",
             }}
           >
             {icon}
@@ -625,6 +674,53 @@ function Pill({ type, children }: { type: "green" | "orange" | "warm"; children:
       }}
     >
       {children}
+    </span>
+  );
+}
+
+function RecentPill({ children }: { children: ReactNode }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 18,
+        padding: "0 7px",
+        borderRadius: 999,
+        background: "rgba(76,175,80,0.10)",
+        color: "var(--primary)",
+        fontFamily: "var(--font-ui)",
+        fontSize: 7,
+        fontWeight: 800,
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function RestaurantIcon() {
+  return (
+    <span
+      className="inline-flex items-center justify-center"
+      aria-hidden="true"
+      style={{
+        width: 18,
+        height: 18,
+        flex: "0 0 18px",
+        borderRadius: 7,
+        background: "rgba(255,159,28,0.10)",
+        color: "var(--accent)",
+      }}
+    >
+      <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round" }}>
+        <path d="M5 11.5h14l-1 7H6l-1-7Z" />
+        <path d="M7 11.5V8.8C7 6.7 9.2 5 12 5s5 1.7 5 3.8v2.7" />
+        <path d="M9 15h.1M12 15h.1M15 15h.1" />
+        <path d="M4 19h16" />
+      </svg>
     </span>
   );
 }

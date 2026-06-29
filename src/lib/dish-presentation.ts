@@ -44,6 +44,11 @@ const imageRules: DishImageRule[] = [
     hero: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?w=600&h=400&fit=crop&auto=format",
   },
   {
+    patterns: ["cheese", "fromage", "formaggi", "fromaggio", "queso", "奶酪", "芝士", "干酪", "burrata", "mozzarella", "gorgonzola", "parmigiano", "pecorino", "ricotta", "taleggio", "brie", "camembert", "charcuterie", "冷切", "火腿拼盘", "奶酪拼盘", "芝士拼盘"],
+    card: "https://images.unsplash.com/photo-1452195100486-aece4e191ee1?w=136&h=136&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1452195100486-aece4e191ee1?w=600&h=400&fit=crop&auto=format",
+  },
+  {
     patterns: ["mozzarella", "奶酪棒", "芝士棒", "cheese stick"],
     card: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=136&h=136&fit=crop&auto=format",
     hero: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=600&h=400&fit=crop&auto=format",
@@ -134,7 +139,7 @@ const imageRules: DishImageRule[] = [
     hero: "https://images.unsplash.com/photo-1594144355189-40b46e72efd8?w=600&h=400&fit=crop&auto=format",
   },
   {
-    patterns: ["酒", "alcohol", "liquor", "spirit", "drink", "beverage"],
+    patterns: ["威士忌", "白兰地", "伏特加", "金酒", "朗姆酒", "龙舌兰", "alcohol", "liquor", "spirit", "spirits", "bartender"],
     card: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=136&h=136&fit=crop&auto=format",
     hero: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&h=400&fit=crop&auto=format",
   },
@@ -186,6 +191,7 @@ export function getDishText(dish: Dish, preferredLang = "zh"): DishText {
     description,
     dish.category || "",
     dish.cuisine_region || "",
+    ...(dish.included_items || []),
     ...(dish.ingredients || []),
     ...(dish.taste_profile || []),
   ]
@@ -195,12 +201,71 @@ export function getDishText(dish: Dish, preferredLang = "zh"): DishText {
   return { originalName, translatedName, description, searchText };
 }
 
+function cleanIncludedItem(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/[。,.，、;；]+$/g, "")
+    .trim();
+}
+
+function compactComboMainName(value: string): string {
+  return cleanIncludedItem(
+    value
+      .replace(/(?:套餐|组合餐|套饭|定食|餐盒|meal|combo|set|menu deal|value meal|box meal)$/gi, "")
+      .trim()
+  );
+}
+
+export function getDishIncludedItems(dish: Dish, preferredLang = "zh"): string[] {
+  const explicit = (dish as Dish & { included_items?: string[] }).included_items || [];
+  const fromExplicit = explicit
+    .map(cleanIncludedItem)
+    .filter(Boolean);
+  if (fromExplicit.length > 0) return Array.from(new Set(fromExplicit)).slice(0, 6);
+
+  const dishText = getDishText(dish, preferredLang);
+  const text = [
+    dishText.translatedName,
+    dishText.description,
+    dish.name_original || "",
+    ...(dish.ingredients || []),
+  ].join(" ").toLowerCase();
+  if (!/\b(?:meal|combo|set|menu deal|value meal|box meal|with fries|with drink|fries and drink|chips and drink)\b|套餐|组合餐|套饭|配薯条|配饮料|含饮品|含薯条/.test(text)) {
+    return [];
+  }
+
+  const items: string[] = [];
+  const push = (item: string) => {
+    const cleaned = cleanIncludedItem(item);
+    if (cleaned && !items.includes(cleaned)) items.push(cleaned);
+  };
+
+  const compactName = compactComboMainName(dishText.translatedName || dish.name_original || "");
+  if (compactName && compactName !== dishText.translatedName) {
+    push(compactName);
+  } else if (/wrap|卷饼/.test(text)) {
+    push(/paneer|奶酪|芝士/.test(text) ? "奶酪卷" : "卷饼");
+  } else if (/burger|hamburger|汉堡/.test(text)) {
+    push(/paneer|奶酪|芝士/.test(text) ? "奶酪汉堡" : "汉堡");
+  } else if (/paneer|奶酪|芝士/.test(text)) {
+    push("奶酪主食");
+  }
+
+  if (/fries|chips|薯条/.test(text)) push("薯条");
+  if (/cola|coke|可乐/.test(text)) push("可乐");
+  if (/drink|beverage|soft drink|饮品|饮料/.test(text) && !items.some((item) => /可乐|饮品/.test(item))) push("饮品");
+  if (/sauce|酱/.test(text)) push("酱料");
+
+  return items.slice(0, 6);
+}
+
 function getDishIdentityText(dish: Dish): string {
   return [
     dish.name_original || "",
     localizedValue(dish.name_translated),
     dish.category || "",
     dish.cuisine_region || "",
+    ...(dish.included_items || []),
     ...(dish.ingredients || []),
   ]
     .join(" ")
@@ -233,6 +298,7 @@ export function getDishImageUrl(dish: Dish, size: "card" | "hero" = "card"): str
 export function isDishImagePending(dish: Dish): boolean {
   const localImage = matchLocalImage(dish);
   if (localImage) return false;
+  if (dish.image_status === "failed") return false;
 
   const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;
   if (!existingImage) return true;
@@ -247,10 +313,13 @@ function matchLocalImage(dish: Dish): { card: string; hero: string } | null {
 
 export function isVegetarianDish(dish: Dish): boolean {
   const ingredients = dish.ingredients || [];
+  const searchText = getDishText(dish).searchText;
+  const nonVegetarianPattern = /肉|鱼|鸡|牛|猪|羊|虾|蟹|贝|蛋|鳀鱼|金枪鱼|萨拉米|火腿|培根|香肠|腊肠|lamb|beef|pork|chicken|fish|tuna|anchovy|salami|ham|bacon|sausage|meat|seafood|egg/i;
+  if (nonVegetarianPattern.test([searchText, ...ingredients].join(" "))) return false;
   if ((dish.taste_profile || []).includes("vegetarian")) return true;
-  if (ingredients.length === 0) return /salad|沙拉|vegetable|蔬菜|mozzarella|奶酪/i.test(getDishText(dish).searchText);
+  if (ingredients.length === 0) return /salad|沙拉|vegetable|蔬菜|mozzarella|奶酪/i.test(searchText);
   return ingredients.every(
-    (ing) => !/肉|鱼|鸡|牛|猪|羊|虾|蟹|贝|蛋|lamb|beef|pork|chicken|fish|meat|seafood|egg/i.test(ing)
+    (ing) => !nonVegetarianPattern.test(ing)
   );
 }
 
@@ -277,6 +346,26 @@ function stripNonDrinkBeverageAdvice(value: string): string {
     .replace(/[，,；;]?\s*(?:适合|建议|可以)?(?:搭配|配)?(?:热饮或冷饮|冷饮或热饮|饮品|饮料)[^。；;]*[。；;]?/g, "")
     .replace(/[，,；;]\s*$/, "。")
     .trim();
+}
+
+function textWithoutCheeseLatte(text: string): string {
+  return text.replace(/fior\s+di\s+latte/g, " ").replace(/latte\s+mozzarella/g, " ");
+}
+
+function isPizzaText(text: string): boolean {
+  return /披萨|比萨|ピザ|\bpizza\b|pizzeria|margherita|marinara|diavola|genovese|napoletana/.test(text);
+}
+
+function hasExplicitDrinkTerm(text: string): boolean {
+  const drinkTerm =
+    /\b(?:coffee|espresso|expresso|cappuccino|americano|tea|matcha|chai|wine|beer|cocktail|mocktail|juice|smoothie|lemonade|aperitif|apéritif|digestif|pommeau|calvados|cidre|cider|liqueur|spritz)\b|咖啡|浓缩|卡布奇诺|拿铁|茶|抹茶|啤酒|鸡尾酒|果汁|冰沙|冰饮|饮品|饮料|葡萄酒|红酒|白酒|苹果酒|利口酒/.test(text);
+  const icedDrink =
+    /(?:glac[eé]|iced|冰沙|冰饮).{0,18}(?:pommeau|calvados|cidre|cider|wine|beer|cocktail|juice|smoothie|lemonade|tea|coffee|酒|果汁|茶|咖啡)|(?:pommeau|calvados|cidre|cider|wine|beer|cocktail|juice|smoothie|lemonade|tea|coffee|酒|果汁|茶|咖啡).{0,18}(?:glac[eé]|iced|冰沙|冰饮)/.test(text);
+  return drinkTerm || icedDrink;
+}
+
+function hasStrongDrinkTerm(text: string): boolean {
+  return /\b(?:wine|beer|cocktail|mocktail|juice|smoothie|lemonade|aperitif|apéritif|digestif|pommeau|calvados|cidre|cider|liqueur|spritz)\b|啤酒|鸡尾酒|果汁|冰沙|冰饮|饮品|饮料|葡萄酒|红酒|白酒|苹果酒|利口酒/.test(text);
 }
 
 type DishInsightFlags = {
@@ -317,6 +406,12 @@ function buildSpecificRecommendation(
     return `樱花虾负责提鲜，芹菜提供脆爽清口的口感，${translatedName}适合作为开胃凉菜。想吃轻盈但有鲜味的菜，这道更合适。`;
   }
 
+  if (isPizzaText(text)) {
+    return pickInsightLine(translatedName + description, [
+      `${translatedName}按披萨来点更稳，重点看饼底、酱料和配料组合。适合作为主食或多人分享，若是甜味披萨，可以放在餐后一起分着吃。`,
+      `${translatedName}是披萨路线，适合想要一份好分食、辨识度高的选择。点单时重点看口味是咸香还是甜味，再决定搭配主菜或甜点。`,
+    ]);
+  }
   if (flags.isDrink) {
     return pickInsightLine(translatedName + description, [
       `${translatedName}更适合用来佐餐或餐后慢慢喝，重点看香气、温度和甜度。想要轻松聊天时点一杯，会比再加主菜更舒服。`,
@@ -347,17 +442,21 @@ function buildSpecificRecommendation(
 
 export function getDishInsight(dish: Dish, preferredLang = "zh"): DishInsight {
   const { translatedName, description, searchText } = getDishText(dish, preferredLang);
+  const normalizedSearchText = textWithoutCheeseLatte(searchText);
   const isVeg = isVegetarianDish(dish);
-  const isFried = /fried|炸|煎|calamari|鱿鱼/.test(searchText);
-  const isDessert = /dessert|cake|sweet|甜品|甜点|蛋糕|挞|布丁|雪糕|冰淇淋|tiramisu|gelato|panna cotta|mousse/.test(searchText);
-  const isSeafood = /fish|seafood|salmon|sole|calamari|crab|shrimp|prawn|shellfish|clam|oyster|eel|conch|whelk|sea snail|snail|escargot|鱼|海鲜|鱿鱼|蟹|虾|贝|蚝|蛤|鲍|鳝|斗仑|斗仓|螺|花螺|海螺|响螺|田螺|蛏|扇贝/.test(searchText);
-  const isHearty = /beef|steak|chicken|pork|lamb|牛排|牛肉|鸡肉|猪|羊/.test(searchText);
-  const isSalad = /salad|沙拉|fresh|蔬菜/.test(searchText);
-  const hasDrinkTerm = /coffee|espresso|expresso|cappuccino|latte|americano|tea|matcha|chai|wine|beer|cocktail|juice|smoothie|lemonade|咖啡|浓缩|卡布奇诺|拿铁|茶|抹茶|酒|啤酒|鸡尾酒|果汁|冰沙/.test(searchText);
+  const isFried = /fried|炸|煎|calamari|鱿鱼/.test(normalizedSearchText);
+  const isPizza = isPizzaText(normalizedSearchText);
+  const isDessert = !isPizza && /dessert|cake|sweet|甜品|甜点|蛋糕|挞|布丁|雪糕|冰淇淋|tiramisu|gelato|panna cotta|mousse/.test(normalizedSearchText);
+  const isSeafood = /fish|seafood|salmon|sole|calamari|crab|shrimp|prawn|shellfish|clam|oyster|eel|conch|whelk|sea snail|snail|escargot|鱼|海鲜|鱿鱼|蟹|虾|贝|蚝|蛤|鲍|鳝|斗仑|斗仓|螺|花螺|海螺|响螺|田螺|蛏|扇贝/.test(normalizedSearchText);
+  const isHearty = /beef|steak|chicken|pork|lamb|牛排|牛肉|鸡肉|猪|羊/.test(normalizedSearchText);
+  const isSalad = /salad|沙拉|fresh|蔬菜/.test(normalizedSearchText);
+  const rawCategory = (dish.category || "").toLowerCase();
+  const hasDrinkTerm = rawCategory === "drink" || rawCategory === "beverage" || hasExplicitDrinkTerm(normalizedSearchText);
+  const drinkWinsOverDessert = rawCategory === "drink" || rawCategory === "beverage" || hasStrongDrinkTerm(normalizedSearchText);
   const alcoholCookedDish =
-    /(?:wine|beer|sake|shaoxing|huadiao|rice wine|red wine|white wine).{0,24}(?:sauce|stew|brais|cook|boil|simmer|steam|roast|grill)|(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒).{0,10}(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤)|(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤).{0,10}(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒)/.test(searchText) &&
-    /beef|chicken|duck|pork|lamb|fish|crab|shrimp|prawn|shellfish|conch|whelk|clam|oyster|snail|escargot|tofu|egg|noodle|rice|vegetable|mushroom|牛|鸡|鸭|猪|羊|肉|鱼|虾|蟹|贝|蚝|蛤|鲍|鳝|鱿|螺|花螺|海螺|蛏|扇贝|豆腐|蛋|面|粉|饭|菜|菇|茄子|排骨/.test(searchText);
-  const isDrink = hasDrinkTerm && !isSeafood && !isHearty && !isFried && !alcoholCookedDish;
+    /(?:wine|beer|sake|shaoxing|huadiao|rice wine|red wine|white wine).{0,24}(?:sauce|stew|brais|cook|boil|simmer|steam|roast|grill)|(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒).{0,10}(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤)|(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤).{0,10}(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒)/.test(normalizedSearchText) &&
+    /beef|chicken|duck|pork|lamb|fish|crab|shrimp|prawn|shellfish|conch|whelk|clam|oyster|snail|escargot|tofu|egg|noodle|rice|vegetable|mushroom|牛|鸡|鸭|猪|羊|肉|鱼|虾|蟹|贝|蚝|蛤|鲍|鳝|鱿|螺|花螺|海螺|蛏|扇贝|豆腐|蛋|面|粉|饭|菜|菇|茄子|排骨/.test(normalizedSearchText);
+  const isDrink = !isPizza && hasDrinkTerm && (!isDessert || drinkWinsOverDessert) && !isSeafood && !isHearty && !isFried && !alcoholCookedDish;
   const safeDescription = isDrink ? description : stripNonDrinkBeverageAdvice(description);
   const baseDescription = safeDescription || `${translatedName} 是一道适合作为菜单参考的菜品，重点看食材、烹饪方式和风味强度。`;
 
@@ -384,6 +483,7 @@ export function getDishInsight(dish: Dish, preferredLang = "zh"): DishInsight {
 
   let goodFor = "适合第一次看菜单时作为安全选择，也适合想尝试经典口味但不愿冒险的人。";
   if (isDrink) goodFor = "适合佐餐、餐后小憩或下午茶时段。也可以作为不喝酒的社交替代饮品。";
+  else if (isPizza) goodFor = "适合作为主食或多人分享，甜味披萨也可以放在餐后分食。建议结合配料判断甜咸和分量。";
   else if (isFried) goodFor = "适合作为开胃前菜或和朋友分食的小吃，也可以点几道不同的炸物拼盘尝鲜。";
   else if (isDessert) goodFor = "适合饭后与同伴分享甜蜜时刻，不建议当正餐单独点。搭配茶或咖啡体验更佳。";
   else if (isSeafood) goodFor = "适合作为桌上的海鲜主菜或下酒菜，建议趁热分享，搭配清爽蔬菜更平衡。";
@@ -392,6 +492,7 @@ export function getDishInsight(dish: Dish, preferredLang = "zh"): DishInsight {
 
   let caution = "如果你有食物过敏或特殊忌口，点单前建议向服务员确认酱汁和隐藏配料，有些菜可能含有坚果、乳制品或鱼类高汤。";
   if (isDrink) caution = "注意咖啡因含量，下午较晚时段建议选低咖啡因或花草茶。对乳糖不耐的人注意拿铁和卡布奇诺含牛奶。";
+  else if (isPizza) caution = "披萨通常含面筋和乳制品，甜味披萨还可能含坚果或巧克力。过敏或控糖时建议先确认配料。";
   else if (isFried) caution = "油炸菜热量较高，如果正在控制油脂摄入或不太能吃油腻食物，建议谨慎选择或和朋友分食。";
   else if (isSeafood) caution = "海鲜过敏者务必注意，这道菜可能含贝类、虾蟹或鱼类高汤。点单前一定要向餐厅确认具体食材和交叉污染风险。";
   else if (isDessert) caution = "甜品通常含较多糖分、乳制品和鸡蛋。如果你在控糖、有乳糖不耐或鸡蛋过敏，建议先确认成分。";

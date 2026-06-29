@@ -1,15 +1,17 @@
-import type { HistoryEntry, FavoriteDish, UserSettings } from "@/types";
+import type { HistoryEntry, FavoriteDish, OrderedVisit, UserSettings } from "@/types";
 import type { DishKnowledgeEntry } from "./dish-knowledge-types";
 
 const KEYS = {
   history: "dishlens_history",
   favorites: "dishlens_favorites",
+  orderedVisits: "dishlens_ordered_visits",
   settings: "dishlens_settings",
   dailyRec: (date: string) => `dishlens_daily_rec_${date}`,
   weather: (date: string) => `dishlens_weather_${date}`,
 } as const;
 
 const MAX_HISTORY = 50;
+const MAX_ORDERED_VISITS = 30;
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -147,6 +149,43 @@ export function removeFavorite(dishId: string): void {
 
 export function isFavorited(dishId: string): boolean {
   return getFavorites().some((f) => f.id === dishId);
+}
+
+// ── Ordered Visits ─────────────────────────────────────────────────
+
+export function getOrderedVisits(): OrderedVisit[] {
+  return read<OrderedVisit[]>(KEYS.orderedVisits, []);
+}
+
+export function addOrderedVisit(visit: OrderedVisit): void {
+  const visits = getOrderedVisits();
+  const idx = visits.findIndex((v) => v.id === visit.id);
+  if (idx >= 0) visits.splice(idx, 1);
+  visits.unshift(visit);
+  if (visits.length > MAX_ORDERED_VISITS) visits.length = MAX_ORDERED_VISITS;
+  write(KEYS.orderedVisits, visits);
+}
+
+export function updateOrderedVisit(visit: OrderedVisit): void {
+  const visits = getOrderedVisits();
+  const idx = visits.findIndex((v) => v.id === visit.id);
+  if (idx >= 0) {
+    visits[idx] = visit;
+  } else {
+    visits.unshift(visit);
+  }
+  if (visits.length > MAX_ORDERED_VISITS) visits.length = MAX_ORDERED_VISITS;
+  write(KEYS.orderedVisits, visits);
+}
+
+export function markOrderedDishReviewed(visitId: string, dishId: string): void {
+  const visits = getOrderedVisits();
+  const visit = visits.find((v) => v.id === visitId);
+  if (!visit) return;
+  visit.items = visit.items.map((item) => (
+    item.dish_id === dishId ? { ...item, reviewed: true } : item
+  ));
+  write(KEYS.orderedVisits, visits);
 }
 
 // ── Recommendation Cache ─────────────────────────────────────────

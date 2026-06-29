@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DishLens 微信群分享功能 - 3版设计方案</title>
+  <style>
+    :root {
+      --bg: #fff5e9;
+      --page: #f0ebe3;
+      --card: #fee6cb;
+      --card-alt: #fff0dd;
+      --ink: #2d2d2d;
+      --ink-soft: #4a4a4a;
+      --primary: #4caf50;
+      --primary-soft: #66bb6a;
+      --accent: #ff9f1c;
+      --muted: #8a8a8a;
+      --rule: #e8d5c0;
+      --shadow: 0 16px 40px rgba(45, 45, 45, 0.12);
+      --radius-sm: 12px;
+      --radius: 18px;
+      --radius-lg: 24px;
+      --font-display: Georgia, "Source Serif 4", serif;
+      --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+      --font-ui: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .stage {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 32px 24px 40px;
+    }
+
+    .board-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      color: var(--primary);
+      font: 800 12px/1 var(--font-ui);
+      letter-spacing: .08em;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font: 800 32px/1.15 var(--font-display);
+      letter-spacing: 0;
+    }
+
+    .brief {
+      margin: 8px 0 0;
+      max-width: 780px;
+      color: var(--ink-soft);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 245, 233, .72);
+      color: var(--ink-soft);
+      font: 700 12px/1 var(--font-ui);
+    }
+
+    .variants {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+      align-items: start;
+    }
+
+    .variant {
+      display: grid;
+      gap: 14px;
+    }
+
+    .variant-label {
+      min-height: 104px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding: 16px 16px 14px;
+      background: rgba(255, 245, 233, .82);
+    }
+
+    .variant-label h2 {
+      margin: 0 0 8px;
+      font: 800 20px/1.2 var(--font-display);
+    }
+
+    .variant-label p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(76, 175, 80, .1);
+      color: var(--primary);
+      font: 800 10px/1 var(--font-ui);
+    }
+
+    .phone {
+      width: min(100%, 390px);
+      aspect-ratio: 390 / 844;
+      margin: 0 auto;
+      border-radius: 34px;
+      padding: 10px;
+      background: #222;
+      box-shadow: var(--shadow);
+    }
+
+    .screen {
+      height: 100%;
+      overflow: hidden;
+      border-radius: 26px;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .status {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      font: 800 12px/1 var(--font-ui);
+      color: var(--ink);
+      background: rgba(255, 245, 233, .92);
+    }
+
+    .bars {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .75;
+    }
+
+    .topbar {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--rule);
+      background: rgba(255, 245, 233, .96);
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .title {
+      flex: 1;
+      min-width: 0;
+      font: 800 14px/1.2 var(--font-body);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .share-pill {
+      border: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(76, 175, 80, .12);
+      color: var(--primary);
+      font: 800 10px/1 var(--font-ui);
+    }
+
+    .content {
+      flex: 1;
+      overflow: hidden;
+      padding: 12px 16px 18px;
+    }
+
+    .notice {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(76, 175, 80, .22);
+      border-radius: var(--radius-sm);
+      background: rgba(76, 175, 80, .08);
+      color: var(--primary);
+      font: 800 10px/1.45 var(--font-ui);
+    }
+
+    .dish {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 12px;
+      width: 100%;
+      border: 0;
+      text-align: left;
+      padding: 13px;
+      margin-bottom: 10px;
+      border-radius: var(--radius-lg);
+      background: var(--card);
+      box-shadow: 0 2px 14px rgba(45,45,45,.045);
+    }
+
+    .dish.compact {
+      grid-template-columns: 66px 1fr auto;
+      align-items: center;
+      padding: 12px;
+      border-radius: 20px;
+    }
+
+    .dish img {
+      width: 78px;
+      height: 78px;
+      border-radius: 18px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .dish.compact img {
+      width: 66px;
+      height: 66px;
+      border-radius: 16px;
+    }
+
+    .idx {
+      color: var(--primary);
+      font: 900 10px/1 var(--font-ui);
+      letter-spacing: .04em;
+      margin-bottom: 4px;
+    }
+
+    .dish-name {
+      font: 800 17px/1.22 var(--font-display);
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .dish-origin {
+      color: var(--muted);
+      font: italic 10px/1.2 var(--font-body);
+      margin-bottom: 5px;
+    }
+
+    .dish-desc {
+      color: var(--ink-soft);
+      font-size: 10px;
+      line-height: 1.45;
+      margin-bottom: 5px;
+    }
+
+    .dish-rec {
+      color: var(--primary);
+      font: 800 10px/1.45 var(--font-ui);
+    }
+
+    .mini-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(45,45,45,.06);
+      color: var(--muted);
+      font: 800 9px/1 var(--font-ui);
+      margin-top: 6px;
+    }
+
+    .hero-share {
+      padding: 16px;
+      border-radius: var(--radius-lg);
+      background: var(--card);
+      margin-bottom: 12px;
+    }
+
+    .hero-share h3 {
+      margin: 0 0 6px;
+      font: 800 20px/1.2 var(--font-display);
+    }
+
+    .hero-share p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .people {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .avatar {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid rgba(76, 175, 80, .25);
+      color: var(--primary);
+      font: 900 10px/1 var(--font-ui);
+    }
+
+    .segment {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: rgba(255,255,255,.25);
+      margin-bottom: 12px;
+    }
+
+    .segment span {
+      text-align: center;
+      padding: 7px 0;
+      border-radius: 999px;
+      color: var(--muted);
+      font: 800 10px/1 var(--font-ui);
+    }
+
+    .segment span.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .want {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(76, 175, 80, .12);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font: 900 11px/1 var(--font-ui);
+    }
+
+    .summary-band {
+      border: 1px solid rgba(76, 175, 80, .22);
+      background: rgba(76, 175, 80, .08);
+      border-radius: 20px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .metric {
+      border-radius: 14px;
+      background: rgba(255,255,255,.35);
+      padding: 9px 6px;
+      text-align: center;
+    }
+
+    .metric strong {
+      display: block;
+      color: var(--ink);
+      font: 900 18px/1 var(--font-display);
+    }
+
+    .metric span {
+      color: var(--muted);
+      font: 800 8px/1.2 var(--font-ui);
+    }
+
+    .decision-card {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 10px;
+      align-items: center;
+      border-radius: 18px;
+      background: var(--card);
+      padding: 10px;
+      margin-bottom: 9px;
+    }
+
+    .decision-card img {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      object-fit: cover;
+    }
+
+    .rank {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font: 900 10px/1 var(--font-ui);
+      margin-right: 5px;
+    }
+
+    .bottom-action {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      height: 46px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--primary);
+      color: white;
+      font: 900 13px/1 var(--font-ui);
+      box-shadow: 0 8px 18px rgba(76, 175, 80, .22);
+    }
+
+    .qr {
+      width: 74px;
+      height: 74px;
+      border-radius: 12px;
+      background:
+        linear-gradient(90deg, var(--ink) 8px, transparent 8px) 8px 8px / 18px 18px,
+        linear-gradient(var(--ink) 8px, transparent 8px) 8px 8px / 18px 18px,
+        var(--bg);
+      border: 8px solid var(--bg);
+      box-shadow: inset 0 0 0 1px var(--rule);
+    }
+
+    .wechat-card {
+      margin: 12px 0;
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      background: rgba(255,255,255,.38);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr 58px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .wechat-card strong {
+      display: block;
+      font: 900 13px/1.25 var(--font-body);
+      margin-bottom: 4px;
+    }
+
+    .wechat-card span {
+      display: block;
+      color: var(--muted);
+      font: 700 9px/1.4 var(--font-ui);
+    }
+
+    @media (max-width: 1180px) {
+      .variants { grid-template-columns: 1fr; }
+      .variant { grid-template-columns: 280px 1fr; align-items: start; }
+      .phone { width: 390px; }
+    }
+
+    @media (max-width: 760px) {
+      .stage { padding: 18px 12px 28px; }
+      .board-header { grid-template-columns: 1fr; }
+      .variant { grid-template-columns: 1fr; }
+      .phone { width: min(100%, 390px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="board-header">
+      <div>
+        <div class="eyebrow">DISHLENS · WECHAT GROUP SHARE</div>
+        <h1>微信群分享功能 · 3 版设计稿</h1>
+        <p class="brief">目标是在用户扫完菜单后，把翻译好的菜单发到微信群。群友无需登录，可以快速看列表、进入详情，并在更强版本里参与“想吃”和点菜决策。</p>
+      </div>
+      <div class="legend">建议优先评审方案 B</div>
+    </header>
+
+    <section class="variants">
+      <article class="variant">
+        <div class="variant-label">
+          <h2>A · 轻量分享版</h2>
+          <p>延续现有流程，只强化分享入口、微信卡片和只读菜单页。最快落地，最少打扰。</p>
+          <div class="tag-row"><span class="tag">最快</span><span class="tag">低风险</span><span class="tag">只读</span></div>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>4:03</span><div class="bars"><span class="dot"></span><span class="dot"></span><span>5G</span></div></div>
+            <div class="topbar">
+              <button class="icon-btn">←</button>
+              <div class="title">法语菜单</div>
+              <button class="share-pill">↗ 分享</button>
+            </div>
+            <div class="content">
+              <div class="notice">菜单链接已生成，可直接转发到微信群</div>
+              <div class="wechat-card">
+                <div><strong>DishLens 已翻译这份菜单</strong><span>共 18 道菜 · 可查看图片、点单建议和详情</span></div>
+                <img src="/dishes/pizza-margherita.png" alt="" style="width:58px;height:58px;border-radius:12px;object-fit:cover;">
+              </div>
+              <button class="dish">
+                <img src="/dishes/moules-mariniere-hero.jpg" alt="">
+                <div>
+                  <div class="idx">01</div>
+                  <div class="dish-name">白酒淡菜</div>
+                  <div class="dish-origin">MOULES MARINIERE</div>
+                  <div class="dish-desc">淡菜用白酒、黄油和香草烹煮，汤汁鲜香。</div>
+                  <div class="dish-rec">适合喜欢海鲜鲜味的人，建议配面包蘸汤汁。</div>
+                </div>
+              </button>
+              <button class="dish">
+                <img src="/dishes/pizza-diavola.png" alt="">
+                <div>
+                  <div class="idx">02</div>
+                  <div class="dish-name">辣味萨拉米披萨</div>
+                  <div class="dish-origin">LA DIAVOLA</div>
+                  <div class="dish-desc">番茄、奶酪和辣味萨拉米，风味直接。</div>
+                  <div class="dish-rec">想点一份不出错的主食，这道适合分享。</div>
+                </div>
+              </button>
+              <button class="dish">
+                <img src="/dishes/tarte-tatin.jpg" alt="">
+                <div>
+                  <div class="idx">03</div>
+                  <div class="dish-name">焦糖苹果塔</div>
+                  <div class="dish-origin">TARTE TATIN</div>
+                  <div class="dish-desc">苹果与焦糖烘烤，酸甜浓郁。</div>
+                  <div class="dish-rec">适合餐后两人分食，配咖啡更平衡。</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant">
+        <div class="variant-label">
+          <h2>B · 微信群共看版</h2>
+          <p>把分享页升级成“大家一起看菜单”。保留列表和详情，增加轻量“想吃”反馈。</p>
+          <div class="tag-row"><span class="tag">推荐</span><span class="tag">共看</span><span class="tag">想吃</span></div>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>4:03</span><div class="bars"><span class="dot"></span><span class="dot"></span><span>5G</span></div></div>
+            <div class="topbar">
+              <button class="icon-btn">×</button>
+              <div class="title">这桌菜单</div>
+              <button class="share-pill">↗ 发群</button>
+            </div>
+            <div class="content">
+              <section class="hero-share">
+                <h3>一起看看点什么</h3>
+                <p>已翻译 18 道菜。群友可以看详情，也可以轻点“想吃”给发起人参考。</p>
+                <div class="people"><span class="avatar">你</span><span class="avatar">林</span><span class="avatar">周</span><span class="avatar">+4</span><span style="color:var(--muted);font:800 10px/1 var(--font-ui)">7 人已打开</span></div>
+              </section>
+              <div class="segment"><span class="active">推荐</span><span>海鲜</span><span>甜点</span></div>
+              <button class="dish compact">
+                <img src="/dishes/crabe-avocat.png" alt="">
+                <div>
+                  <div class="idx">03 · 6 人想吃</div>
+                  <div class="dish-name">花雕焗膏蟹</div>
+                  <div class="dish-desc">酒香和蟹黄都很浓，适合多人分享。</div>
+                  <span class="mini-chip">适合分享</span>
+                </div>
+                <div class="want">想吃</div>
+              </button>
+              <button class="dish compact">
+                <img src="/dishes/salad-nicoise-hero.jpg" alt="">
+                <div>
+                  <div class="idx">06 · 3 人想吃</div>
+                  <div class="dish-name">橄榄油炒杂菜</div>
+                  <div class="dish-desc">清爽蔬菜，适合平衡整桌油腻感。</div>
+                  <span class="mini-chip">清爽</span>
+                </div>
+                <div class="want">想吃</div>
+              </button>
+              <button class="dish compact">
+                <img src="/dishes/pasta-al-pesto.png" alt="">
+                <div>
+                  <div class="idx">09 · 4 人想吃</div>
+                  <div class="dish-name">青酱意面</div>
+                  <div class="dish-desc">罗勒香气明显，适合当主食分享。</div>
+                  <span class="mini-chip">主食</span>
+                </div>
+                <div class="want">想吃</div>
+              </button>
+              <button class="bottom-action">转发到微信群</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant">
+        <div class="variant-label">
+          <h2>C · 餐桌决策版</h2>
+          <p>面向多人聚餐，把分享菜单变成点菜决策工具：投票、汇总、二维码和推荐清单。</p>
+          <div class="tag-row"><span class="tag">最完整</span><span class="tag">投票</span><span class="tag">决策</span></div>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>4:03</span><div class="bars"><span class="dot"></span><span class="dot"></span><span>5G</span></div></div>
+            <div class="topbar">
+              <button class="icon-btn">←</button>
+              <div class="title">今晚点菜建议</div>
+              <button class="share-pill">二维码</button>
+            </div>
+            <div class="content" style="padding-bottom:74px">
+              <section class="summary-band">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                  <div>
+                    <div style="font:900 18px/1.2 var(--font-display);margin-bottom:5px">这桌建议点 6 道</div>
+                    <div style="color:var(--ink-soft);font-size:10px;line-height:1.45">按人数、想吃票数和口味平衡生成。</div>
+                  </div>
+                  <div class="qr"></div>
+                </div>
+                <div class="summary-grid">
+                  <div class="metric"><strong>9</strong><span>人参与</span></div>
+                  <div class="metric"><strong>18</strong><span>道菜</span></div>
+                  <div class="metric"><strong>6</strong><span>建议点</span></div>
+                </div>
+              </section>
+              <div class="decision-card">
+                <img src="/dishes/moules-mariniere.jpg" alt="">
+                <div>
+                  <div class="dish-name" style="font-size:15px"><span class="rank">1</span>白酒淡菜</div>
+                  <div class="dish-desc">8 票 · 海鲜主菜 · 适合分享</div>
+                  <div class="dish-rec">鲜味强，建议保留。</div>
+                </div>
+              </div>
+              <div class="decision-card">
+                <img src="/dishes/pizza-quattro-formaggi.png" alt="">
+                <div>
+                  <div class="dish-name" style="font-size:15px"><span class="rank">2</span>四奶酪披萨</div>
+                  <div class="dish-desc">6 票 · 主食 · 儿童友好</div>
+                  <div class="dish-rec">可作为桌上主食。</div>
+                </div>
+              </div>
+              <div class="decision-card">
+                <img src="/dishes/tarte-au-citron.jpg" alt="">
+                <div>
+                  <div class="dish-name" style="font-size:15px"><span class="rank">3</span>柠檬塔</div>
+                  <div class="dish-desc">5 票 · 甜点 · 餐后分享</div>
+                  <div class="dish-rec">酸甜清爽，适合收尾。</div>
+                </div>
+              </div>
+              <div class="notice" style="margin-top:12px">过敏提醒：2 道含贝类，3 道含乳制品。</div>
+              <button class="bottom-action">生成点菜清单</button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import type { Dish, TranslationResult } from "@/types";
+import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
 
 export type ShareTargetId =
   | "native"
@@ -81,7 +82,7 @@ export function buildShareMenuMeta(
   const allDishes = (result.pages || []).flatMap((page) => page.dishes || []);
   const dishCount = result.metadata?.total_dishes || allDishes.length;
   const previewDishes = allDishes.slice(0, 3).map(getDishShareName).filter(Boolean);
-  const currentSourceTitle = sourceTitle(result.metadata?.source_language);
+  const currentSourceTitle = sourceTitle(resolveMenuSourceLanguage(result) || result.metadata?.source_language);
   const safeTaskId = encodeURIComponent(taskId || result.task_id || "");
   const url = `${normalizeOrigin(origin)}/share/${safeTaskId}`;
   const previewText = previewDishes.length ? `：${previewDishes.join("、")}` : "";

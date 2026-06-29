@@ -10,7 +10,12 @@ export interface TaskState {
   estimatedRemaining?: number;
 }
 
+interface TaskStoreOptions {
+  allowMemoryFallback?: boolean;
+}
+
 let _db: SupabaseClient | null = null;
+const memoryTasks = new Map<string, TaskState>();
 
 function db(): SupabaseClient {
   if (_db) return _db;
@@ -23,7 +28,8 @@ function db(): SupabaseClient {
 
 export async function createTask(
   id: string,
-  total: number
+  total: number,
+  options: TaskStoreOptions = {}
 ): Promise<TaskState> {
   const task: TaskState = {
     status: "processing",
@@ -34,7 +40,7 @@ export async function createTask(
     })),
   };
 
-  await db().from("tasks").insert({
+  const { error } = await db().from("tasks").insert({
     id,
     status: task.status,
     progress: task.progress,
@@ -42,12 +48,27 @@ export async function createTask(
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
   });
 
+  if (error) {
+    if (options.allowMemoryFallback) {
+      console.warn("Task store unavailable; using local memory fallback", {
+        taskId: id,
+        error: error.message,
+      });
+      memoryTasks.set(id, task);
+      return task;
+    }
+    throw new Error(`Task store unavailable: ${error.message}`);
+  }
+
   return task;
 }
 
 export async function getTask(
   id: string
 ): Promise<TaskState | undefined> {
+  const memoryTask = memoryTasks.get(id);
+  if (memoryTask) return memoryTask;
+
   const { data, error } = await db()
     .from("tasks")
     .select("*")
@@ -73,7 +94,19 @@ export async function updateTask(
   const existing = await getTask(id);
   if (!existing) return;
 
-  const merged = { ...existing, ...updates };
+  const merged: TaskState = {
+    status: updates.status || existing.status,
+    progress: updates.progress || existing.progress,
+    perPageStatus: updates.perPageStatus || existing.perPageStatus,
+    result: updates.result || existing.result,
+    failedPages: updates.failedPages || existing.failedPages,
+    estimatedRemaining: updates.estimatedRemaining ?? existing.estimatedRemaining,
+  };
+
+  if (memoryTasks.has(id)) {
+    memoryTasks.set(id, merged);
+    return;
+  }
 
   const row: Record<string, unknown> = {
     status: merged.status,
@@ -88,5 +121,6 @@ export async function updateTask(
 }
 
 export async function deleteTask(id: string): Promise<void> {
+  memoryTasks.delete(id);
   await db().from("tasks").delete().eq("id", id);
 }

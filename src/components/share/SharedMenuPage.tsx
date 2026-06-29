@@ -6,6 +6,7 @@ import DishImageWithLoading from "@/components/shared/DishImageWithLoading";
 import { getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
 import ShareSheet from "@/components/share/ShareSheet";
 import { buildShareMenuMeta, sourceTitle } from "@/lib/share-menu";
+import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
 
 type SharedMenuPageProps = {
   result: TranslationResult;
@@ -28,7 +29,7 @@ export default function SharedMenuPage({ result }: SharedMenuPageProps) {
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const allDishes = useMemo(() => result.pages.flatMap((page) => page.dishes || []), [result.pages]);
-  const sourceLang = result.metadata?.source_language || "";
+  const sourceLang = resolveMenuSourceLanguage(result) || result.metadata?.source_language || "";
   const currentOrigin = typeof window === "undefined" ? undefined : window.location.origin;
   const shareMeta = useMemo(() => buildShareMenuMeta(result, currentOrigin, result.task_id), [currentOrigin, result]);
 

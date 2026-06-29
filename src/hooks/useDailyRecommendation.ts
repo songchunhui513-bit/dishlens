@@ -5,9 +5,11 @@ import { getDailyRecommendation, type RecommendationContext } from "@/lib/recomm
 import { getWeather, getPosition, getCountryCode } from "@/lib/weather";
 import { getCachedRecommendation, setCachedRecommendation } from "@/lib/local-storage";
 import type { DishKnowledgeEntry } from "@/lib/dish-knowledge-types";
+import type { RestaurantSource } from "@/lib/location-recommendation";
 
 export function useDailyRecommendation(uiLang: "zh" | "en" = "zh") {
   const [dish, setDish] = useState<DishKnowledgeEntry | null>(null);
+  const [restaurant, setRestaurant] = useState<RestaurantSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [contextLabel, setContextLabel] = useState(() => uiLang === "en" ? "Recommended for now" : "按当前时段推荐");
   const [reason, setReason] = useState(() => uiLang === "en" ? "Picking a good dish for today..." : "正在为你挑选今日好菜…");
@@ -15,40 +17,41 @@ export function useDailyRecommendation(uiLang: "zh" | "en" = "zh") {
   useEffect(() => {
     let cancelled = false;
 
-    setContextLabel(uiLang === "en" ? "Recommended for now" : "按当前时段推荐");
-    setReason(uiLang === "en" ? "Picking a good dish for today..." : "正在为你挑选今日好菜…");
-
     async function load() {
+      if (!cancelled) {
+        setContextLabel(uiLang === "en" ? "Recommended for now" : "按当前时段推荐");
+        setReason(uiLang === "en" ? "Picking a good dish for today..." : "正在为你挑选今日好菜…");
+      }
+
       const now = new Date();
       const dateStr = now.toISOString().slice(0, 10);
 
-      // Check localStorage cache
+      // Use the cached dish immediately, but still refresh nearby restaurant context.
       const cached = getCachedRecommendation(dateStr);
-      if (cached) {
-        if (!cancelled) {
-          setDish(cached);
-          setLoading(false);
-        }
-        return;
-      }
+      if (cached && !cancelled) setDish(cached);
 
       // Gather context — all optional, graceful degradation
       let temperature: number | undefined;
       let country: string | undefined;
       let placeLabel = "";
+      let nearbyRestaurant: RestaurantSource | null = null;
 
       try {
-        const pos = await getPosition();
+        const demoMode = isLocationRecommendationDemo();
+        const browserPosition = await getPosition().catch(() => null);
+        const pos = browserPosition || (demoMode ? { lat: 48.8566, lon: 2.3522 } : null);
         if (pos && !cancelled) {
           const [weather, countryCode] = await Promise.all([
             getWeather(pos.lat, pos.lon),
             getCountryCode(pos.lat, pos.lon),
           ]);
           if (weather) temperature = weather.temperature;
-          if (countryCode) {
-            country = countryCode.toUpperCase();
+          const resolvedCountry = countryCode || (demoMode ? "FR" : "");
+          if (resolvedCountry) {
+            country = resolvedCountry.toUpperCase();
             placeLabel = country;
           }
+          nearbyRestaurant = await fetchNearbyRestaurant(pos.lat, pos.lon, country, uiLang);
         }
       } catch {
         // Silently degrade
@@ -64,15 +67,16 @@ export function useDailyRecommendation(uiLang: "zh" | "en" = "zh") {
         country,
       };
 
-      const recommended = await getDailyRecommendation(ctx);
-      setCachedRecommendation(dateStr, recommended);
+      const recommended = cached || await getDailyRecommendation(ctx);
+      if (!cached) setCachedRecommendation(dateStr, recommended);
 
       if (!cancelled) {
         setDish(recommended);
+        setRestaurant(nearbyRestaurant);
         const timeLabel = getTimeLabel(now.getHours(), uiLang);
         const weatherLabel = temperature == null ? (uiLang === "en" ? "Unknown weather" : "天气未知") : `${temperature}°C`;
         setContextLabel(`${timeLabel} · ${weatherLabel}${placeLabel ? ` · ${placeLabel}` : ""}`);
-        setReason(buildReason(recommended, temperature, now.getHours(), uiLang));
+        setReason(buildReason(recommended, temperature, now.getHours(), uiLang, nearbyRestaurant));
         setLoading(false);
       }
     }
@@ -81,7 +85,7 @@ export function useDailyRecommendation(uiLang: "zh" | "en" = "zh") {
     return () => { cancelled = true; };
   }, [uiLang]);
 
-  return { dish, loading, contextLabel, reason };
+  return { dish, restaurant, loading, contextLabel, reason };
 }
 
 function getTimeLabel(hour: number, uiLang: "zh" | "en"): string {
@@ -97,7 +101,38 @@ function getTimeLabel(hour: number, uiLang: "zh" | "en"): string {
   return "晚餐";
 }
 
-function buildReason(dish: DishKnowledgeEntry, temperature: number | undefined, hour: number, uiLang: "zh" | "en"): string {
+async function fetchNearbyRestaurant(lat: number, lon: number, country: string | undefined, uiLang: "zh" | "en"): Promise<RestaurantSource | null> {
+  try {
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lon: String(lon),
+      locale: uiLang,
+    });
+    if (country) params.set("country", country);
+    if (isLocationRecommendationDemo()) {
+      params.set("demo", "1");
+    }
+    const res = await fetch(`/api/v1/recommendations/location?${params.toString()}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.restaurant || null;
+  } catch {
+    return null;
+  }
+}
+
+function isLocationRecommendationDemo(): boolean {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("location-rec-demo") === "1";
+}
+
+function buildReason(dish: DishKnowledgeEntry, temperature: number | undefined, hour: number, uiLang: "zh" | "en", restaurant?: RestaurantSource | null): string {
+  if (restaurant) {
+    const distance = restaurant.distanceLabel ? `${restaurant.distanceLabel} · ` : "";
+    if (uiLang === "en") {
+      return `${distance}${restaurant.name} is nearby and well suited for this moment, so DishLens picked a dish that fits its style.`;
+    }
+    return `${distance}${restaurant.name}离你比较近，也适合现在用餐，优先推荐这家店里更值得尝试的一道菜。`;
+  }
   if (uiLang === "en") {
     const enName = dish.names.find((name) => !/[一-鿿]/.test(name)) || dish.names[0] || "this dish";
     if (temperature != null && temperature < 10) {

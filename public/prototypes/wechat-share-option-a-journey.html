@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DishLens 方案一 - 微信分享完整旅程原型</title>
+  <style>
+    :root {
+      --bg: #fff5e9;
+      --page: #f0ebe3;
+      --card: #fee6cb;
+      --card-alt: #fff0dd;
+      --ink: #2d2d2d;
+      --ink-soft: #4a4a4a;
+      --primary: #4caf50;
+      --primary-soft: #66bb6a;
+      --accent: #ff9f1c;
+      --muted: #8a8a8a;
+      --rule: #e8d5c0;
+      --wechat: #07c160;
+      --danger: #d84d3d;
+      --shadow: 0 18px 48px rgba(45, 45, 45, 0.16);
+      --font-display: Georgia, "Source Serif 4", serif;
+      --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+      --font-ui: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(255, 159, 28, .14), transparent 28%),
+        radial-gradient(circle at 82% 22%, rgba(76, 175, 80, .12), transparent 24%),
+        var(--page);
+      color: var(--ink);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .stage {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) minmax(390px, 1fr);
+      gap: 32px;
+      align-items: center;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 34px 24px;
+    }
+
+    .notes {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .eyebrow {
+      color: var(--primary);
+      font: 900 12px/1 var(--font-ui);
+      letter-spacing: .08em;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font: 900 34px/1.12 var(--font-display);
+      letter-spacing: 0;
+    }
+
+    .lead {
+      color: var(--ink-soft);
+      margin: 0 0 22px;
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .journey {
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid rgba(232, 213, 192, .85);
+      border-radius: 16px;
+      background: rgba(255, 245, 233, .62);
+      color: var(--ink-soft);
+      transition: transform .22s ease, border-color .22s ease, background .22s ease;
+    }
+
+    .step.is-active {
+      transform: translateX(4px);
+      border-color: rgba(76, 175, 80, .42);
+      background: rgba(76, 175, 80, .08);
+      color: var(--ink);
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--card);
+      color: var(--primary);
+      font: 900 12px/1 var(--font-ui);
+    }
+
+    .step.is-active .step-num {
+      background: var(--primary);
+      color: #fff;
+      animation: breathe 1.8s ease-in-out infinite;
+    }
+
+    .step strong {
+      display: block;
+      font: 900 13px/1.15 var(--font-body);
+      margin-bottom: 3px;
+    }
+
+    .step span {
+      display: block;
+      color: var(--muted);
+      font: 700 11px/1.35 var(--font-ui);
+    }
+
+    .canvas {
+      display: grid;
+      place-items: center;
+      min-height: 860px;
+      position: relative;
+    }
+
+    .phone {
+      width: min(100%, 400px);
+      aspect-ratio: 400 / 866;
+      border-radius: 38px;
+      padding: 10px;
+      background: #202020;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .screen {
+      height: 100%;
+      border-radius: 29px;
+      overflow: hidden;
+      background: var(--bg);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: rgba(255, 245, 233, .96);
+      font: 900 12px/1 var(--font-ui);
+    }
+
+    .signal {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .bar {
+      width: 4px;
+      border-radius: 2px;
+      background: var(--ink);
+    }
+
+    .bar:nth-child(1) { height: 6px; opacity: .45; }
+    .bar:nth-child(2) { height: 9px; opacity: .62; }
+    .bar:nth-child(3) { height: 12px; opacity: .82; }
+    .bar:nth-child(4) { height: 15px; }
+
+    .page {
+      position: absolute;
+      inset: 30px 0 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      opacity: 0;
+      transform: translateX(16px);
+      pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease;
+    }
+
+    .page.is-active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .topbar {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--rule);
+      background: rgba(255, 245, 233, .96);
+      flex: 0 0 auto;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      transition: background .18s ease, transform .18s ease;
+    }
+
+    .icon-btn:active, .share-pill:active, .primary-btn:active, .dish-card:active {
+      transform: scale(.97);
+    }
+
+    .top-title {
+      flex: 1;
+      min-width: 0;
+      font: 900 15px/1.2 var(--font-body);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lang-pill,
+    .share-pill {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: rgba(76, 175, 80, .12);
+      color: var(--primary);
+      font: 900 10px/1 var(--font-ui);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .content {
+      flex: 1;
+      overflow: hidden;
+      padding: 12px 16px 18px;
+      position: relative;
+    }
+
+    .result-hero {
+      border-radius: 24px;
+      background:
+        linear-gradient(145deg, rgba(255, 159, 28, .16), rgba(76, 175, 80, .08)),
+        var(--card);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .result-hero h2 {
+      margin: 0 0 6px;
+      font: 900 24px/1.12 var(--font-display);
+    }
+
+    .result-hero p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .hero-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .primary-btn,
+    .secondary-btn {
+      border: 0;
+      height: 42px;
+      border-radius: 999px;
+      font: 900 12px/1 var(--font-ui);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .primary-btn {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(76, 175, 80, .24);
+    }
+
+    .secondary-btn {
+      background: rgba(45,45,45,.06);
+      color: var(--ink-soft);
+    }
+
+    .dish-card {
+      width: 100%;
+      border: 0;
+      text-align: left;
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 12px;
+      padding: 13px;
+      margin-bottom: 10px;
+      border-radius: 24px;
+      background: var(--card);
+      box-shadow: 0 2px 14px rgba(45,45,45,.045);
+      animation: rise .42s ease both;
+    }
+
+    .dish-card:nth-child(2) { animation-delay: .05s; }
+    .dish-card:nth-child(3) { animation-delay: .1s; }
+    .dish-card:nth-child(4) { animation-delay: .15s; }
+
+    .dish-card img {
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
+      object-fit: cover;
+      background: var(--card-alt);
+    }
+
+    .idx {
+      color: var(--primary);
+      font: 900 10px/1 var(--font-ui);
+      letter-spacing: .04em;
+      margin-bottom: 4px;
+    }
+
+    .dish-name {
+      font: 900 17px/1.18 var(--font-display);
+      margin-bottom: 2px;
+    }
+
+    .origin {
+      color: var(--muted);
+      font: italic 10px/1.2 var(--font-body);
+      margin-bottom: 5px;
+    }
+
+    .desc {
+      color: var(--ink-soft);
+      font-size: 10px;
+      line-height: 1.42;
+      margin-bottom: 5px;
+    }
+
+    .rec {
+      color: var(--primary);
+      font: 900 10px/1.45 var(--font-ui);
+    }
+
+    .sheet-scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.34);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .24s ease;
+      z-index: 20;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 16px 16px 18px;
+      border-radius: 28px 28px 0 0;
+      background: rgba(255, 245, 233, .98);
+      transform: translateY(110%);
+      transition: transform .32s cubic-bezier(.2,.8,.2,1);
+      z-index: 21;
+      box-shadow: 0 -14px 32px rgba(45,45,45,.14);
+    }
+
+    .screen.sheet-open .sheet-scrim {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .screen.sheet-open .sheet {
+      transform: translateY(0);
+    }
+
+    .sheet-grip {
+      width: 42px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--rule);
+      margin: 0 auto 14px;
+    }
+
+    .sheet h3 {
+      margin: 0 0 5px;
+      font: 900 20px/1.2 var(--font-display);
+      text-align: center;
+    }
+
+    .sheet-copy {
+      margin: 0 auto 14px;
+      max-width: 270px;
+      color: var(--ink-soft);
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .share-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .share-target {
+      border: 0;
+      background: transparent;
+      display: grid;
+      justify-items: center;
+      gap: 7px;
+      color: var(--ink-soft);
+      font: 800 10px/1 var(--font-ui);
+    }
+
+    .share-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font: 900 20px/1 var(--font-ui);
+      box-shadow: 0 8px 16px rgba(45,45,45,.08);
+    }
+
+    .share-icon.wechat { background: var(--wechat); }
+    .share-icon.link { background: var(--primary); }
+    .share-icon.moment { background: #1aad19; }
+    .share-icon.more { background: var(--muted); }
+
+    .link-preview {
+      display: grid;
+      grid-template-columns: 1fr 58px;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--rule);
+      border-radius: 18px;
+      background: rgba(255,255,255,.38);
+    }
+
+    .link-preview strong {
+      display: block;
+      font: 900 13px/1.25 var(--font-body);
+      margin-bottom: 4px;
+    }
+
+    .link-preview span {
+      display: block;
+      color: var(--muted);
+      font: 800 9px/1.4 var(--font-ui);
+    }
+
+    .link-preview img {
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
+      object-fit: cover;
+    }
+
+    .wechat-page {
+      background: #ededed;
+    }
+
+    .wechat-header {
+      height: 78px;
+      padding: 12px 14px 0;
+      background: #f7f7f7;
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+
+    .wechat-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      font: 900 14px/1 var(--font-body);
+    }
+
+    .chat {
+      flex: 1;
+      padding: 18px 14px;
+      overflow: hidden;
+    }
+
+    .bubble-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin-bottom: 16px;
+      animation: rise .34s ease both;
+    }
+
+    .bubble-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: #d9ead7;
+      color: #227d35;
+      font: 900 12px/1 var(--font-ui);
+      flex: 0 0 auto;
+    }
+
+    .bubble {
+      max-width: 260px;
+      border-radius: 6px;
+      background: #fff;
+      padding: 11px;
+      box-shadow: 0 1px 1px rgba(0,0,0,.06);
+      position: relative;
+    }
+
+    .bubble::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 13px;
+      border-width: 5px 6px 5px 0;
+      border-style: solid;
+      border-color: transparent #fff transparent transparent;
+    }
+
+    .mini-card {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr 54px;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .mini-card strong {
+      display: block;
+      font: 900 14px/1.25 var(--font-body);
+      margin-bottom: 5px;
+    }
+
+    .mini-card span {
+      display: block;
+      color: #777;
+      font: 700 10px/1.45 var(--font-ui);
+    }
+
+    .mini-card img {
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .shared-page {
+      background: var(--bg);
+    }
+
+    .shared-hero {
+      padding: 16px;
+      border-radius: 24px;
+      background: var(--card);
+      margin-bottom: 12px;
+    }
+
+    .shared-hero h2 {
+      margin: 0 0 6px;
+      font: 900 22px/1.15 var(--font-display);
+    }
+
+    .shared-hero p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .detail-hero {
+      width: 100%;
+      height: 238px;
+      border-radius: 26px;
+      object-fit: cover;
+      margin-bottom: 16px;
+      animation: imageIn .4s ease both;
+    }
+
+    .detail-title {
+      font: 900 28px/1.08 var(--font-display);
+      margin-bottom: 4px;
+    }
+
+    .detail-origin {
+      color: var(--muted);
+      font: italic 12px/1.2 var(--font-body);
+      margin-bottom: 13px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(76, 175, 80, .1);
+      color: var(--primary);
+      font: 900 10px/1 var(--font-ui);
+    }
+
+    .info-block {
+      margin-bottom: 16px;
+    }
+
+    .info-block h4 {
+      margin: 0 0 7px;
+      font: 900 13px/1 var(--font-body);
+    }
+
+    .info-block p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: 86px;
+      transform: translate(-50%, 16px);
+      opacity: 0;
+      pointer-events: none;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(45,45,45,.86);
+      color: #fff;
+      font: 900 11px/1 var(--font-ui);
+      z-index: 40;
+      transition: opacity .22s ease, transform .22s ease;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .heart {
+      position: absolute;
+      right: 28px;
+      bottom: 104px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(76,175,80,.12);
+      color: var(--primary);
+      font-size: 19px;
+      opacity: 0;
+      transform: scale(.6);
+      pointer-events: none;
+      z-index: 41;
+    }
+
+    .heart.fly {
+      animation: floatHeart 1s ease-out both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, .22); }
+      50% { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
+    }
+
+    @keyframes imageIn {
+      from { opacity: 0; transform: scale(1.04); filter: blur(4px); }
+      to { opacity: 1; transform: scale(1); filter: blur(0); }
+    }
+
+    @keyframes floatHeart {
+      0% { opacity: 0; transform: translateY(10px) scale(.6); }
+      20% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-54px) scale(1.12); }
+    }
+
+    @media (max-width: 900px) {
+      .stage {
+        grid-template-columns: 1fr;
+        padding: 18px 12px 28px;
+      }
+      .notes {
+        justify-content: flex-start;
+      }
+      .canvas {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <aside class="notes">
+      <div class="eyebrow">OPTION A · LIGHT SHARE</div>
+      <h1>扫完菜单，顺手发到微信群</h1>
+      <p class="lead">这版保持功能轻，不引入投票和协作。重点是把“分享”做得顺滑、可信、带一点情绪反馈，让群友打开后能直接看列表和详情。</p>
+      <div class="journey" id="journey">
+        <div class="step is-active" data-step="result"><div class="step-num">1</div><div><strong>翻译完成</strong><span>用户看到菜单结果和分享入口</span></div></div>
+        <div class="step" data-step="sheet"><div class="step-num">2</div><div><strong>选择微信</strong><span>底部分享面板生成菜单卡片</span></div></div>
+        <div class="step" data-step="wechat"><div class="step-num">3</div><div><strong>发到群里</strong><span>微信卡片携带标题、摘要和封面</span></div></div>
+        <div class="step" data-step="shared"><div class="step-num">4</div><div><strong>群友打开</strong><span>只读菜单列表快速浏览</span></div></div>
+        <div class="step" data-step="detail"><div class="step-num">5</div><div><strong>查看详情</strong><span>图片、风味和点单建议完整展示</span></div></div>
+      </div>
+    </aside>
+
+    <section class="canvas">
+      <div class="phone">
+        <div class="screen" id="screen">
+          <div class="status"><span>4:03</span><div class="signal"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span style="margin-left:4px">5G</span></div></div>
+
+          <section class="page is-active" id="page-result">
+            <div class="topbar">
+              <button class="icon-btn" aria-label="返回">←</button>
+              <div class="top-title">法语菜单</div>
+              <button class="lang-pill">ZH → 中文</button>
+            </div>
+            <div class="content">
+              <div class="result-hero">
+                <h2>菜单翻译好了</h2>
+                <p>已识别 18 道菜，图片和点单建议会随菜单一起分享给同行的人。</p>
+                <div class="hero-actions">
+                  <button class="primary-btn" data-action="openSheet">发到微信群</button>
+                  <button class="secondary-btn">继续看菜单</button>
+                </div>
+              </div>
+              <button class="dish-card" data-action="openDetail">
+                <img src="../dishes/moules-mariniere-hero.jpg" alt="白酒淡菜">
+                <div>
+                  <div class="idx">01</div>
+                  <div class="dish-name">白酒淡菜</div>
+                  <div class="origin">MOULES MARINIERE</div>
+                  <div class="desc">淡菜用白酒、黄油和香草烹煮，汤汁鲜香。</div>
+                  <div class="rec">适合喜欢海鲜鲜味的人，建议配面包蘸汤汁。</div>
+                </div>
+              </button>
+              <button class="dish-card">
+                <img src="../dishes/pizza-diavola.png" alt="辣味萨拉米披萨">
+                <div>
+                  <div class="idx">02</div>
+                  <div class="dish-name">辣味萨拉米披萨</div>
+                  <div class="origin">LA DIAVOLA</div>
+                  <div class="desc">番茄、奶酪和辣味萨拉米，风味直接。</div>
+                  <div class="rec">想点一份不出错的主食，这道适合分享。</div>
+                </div>
+              </button>
+              <button class="dish-card">
+                <img src="../dishes/tarte-tatin.jpg" alt="焦糖苹果塔">
+                <div>
+                  <div class="idx">03</div>
+                  <div class="dish-name">焦糖苹果塔</div>
+                  <div class="origin">TARTE TATIN</div>
+                  <div class="desc">苹果与焦糖烘烤，酸甜浓郁。</div>
+                  <div class="rec">适合餐后两人分食，配咖啡更平衡。</div>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          <section class="page wechat-page" id="page-wechat">
+            <div class="wechat-header">
+              <div class="status" style="height:20px;padding:0;background:transparent"><span>4:03</span><span>5G</span></div>
+              <div class="wechat-title"><button class="icon-btn" data-action="backResult" style="width:26px;height:26px">←</button>朋友们的晚饭群</div>
+            </div>
+            <div class="chat">
+              <div class="bubble-row">
+                <div class="bubble-avatar">你</div>
+                <div class="bubble">
+                  <button class="mini-card" data-action="openShared">
+                    <div><strong>DishLens 已翻译这份菜单</strong><span>18 道菜 · 可查看图片、风味和点单建议</span></div>
+                    <img src="../dishes/moules-mariniere-hero.jpg" alt="">
+                  </button>
+                </div>
+              </div>
+              <div class="bubble-row" style="animation-delay:.18s">
+                <div class="bubble-avatar" style="background:#e6e0ff;color:#6750a4">林</div>
+                <div class="bubble" style="font-size:13px;line-height:1.45">这个太方便了，我先看看有没有海鲜。</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="page shared-page" id="page-shared">
+            <div class="topbar">
+              <button class="icon-btn" data-action="backWechat">←</button>
+              <div class="top-title">分享菜单</div>
+              <button class="share-pill" data-action="openSheet">↗ 分享</button>
+            </div>
+            <div class="content">
+              <div class="shared-hero">
+                <h2>一起看看点什么</h2>
+                <p>这份菜单由 DishLens 翻译。列表和详情都可以直接查看，不需要登录。</p>
+              </div>
+              <button class="dish-card" data-action="openDetail">
+                <img src="../dishes/moules-mariniere-hero.jpg" alt="白酒淡菜">
+                <div>
+                  <div class="idx">01</div>
+                  <div class="dish-name">白酒淡菜</div>
+                  <div class="origin">MOULES MARINIERE</div>
+                  <div class="desc">淡菜用白酒、黄油和香草烹煮，汤汁鲜香。</div>
+                  <div class="rec">适合喜欢海鲜鲜味的人，建议配面包蘸汤汁。</div>
+                </div>
+              </button>
+              <button class="dish-card">
+                <img src="../dishes/pizza-quattro-formaggi.png" alt="四奶酪披萨">
+                <div>
+                  <div class="idx">02</div>
+                  <div class="dish-name">四奶酪披萨</div>
+                  <div class="origin">QUATTRO FORMAGGI</div>
+                  <div class="desc">多种奶酪融合，奶香浓郁，适合分享。</div>
+                  <div class="rec">喜欢芝士的人会很满足，建议搭配清爽沙拉。</div>
+                </div>
+              </button>
+              <button class="dish-card">
+                <img src="../dishes/tarte-au-citron.jpg" alt="柠檬塔">
+                <div>
+                  <div class="idx">03</div>
+                  <div class="dish-name">柠檬塔</div>
+                  <div class="origin">TARTE AU CITRON</div>
+                  <div class="desc">酸甜清爽，黄油塔壳酥香。</div>
+                  <div class="rec">适合餐后收尾，两人分食更刚好。</div>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          <section class="page shared-page" id="page-detail">
+            <div class="topbar">
+              <button class="icon-btn" data-action="backShared">←</button>
+              <div class="top-title">菜品详情</div>
+              <button class="share-pill" data-action="openSheet">↗ 分享</button>
+            </div>
+            <div class="content" style="overflow:auto">
+              <img class="detail-hero" src="../dishes/moules-mariniere-hero.jpg" alt="白酒淡菜">
+              <div class="detail-title">白酒淡菜</div>
+              <div class="detail-origin">MOULES MARINIERE</div>
+              <div class="pill-row"><span class="pill">海鲜</span><span class="pill">适合分享</span><span class="pill">AI 推荐参考</span></div>
+              <div class="info-block">
+                <h4>风味特征</h4>
+                <p>淡菜用白酒、黄油、蒜和香草烹煮，汤汁鲜香，贝肉软嫩，适合配面包或薯条一起吃。</p>
+              </div>
+              <div class="info-block">
+                <h4>点单建议</h4>
+                <p>如果这桌有人喜欢海鲜，这道很值得保留。它的重点不只是淡菜本身，还有锅底汤汁，适合多人分享。</p>
+              </div>
+              <div class="info-block">
+                <h4>注意事项</h4>
+                <p>贝类过敏者需要避开。汤汁可能含黄油和白酒，介意酒精或乳制品的人点单前可以确认。</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="sheet-scrim" data-action="closeSheet"></div>
+          <aside class="sheet" aria-label="分享菜单">
+            <div class="sheet-grip"></div>
+            <h3>把菜单发给大家</h3>
+            <p class="sheet-copy">链接里包含翻译好的菜品列表和详情，群友打开后可以直接看，不需要登录。</p>
+            <div class="share-grid">
+              <button class="share-target" data-action="shareWechat"><span class="share-icon wechat">微</span><span>微信</span></button>
+              <button class="share-target" data-action="shareWechat"><span class="share-icon moment">群</span><span>微信群</span></button>
+              <button class="share-target" data-action="copyLink"><span class="share-icon link">链</span><span>复制链接</span></button>
+              <button class="share-target"><span class="share-icon more">···</span><span>更多</span></button>
+            </div>
+            <div class="link-preview">
+              <div><strong>DishLens 已翻译这份菜单</strong><span>18 道菜 · 可查看图片、风味和点单建议</span></div>
+              <img src="../dishes/moules-mariniere-hero.jpg" alt="">
+            </div>
+          </aside>
+
+          <div class="toast" id="toast">菜单链接已复制</div>
+          <div class="heart" id="heart">✓</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const screen = document.getElementById("screen");
+    const pages = {
+      result: document.getElementById("page-result"),
+      wechat: document.getElementById("page-wechat"),
+      shared: document.getElementById("page-shared"),
+      detail: document.getElementById("page-detail"),
+    };
+    const toast = document.getElementById("toast");
+    const heart = document.getElementById("heart");
+    const steps = Array.from(document.querySelectorAll(".step"));
+    let current = "result";
+
+    function setJourney(step) {
+      steps.forEach((item) => item.classList.toggle("is-active", item.dataset.step === step));
+    }
+
+    function showPage(name) {
+      Object.values(pages).forEach((page) => page.classList.remove("is-active"));
+      pages[name].classList.add("is-active");
+      current = name;
+      const journeyStep = name === "result" ? "result" : name === "wechat" ? "wechat" : name === "shared" ? "shared" : "detail";
+      setJourney(journeyStep);
+      closeSheet();
+    }
+
+    function openSheet() {
+      screen.classList.add("sheet-open");
+      setJourney("sheet");
+    }
+
+    function closeSheet() {
+      screen.classList.remove("sheet-open");
+      setJourney(current === "result" ? "result" : current);
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add("show");
+      heart.classList.remove("fly");
+      void heart.offsetWidth;
+      heart.classList.add("fly");
+      window.setTimeout(() => toast.classList.remove("show"), 1500);
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-action]");
+      if (!target) return;
+      const action = target.dataset.action;
+      if (action === "openSheet") openSheet();
+      if (action === "closeSheet") closeSheet();
+      if (action === "copyLink") showToast("菜单链接已复制");
+      if (action === "shareWechat") {
+        showToast("已生成微信分享卡片");
+        window.setTimeout(() => showPage("wechat"), 650);
+      }
+      if (action === "openShared") showPage("shared");
+      if (action === "openDetail") showPage("detail");
+      if (action === "backResult") showPage("result");
+      if (action === "backWechat") showPage("wechat");
+      if (action === "backShared") showPage(current === "detail" ? "shared" : "result");
+    });
+
+    steps.forEach((step) => {
+      step.addEventListener("click", () => {
+        if (step.dataset.step === "sheet") openSheet();
+        if (step.dataset.step === "result") showPage("result");
+        if (step.dataset.step === "wechat") showPage("wechat");
+        if (step.dataset.step === "shared") showPage("shared");
+        if (step.dataset.step === "detail") showPage("detail");
+      });
+    });
+  </script>
+</body>
+</html>

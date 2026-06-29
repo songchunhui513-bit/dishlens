@@ -18,12 +18,12 @@ interface LoadingPageProps {
 const basePhases = [
   "识别菜单布局...",
   "翻译菜品名称...",
-  "生成菜品描述...",
-  "匹配参考图片...",
+  "整理菜品信息...",
+  "准备结果页...",
 ];
 
 const FOOD_CHARACTER_ROTATE_MS = 4000;
-const MAX_POLLING_MS = 95_000;
+const MAX_POLLING_MS = 180_000;
 
 function buildPhases(count: number): string[] {
   if (count <= 1) return basePhases;
@@ -60,6 +60,8 @@ export default function LoadingPage({
   const [pendingStart] = useState(() => Date.now());
   const [pendingElapsed, setPendingElapsed] = useState(0);
 
+  // Track last poll result for timeout fallback
+  const lastResultRef = useRef<unknown | null>(null);
   // Track when polling started for sub-phase text
   const pollingStartRef = useRef(0);
   const [pollingElapsed, setPollingElapsed] = useState(0);
@@ -116,6 +118,14 @@ export default function LoadingPage({
       try {
         if (Date.now() - pollStartTime > MAX_POLLING_MS) {
           if (!cancelled && !completedRef.current) {
+            // Even on timeout, try to show whatever partial results we have
+            const saved = lastResultRef.current as Record<string, unknown> | null;
+            if (saved?.pages && onResult) {
+              completedRef.current = true;
+              onResult(saved);
+              setTimeout(() => onComplete(), 300);
+              return;
+            }
             completedRef.current = true;
             onTimeout?.();
           }
@@ -123,6 +133,8 @@ export default function LoadingPage({
         }
         const t = await pollTask(taskId);
         if (cancelled) return;
+        // Save latest result for timeout fallback
+        if (t.result) lastResultRef.current = t.result as unknown;
         const apiPct = t.progress.total > 0
           ? Math.round((t.progress.current / t.progress.total) * 100)
           : 0;
@@ -132,6 +144,10 @@ export default function LoadingPage({
           const total = t.per_page_status.length;
           setPhase(Math.min(doneCount * basePhases.length - 1, basePhases.length * total - 1));
         }
+        // Show results as soon as ANY page is available (streaming approach)
+        const hasPartialResult = t.result && (t.result as unknown as Record<string, unknown>).pages
+          && Array.isArray((t.result as unknown as Record<string, unknown>).pages)
+          && ((t.result as unknown as Record<string, unknown>).pages as unknown[]).length > 0;
         if (t.status === "done" || t.status === "partial" || t.status === "failed") {
           if (!completedRef.current) {
             completedRef.current = true;
@@ -143,6 +159,12 @@ export default function LoadingPage({
             }
             setTimeout(() => onComplete(), 500);
           }
+        } else if (hasPartialResult && !completedRef.current) {
+          // Transition to results immediately with available pages, keep polling
+          completedRef.current = true;
+          setProgress(100);
+          if (t.result && onResult) onResult(t.result as unknown as Record<string, unknown>);
+          setTimeout(() => onComplete(), 300);
         } else {
           setTimeout(poll, 1500);
         }
@@ -211,8 +233,8 @@ export default function LoadingPage({
       const sec = pollingElapsed / 1000;
       if (sec < 5) return "AI 正在识别菜品...";
       if (sec < 10) return "正在翻译菜名...";
-      if (sec < 18) return "正在优化描述...";
-      if (sec < 25) return "正在匹配图片...";
+      if (sec < 18) return "正在整理菜品...";
+      if (sec < 25) return "正在准备结果...";
       return "即将完成...";
     }
     if (isDone) return "分析完成";

@@ -6,6 +6,7 @@ export interface Dish {
   name_translated: Record<string, string>; // { zh: "xx", en: "xx", ... }
   description: Record<string, string>;
   ingredients: string[];
+  included_items?: string[];
   allergens: string[];
   taste_profile: string[];
   cuisine_region?: string;
@@ -15,6 +16,8 @@ export interface Dish {
   caution?: string;
   ai_image_url?: string;
   image_url?: string;
+  image_status?: "pending" | "generating" | "done" | "failed";
+  image_error?: string;
   image_source: "ai" | "user" | "mixed";
   rating_avg?: number;
   review_count?: number;
@@ -29,6 +32,23 @@ export interface MenuPage {
   dishes: Dish[];
 }
 
+export interface RestaurantMeta {
+  display_name: string;
+  restaurant_type: string;
+  rating_estimate: number;
+}
+
+export interface MenuInsight {
+  summary: string;
+  occasion_tags: string[];
+  cuisine_style: string;
+}
+
+export interface SignatureRecommendation {
+  dish_ids: string[];
+  reason: string;
+}
+
 export interface TranslationResult {
   task_id: string;
   status: "done" | "processing" | "partial" | "failed";
@@ -41,6 +61,12 @@ export interface TranslationResult {
     processing_time_ms?: number;
     enrichment_status?: string;
     enrichment_time_ms?: number;
+    image_generation_status?: "pending" | "processing" | "done" | "partial" | "failed";
+    image_generation_progress?: { current: number; total: number };
+    image_generation_failed?: Array<{ dish_id: string; name_original: string; error: string }>;
+    restaurant?: RestaurantMeta;
+    insight?: MenuInsight;
+    signature?: SignatureRecommendation;
   };
   failed_pages?: { page_index: number; error: string; retry_allowed: boolean }[];
 }
@@ -133,6 +159,47 @@ export interface FavoriteDish {
   cuisine: string;
   image_url?: string;
   saved_at: string;
+}
+
+// ── Ordering Types ──────────────────────────────────────────────────
+
+export type OrderQuantityMap = Record<string, number>;
+
+export interface OrderPrice {
+  amount: number;
+  currency: string;
+  raw: string;
+}
+
+export interface OrderNote {
+  id: string;
+  zh: string;
+  original: string;
+  target_lang?: string;
+}
+
+export interface OrderedDishItem {
+  dish_id: string;
+  dish: Dish;
+  quantity: number;
+  unitPrice?: OrderPrice;
+  reviewed?: boolean;
+}
+
+export interface OrderedVisit {
+  id: string;
+  restaurant_name: string;
+  country?: string;
+  city?: string;
+  source_lang: string;
+  target_lang: string;
+  date: string;
+  items: OrderedDishItem[];
+  notes: OrderNote[];
+  totalAmount: number;
+  hasUnknownPrices: boolean;
+  result_summary?: TranslationResult;
+  restaurant_rating?: number;
 }
 
 // ── Camera Types ───────────────────────────────────────────────────

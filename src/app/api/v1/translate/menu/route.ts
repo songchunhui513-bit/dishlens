@@ -12,6 +12,8 @@ import { normalizeServerMenuImage } from "@/lib/server-image-normalization";
 import { storageIdForGeneratedDishImage } from "@/lib/dish-image-persistence";
 import { dishNameLookupCandidates } from "@/lib/dish-name-normalization";
 import { isReusableExistingImageUrl } from "@/lib/dish-image-url";
+import { extractRestaurantMeta, extractMenuInsight, extractSignature } from "@/lib/results-insight-fallback";
+import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
 
 // In-memory translation cache — avoids Supabase schema/RLS issues for anonymous users
 const translationCache = new Map<string, { result: Record<string, unknown>; createdAt: number }>();
@@ -38,11 +40,16 @@ const FULL_PROMPT_PAGE_LIMIT = FAST_OCR_MODE
   : Number.parseInt(process.env.MENU_FULL_PROMPT_PAGE_LIMIT || "4", 10) || 4;
 const REFINE_LOW_CONFIDENCE = process.env.MENU_REFINE_LOW_CONFIDENCE === "true";
 const FAST_FIRST_PASS = process.env.MENU_FAST_FIRST_PASS !== "false";
-const BACKGROUND_IMAGE_LIMIT = Number.parseInt(process.env.MENU_IMAGE_GENERATION_LIMIT || "16", 10) || 16;
 const IMAGE_GENERATION_CONCURRENCY = Math.max(
   1,
-  Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "2", 10) || 2),
+  Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "1", 10) || 1),
 );
+
+type ImageGenerationFailure = {
+  dish_id: string;
+  name_original: string;
+  error: string;
+};
 
 type MenuImageInput = {
   base64: string;
@@ -57,6 +64,11 @@ function requestMeta(req: NextRequest): Record<string, string> {
     country: req.headers.get("cf-ipcountry") || req.headers.get("x-vercel-ip-country") || "unknown",
     userAgent: (req.headers.get("user-agent") || "").slice(0, 120),
   };
+}
+
+function isLocalTaskFallbackRequest(req: NextRequest): boolean {
+  const host = req.headers.get("host") || "";
+  return /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host);
 }
 
 type ExistingDishImage = {
@@ -77,6 +89,7 @@ type AnalyzedDish = {
   caution?: string;
   _needsRetranslate?: boolean;
   ingredients?: string[];
+  included_items?: string[];
   allergens?: string[];
   taste_profile?: string[];
   category?: string;
@@ -88,7 +101,59 @@ type MenuAnalysisResult = {
   page_type?: "menu" | "info";
   page_description?: string;
   source_language: string;
+  menu_metadata?: {
+    restaurant?: {
+      display_name?: string;
+      restaurant_type?: string;
+      rating_estimate?: number;
+    };
+    insight?: {
+      summary?: string;
+      occasion_tags?: string[];
+      cuisine_style?: string;
+    };
+    signature?: {
+      dish_indexes?: number[];
+      reason?: string;
+    };
+  };
 };
+
+type DishRecordOptions = {
+  imageLookup?: "full" | "local-only";
+};
+
+function needsTargetLanguageCorrection(dish: AnalyzedDish, targetLang: string): boolean {
+  const lang = normalizeTargetLang(targetLang);
+  if (dish._needsRetranslate) return true;
+  if (lang === "zh") {
+    return !hasChinese(dish.name_translated || "") || !hasChinese(dish.description || "");
+  }
+  return REFINE_LOW_CONFIDENCE && dish.confidence < 0.5;
+}
+
+async function refineDishesForTargetLanguage(
+  dishes: AnalyzedDish[],
+  sourceLanguage: string,
+  targetLang: string,
+): Promise<AnalyzedDish[]> {
+  return Promise.all(
+    dishes.map(async (dish) => {
+      if (!needsTargetLanguageCorrection(dish, targetLang)) return dish;
+      try {
+        const refined = await refineTranslation({
+          name_original: dish.name_original,
+          name_translated: dish.name_translated,
+          description: dish.description,
+          source_language: sourceLanguage,
+        }, targetLang);
+        return { ...dish, ...refined };
+      } catch {
+        return dish;
+      }
+    })
+  );
+}
 
 async function findExistingDishImages(
   dishes: Array<{ name_original: string; name_translated?: string | Record<string, string> }>,
@@ -144,7 +209,9 @@ async function buildDishRecords(
   pageLabel: string,
   usedImageIds: Set<string>,
   targetLang: string,
+  options: DishRecordOptions = {},
 ): Promise<Dish[]> {
+  const imageLookup = options.imageLookup || "full";
   const localMatches = new Map<number, { card: string; hero: string; id: string } | null>();
   for (let di = 0; di < dishes.length; di++) {
     const dish = dishes[di];
@@ -157,7 +224,9 @@ async function buildDishRecords(
     }
   }
 
-  const existingImagesByIndex = await findExistingDishImages(dishes);
+  const existingImagesByIndex = imageLookup === "full"
+    ? await findExistingDishImages(dishes)
+    : new Map<number, ExistingDishImage>();
 
   return Promise.all(
     dishes.map(async (dish, di) => {
@@ -167,7 +236,7 @@ async function buildDishRecords(
         const existingImageUrl = isReusableExistingImageUrl(existing?.ai_image_url)
           ? existing.ai_image_url
           : null;
-        const cachedGeneratedImageUrl = localMatch
+        const cachedGeneratedImageUrl = localMatch || imageLookup !== "full"
           ? null
           : await getCachedDishImageUrl(storageIdForGeneratedDishImage(dish));
         const imageUrl = localMatch?.card || cachedGeneratedImageUrl || existingImageUrl || null;
@@ -179,6 +248,7 @@ async function buildDishRecords(
           description: { [targetLang]: dish.description || "" },
           ai_image_url: imageUrl,
           image_url: imageUrl,
+          image_status: imageUrl ? "done" : "pending",
           image_source: localMatch ? "mixed" : (existing?.image_source || "ai"),
         } as Dish;
       } catch {
@@ -190,11 +260,46 @@ async function buildDishRecords(
           description: { [targetLang]: dish.description || "" },
           ai_image_url: imageUrl,
           image_url: imageUrl,
+          image_status: imageUrl ? "done" : "pending",
           image_source: localMatch ? "mixed" : "ai",
         } as Dish;
       }
     })
   );
+}
+
+function buildPartialPayload(
+  taskId: string,
+  pages: Array<Record<string, unknown> | undefined>,
+  failed: Array<{ page_index: number; error: string; retry_allowed: boolean }>,
+  targetLang: string,
+  startTime: number,
+): Record<string, unknown> {
+  const completed = pages.filter(Boolean) as Array<Record<string, unknown>>;
+  const sorted = completed.sort(
+    (a, b) => ((a as { page_index: number }).page_index) - ((b as { page_index: number }).page_index),
+  );
+  return {
+    task_id: taskId,
+    status: failed.length === pages.length ? "failed"
+      : failed.length > 0 ? "partial"
+      : completed.length < pages.length ? "partial"
+      : "done",
+    pages: sorted,
+    failed_pages: failed.length > 0 ? failed : undefined,
+    metadata: {
+      source_language: (sorted[0] as { source_language?: string })?.source_language || "unknown",
+      target_language: targetLang,
+      total_dishes: sorted.reduce((sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0),
+      page_count: sorted.length,
+      total_pages: pages.length,
+      cached: false,
+      processing_time_ms: Date.now() - startTime,
+      restaurant: extractRestaurantMeta(sorted),
+      insight: extractMenuInsight(sorted),
+      signature: extractSignature(sorted),
+    },
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -225,7 +330,8 @@ export async function POST(req: NextRequest) {
     }
 
     const taskId = crypto.randomUUID();
-    await createTask(taskId, images.length);
+    const allowMemoryFallback = isLocalTaskFallbackRequest(req);
+    await createTask(taskId, images.length, { allowMemoryFallback });
     console.info("translate:task_started", {
       taskId,
       imageCount: images.length,
@@ -341,7 +447,7 @@ async function processImagesFastFirstPass(
           });
 
           const raw = await analyzeMenuImageFast(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
-          const dishRecords = await buildDishRecords(raw.dishes, raw.page_label, usedImageIds, targetLang);
+          const dishRecords = await buildDishRecords(raw.dishes, raw.page_label, usedImageIds, targetLang, { imageLookup: "local-only" });
 
           results[i] = {
             page_index: i,
@@ -350,15 +456,18 @@ async function processImagesFastFirstPass(
             page_description: raw.page_description,
             source_language: raw.source_language,
             dishes: dishRecords,
+            menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
           };
 
           const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
           if (currentTask) {
             currentTask.perPageStatus[i].status = "done";
             currentTask.progress.current = results.filter(Boolean).length;
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
+              result: currentTask.result,
             });
           }
         } catch (err: unknown) {
@@ -377,10 +486,12 @@ async function processImagesFastFirstPass(
           if (currentTask) {
             currentTask.perPageStatus[i].status = "failed";
             currentTask.progress.current = results.filter(Boolean).length + failedPages.length;
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
               failedPages,
+              result: currentTask.result,
             });
           }
         }
@@ -408,8 +519,12 @@ async function processImagesFastFirstPass(
       cached: false,
       processing_time_ms: Date.now() - startTime,
       enrichment_status: "pending",
+      restaurant: extractRestaurantMeta(sorted),
+      insight: extractMenuInsight(sorted),
+      signature: extractSignature(sorted),
     },
   };
+  resultPayload.metadata.source_language = resolveMenuSourceLanguage(resultPayload);
 
   await updateTask(taskId, {
     status,
@@ -471,45 +586,28 @@ async function processImages(
           if (useRichMode) {
             try {
               raw = await analyzeMenuImage(item.base64, true, item.mimeType, targetLang);
-            } catch {
-              // Rich mode may exceed max_tokens for dense menus, fallback to simple.
+            } catch (errRich) {
+              // Rich mode may exceed max_tokens for dense menus or produce truncated JSON.
+              // Log and fallback to simple mode.
+              const richMsg = errRich instanceof Error ? errRich.message : String(errRich);
+              const isTruncation = /JSON parse failed|Unexpected token|Expected.*JSON|position \d{4,}/i.test(richMsg);
+              console.warn("translate:rich_mode_failed", {
+                taskId,
+                pageIndex: i,
+                reason: isTruncation ? "json_truncated" : "api_error",
+                error: richMsg.slice(0, 200),
+              });
               raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang);
             }
           } else {
             raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang);
           }
 
-          const shouldRefine = raw.dishes.length <= 10;
-          const refinedDishes = shouldRefine
-            ? await Promise.all(
-                raw.dishes.map(
-                  async (dish: {
-                    confidence: number;
-                    name_original: string;
-                    name_translated: string;
-                    description: string;
-                    _needsRetranslate?: boolean;
-                  }) => {
-                    const needsRefine =
-                      dish._needsRetranslate ||
-                      (targetLang === "zh" && !hasChinese(dish.name_translated || "")) ||
-                      (REFINE_LOW_CONFIDENCE && dish.confidence < 0.5);
-                    if (!needsRefine) return dish;
-                    try {
-                      const refined = await refineTranslation({
-                        name_original: dish.name_original,
-                        name_translated: dish.name_translated,
-                        description: dish.description,
-                        source_language: raw.source_language,
-                      }, targetLang);
-                      return { ...dish, ...refined };
-                    } catch {
-                      return dish;
-                    }
-                  }
-                )
-              )
-            : raw.dishes;
+          const refinedDishes = await refineDishesForTargetLanguage(
+            raw.dishes,
+            raw.source_language,
+            targetLang,
+          );
 
           const dishRecords = await buildDishRecords(refinedDishes, raw.page_label, usedImageIds, targetLang);
 
@@ -518,15 +616,19 @@ async function processImages(
             page_label: raw.page_label || "未分类",
             source_language: raw.source_language,
             dishes: dishRecords,
+            menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
           };
 
           const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
           if (currentTask) {
             currentTask.perPageStatus[i].status = "done";
             currentTask.progress.current = results.filter(Boolean).length;
+            // Save partial result so frontend shows available pages immediately
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
+              result: currentTask.result,
             });
           }
         } catch (err: unknown) {
@@ -544,10 +646,13 @@ async function processImages(
           if (currentTask) {
             currentTask.perPageStatus[i].status = "failed";
             currentTask.progress.current = results.filter(Boolean).length + failedPages.length;
+            // Save partial result even when some pages failed
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
               failedPages,
+              result: currentTask.result,
             });
           }
         }
@@ -579,8 +684,12 @@ async function processImages(
       ),
       cached: false,
       processing_time_ms: Date.now() - startTime,
+      restaurant: extractRestaurantMeta(sorted),
+      insight: extractMenuInsight(sorted),
+      signature: extractSignature(sorted),
     },
   };
+  resultPayload.metadata.source_language = resolveMenuSourceLanguage(resultPayload);
 
   await updateTask(taskId, {
     status,
@@ -636,29 +745,11 @@ async function enrichResultInBackground(
       raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
     }
 
-    const shouldRefine = raw.dishes.length <= 10;
-    const refinedDishes = shouldRefine
-      ? await Promise.all(
-          raw.dishes.map(async (dish) => {
-            const needsRefine =
-              dish._needsRetranslate ||
-              (targetLang === "zh" && !hasChinese(dish.name_translated || "")) ||
-              (REFINE_LOW_CONFIDENCE && dish.confidence < 0.5);
-            if (!needsRefine) return dish;
-            try {
-              const refined = await refineTranslation({
-                name_original: dish.name_original,
-                name_translated: dish.name_translated,
-                description: dish.description,
-                source_language: raw.source_language,
-              }, targetLang);
-              return { ...dish, ...refined };
-            } catch {
-              return dish;
-            }
-          })
-        )
-      : raw.dishes;
+    const refinedDishes = await refineDishesForTargetLanguage(
+      raw.dishes,
+      raw.source_language,
+      targetLang,
+    );
 
     enrichedPages[i] = {
       page_index: i,
@@ -667,6 +758,7 @@ async function enrichResultInBackground(
       page_description: raw.page_description,
       source_language: raw.source_language,
       dishes: await buildDishRecords(refinedDishes, raw.page_label, usedImageIds, targetLang),
+      menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
     };
   }
 
@@ -685,8 +777,12 @@ async function enrichResultInBackground(
       ),
       enrichment_status: "done",
       enrichment_time_ms: startTime ? Date.now() - startTime : undefined,
+      restaurant: extractRestaurantMeta(pages),
+      insight: extractMenuInsight(pages),
+      signature: extractSignature(pages),
     },
   };
+  (enrichedPayload.metadata as Record<string, unknown>).source_language = resolveMenuSourceLanguage(enrichedPayload);
 
   await updateTask(taskId, { result: enrichedPayload });
   if (cacheKey) {
@@ -716,11 +812,42 @@ async function generateImagesInBackground(
 
   // Generate AI images only for dishes that have NO image at all
   // (neither local knowledge DB nor Supabase cached AI image)
+  const generationOrder = new Map<Dish, number>();
   const dishesForGeneration = allDishes
-    .filter((dish) => !dish.ai_image_url)
-    .slice(0, Math.max(0, BACKGROUND_IMAGE_LIMIT));
+    .map((dish, order) => ({ dish, order }))
+    .filter(({ dish }) => !dish.ai_image_url)
+    .map(({ dish, order }) => {
+      generationOrder.set(dish, order);
+      dish.image_status = "pending";
+      return dish;
+    });
 
   if (dishesForGeneration.length === 0) return;
+
+  const failures: ImageGenerationFailure[] = [];
+  let completed = 0;
+
+  const updateImageGenerationTask = async (status: "processing" | "done" | "partial" | "failed") => {
+    const metadata = ((resultPayload.metadata as Record<string, unknown>) || {});
+    metadata.image_generation_status = status;
+    metadata.image_generation_progress = {
+      current: completed,
+      total: dishesForGeneration.length,
+    };
+    if (failures.length > 0) metadata.image_generation_failed = failures;
+    else delete metadata.image_generation_failed;
+    resultPayload.metadata = metadata;
+
+    const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
+    if (currentTask?.result) {
+      await updateTask(taskId, { result: resultPayload });
+    }
+    if (cacheKey) {
+      translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
+    }
+  };
+
+  await updateImageGenerationTask("processing");
 
   await generateImagesForDishes(
     dishesForGeneration,
@@ -730,7 +857,9 @@ async function generateImagesInBackground(
 
       const storageId = storageIdForGeneratedDishImage(dish);
       const publicUrl = await uploadDishImage(storageId, tempUrl);
-      if (!publicUrl) return;
+      if (!publicUrl) {
+        throw new Error("Generated image URL could not be downloaded or stored");
+      }
       const finalUrl = publicUrl;
 
       // Persist image: upsert into dishes table so next translation reuses it
@@ -767,14 +896,48 @@ async function generateImagesInBackground(
       // Update in-memory task result so frontend polling picks it up
       dish.ai_image_url = finalUrl;
       (dish as unknown as Record<string, unknown>).image_url = finalUrl;
+      dish.image_status = "done";
+      delete dish.image_error;
+      completed++;
 
-      const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
-      if (currentTask?.result) {
-        await updateTask(taskId, { result: resultPayload });
-      }
+      await updateImageGenerationTask("processing");
+      console.info("translate:image_generated", {
+        taskId,
+        dishId: dish.id,
+        order: generationOrder.get(dish),
+        completed,
+        total: dishesForGeneration.length,
+        name: dish.name_original,
+      });
     },
     IMAGE_GENERATION_CONCURRENCY,
+    async (index, error) => {
+      const dish = dishesForGeneration[index];
+      dish.image_status = "failed";
+      dish.image_error = error;
+      completed++;
+      failures.push({
+        dish_id: dish.id,
+        name_original: dish.name_original,
+        error,
+      });
+      console.error("translate:image_generation_failed", {
+        taskId,
+        dishId: dish.id,
+        order: generationOrder.get(dish),
+        completed,
+        total: dishesForGeneration.length,
+        name: dish.name_original,
+        error,
+      });
+      await updateImageGenerationTask("processing");
+    },
   );
+
+  const finalStatus = failures.length === 0
+    ? "done"
+    : failures.length === dishesForGeneration.length ? "failed" : "partial";
+  await updateImageGenerationTask(finalStatus);
 
   // Update translation cache with generated images so repeat uploads are instant
   if (cacheKey && dishesForGeneration.some((d) => d.ai_image_url)) {

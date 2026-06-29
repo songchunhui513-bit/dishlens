@@ -1,13 +1,21 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { Dish, TranslationResult } from "@/types";
-import { getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import { getDishIncludedItems, getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
+import { buildDishDisplayTags, type DishDisplayTagType } from "@/lib/dish-display-tags";
+import { getDishPriceDisplay, stripPriceFromOriginalName } from "@/lib/dish-price-display";
 import { targetLanguageName, targetLanguageNativeName } from "@/lib/languages";
 import DishImageWithLoading from "@/components/shared/DishImageWithLoading";
+import OrderQuantityControl from "@/components/order/OrderQuantityControl";
+import SummaryInsightCard from "@/components/results/SummaryInsightCard";
+import CategoryTabs from "@/components/results/CategoryTabs";
+import { buildCategoryList, filterDishesByCategory, type CategoryKey } from "@/lib/results-categories";
+import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
 
 // ── Pill component ────────────────────────────────────────────────────
 
-function Pill({ label, type }: { label: string; type: "green" | "warm" | "allergen" | "veg" }) {
+function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
   const bgMap: Record<string, string> = {
     green: "rgba(76,175,80,0.12)",
     warm: "rgba(45,45,45,0.06)",
@@ -77,6 +85,11 @@ interface ResultsPageProps {
   targetLang?: string;
   uiLang?: "zh" | "en";
   imageGenProgress?: { done: number; total: number };
+  orderQuantities?: Record<string, number>;
+  onOrderQuantityChange?: (dish: Dish, quantity: number) => void;
+  orderTotalQuantity?: number;
+  orderTotalLabel?: string;
+  onOpenOrderConfirm?: () => void;
 }
 
 export default function ResultsPage({
@@ -90,7 +103,29 @@ export default function ResultsPage({
   targetLang = "zh",
   uiLang = "zh",
   imageGenProgress,
+  orderQuantities,
+  onOrderQuantityChange,
+  orderTotalQuantity = 0,
+  orderTotalLabel = "价格待核对",
+  onOpenOrderConfirm,
 }: ResultsPageProps) {
+  const [selectedCategory, setSelectedCategory] = useState<CategoryKey>("all");
+  const categories = useMemo(() => buildCategoryList(result), [result]);
+  const filteredDishes = useMemo(
+    () => (result ? result.pages.flatMap((page) => (page.dishes || []).map((dish) => ({ dish, pageIndex: page.page_index }))) : []),
+    [result]
+  );
+  const displayedDishes = useMemo(
+    () => filterDishesByCategory(result, selectedCategory),
+    [result, selectedCategory]
+  );
+  const dishById = useMemo(() => {
+    const map = new Map<string, { dish: Dish; pageIndex: number }>();
+    for (const item of filteredDishes) map.set(item.dish.id, item);
+    return map;
+  }, [filteredDishes]);
+  const lookupDishName = (id: string): string | undefined => dishById.get(id)?.dish.name_translated?.zh;
+
   // ── Loading / Skeleton ──────────────────────────────────
   if (loading) {
     return (
@@ -123,7 +158,8 @@ export default function ResultsPage({
   const infoDescription = !isReal && pages.length > 0
     ? (pages[0] as { page_description?: string }).page_description || ""
     : "";
-  const sourceLang = (result?.metadata?.source_language || "?").toUpperCase();
+  const resolvedSourceLang = resolveMenuSourceLanguage(result);
+  const sourceLang = (resolvedSourceLang || "?").toUpperCase();
   const resultTargetLang = result?.metadata?.target_language || targetLang;
   const targetLangLabel = uiLang === "en"
     ? targetLanguageName(resultTargetLang, uiLang)
@@ -135,16 +171,16 @@ export default function ResultsPage({
     de: "德语菜单", ko: "韩语菜单", th: "泰语菜单", en: "英语菜单",
     zh: "中文菜单", pt: "葡语菜单", vi: "越南语菜单",
   };
-  const titleText = sourceLangNames[result?.metadata?.source_language || ""] || pageLabel;
+  const titleText = sourceLangNames[resolvedSourceLang || ""] || pageLabel;
 
   return (
-    <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
+    <div className="h-full flex flex-col" style={{ position: "relative", background: "var(--bg)" }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
         <button
           onClick={onBack}
           className="text-[11px] cursor-pointer transition-opacity hover:opacity-50"
-          style={{ color: "var(--ink)", background: "none", border: "none" }}
+          style={{ minWidth: 44, minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "flex-start", color: "var(--ink)", background: "none", border: "none" }}
         >
           ←
         </button>
@@ -162,7 +198,7 @@ export default function ResultsPage({
             onClick={onShare}
             className="inline-flex items-center justify-center transition-opacity hover:opacity-70"
             aria-label="分享菜单"
-            style={{ width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(45,45,45,0.06)", color: "var(--ink)", cursor: "pointer" }}
+            style={{ width: 44, height: 44, margin: "-9px", borderRadius: "50%", border: "none", background: "rgba(45,45,45,0.06)", color: "var(--ink)", cursor: "pointer" }}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: 14, height: 14, stroke: "currentColor", fill: "none", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
               <circle cx="18" cy="5" r="3" />
@@ -176,8 +212,41 @@ export default function ResultsPage({
       </div>
 
       {/* Scroll area */}
-      <div className="flex-1 overflow-auto" style={{ padding: "8px 16px 12px" }}>
+      <div className="flex-1 overflow-y-auto" style={{ padding: "0 0 70px", overflowX: "hidden" }}>
         {/* Allergen bar */}
+        {isReal && (
+          <SummaryInsightCard
+            lang={resolvedSourceLang || "en"}
+            restaurant={result?.metadata?.restaurant}
+            insight={result?.metadata?.insight}
+            signature={result?.metadata?.signature}
+            dishNameLookup={lookupDishName}
+            totalDishes={result?.metadata?.total_dishes || 0}
+            pageCount={pages.length}
+            dishes={allDishes.map((item) => item.dish)}
+            targetLang={resultTargetLang}
+          />
+        )}
+
+        {isReal && categories.length > 0 && (
+          <CategoryTabs
+            categories={categories}
+            selected={selectedCategory}
+            onSelect={setSelectedCategory}
+          />
+        )}
+
+        {/* Section label */}
+        {isReal && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "10px 16px 6px" }}>
+            <span style={{ font: "900 11px var(--font-body)", color: "var(--ink)" }}>
+              {categories.find((c) => c.key === selectedCategory)?.label || "全部菜品"}
+            </span>
+          </div>
+        )}
+
+        {/* Allergen bar */}
+        <div style={{ margin: "0 16px" }}>
         {showAllergens && (
           <div
             className="flex items-center gap-1.5"
@@ -208,98 +277,142 @@ export default function ResultsPage({
 
         {/* Real AI dish cards */}
         {isReal ? (
-          allDishes.map(({ dish }, i) => {
+          displayedDishes.map((dish, i) => {
             const dishText = getDishText(dish, resultTargetLang);
+            const dishPriceLabel = getDishPriceDisplay(dish);
+            const originalNameLabel = stripPriceFromOriginalName(dishText.originalName) || dishText.originalName;
             const insight = getDishInsight(dish, resultTargetLang);
+            const includedItems = getDishIncludedItems(dish, resultTargetLang);
+            const orderControlOffset = onOrderQuantityChange ? 58 : 0;
 
-            const tags: { label: string; type: "green" | "warm" | "allergen" | "veg" }[] = [];
-            for (const ing of (dish.ingredients || []).slice(0, 2)) {
-              tags.push({ label: ing, type: "green" });
-            }
             const isVeg = isVegetarianDish(dish);
-            if (isVeg) tags.push({ label: "素食", type: "veg" });
-            tags.push({ label: insight.confidenceLabel, type: "warm" });
-
-            if (showAllergens && dish.allergens?.length) {
-              for (const a of dish.allergens) {
-                const labels: Record<string, string> = {
-                  dairy: "⚠ 乳制品", egg: "⚠ 蛋", peanut: "⚠ 花生",
-                  tree_nut: "⚠ 坚果", soy: "⚠ 大豆", wheat: "⚠ 小麦",
-                  gluten: "⚠ 麸质", fish: "⚠ 鱼类", shellfish: "⚠ 贝类",
-                  alcohol: "⚠ 酒精", wine: "⚠ 酒精",
-                };
-                tags.push({ label: labels[a] || `⚠ ${a}`, type: "allergen" });
-              }
-            }
+            const tags = buildDishDisplayTags({
+              dish,
+              signature: result?.metadata?.signature,
+              showAllergens,
+              maxTags: 4,
+            });
 
             return (
-              <button
+              <div
                 key={dish.id || `dish-${i}`}
-                onClick={() => onDishDetail(dish)}
-                className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
-                style={{
-                  background: "var(--card)",
-                  borderRadius: "var(--radius-lg)",
-                  padding: 14,
-                  marginBottom: 10,
-                  boxShadow: "var(--shadow)",
-                  cursor: "pointer",
-                  border: "none",
-                  fontFamily: "inherit",
-                  animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both`,
-                }}
+                className="relative"
+                style={{ marginBottom: 10, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
               >
-                {/* Image */}
-                <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName} pendingDone={imageGenProgress?.done} pendingTotal={imageGenProgress?.total}>
-                  {showVeg && isVeg && (
-                    <div
-                      className="absolute flex items-center justify-center"
-                      style={{
-                        bottom: 3, right: 3,
-                        width: 18, height: 18,
-                        background: "var(--primary)",
-                        borderRadius: "50%",
-                        animation: "popIn 0.3s ease-out",
-                        boxShadow: "0 1px 4px rgba(76,175,80,0.3)",
-                      }}
-                    >
-                      <svg viewBox="0 0 12 12" style={{ width: 11, height: 11, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
-                        <path d="M8 4C4 5 3 8 3.5 10c.5 1.8 2 2.5 3 1 .7-1.1.5-2.7-.5-4" />
-                        <path d="M6 2c0 0 1-1.5 3-1s2 2.5 0 4" />
-                      </svg>
-                    </div>
-                  )}
-                </DishImageWithLoading>
+                <button
+                  onClick={() => onDishDetail(dish)}
+                  className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                  style={{
+                    background: "var(--card)",
+                    borderRadius: "var(--radius-lg)",
+                    padding: 14,
+                    paddingRight: 14 + orderControlOffset,
+                    boxShadow: "var(--shadow)",
+                    cursor: "pointer",
+                    border: "none",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {/* Image */}
+                  <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName} pendingDone={imageGenProgress?.done} pendingTotal={imageGenProgress?.total}>
+                    {showVeg && isVeg && (
+                      <div
+                        className="absolute flex items-center justify-center"
+                        style={{
+                          bottom: 3, right: 3,
+                          width: 18, height: 18,
+                          background: "var(--primary)",
+                          borderRadius: "50%",
+                          animation: "popIn 0.3s ease-out",
+                          boxShadow: "0 1px 4px rgba(76,175,80,0.3)",
+                        }}
+                      >
+                        <svg viewBox="0 0 12 12" style={{ width: 11, height: 11, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                          <path d="M8 4C4 5 3 8 3.5 10c.5 1.8 2 2.5 3 1 .7-1.1.5-2.7-.5-4" />
+                          <path d="M6 2c0 0 1-1.5 3-1s2 2.5 0 4" />
+                        </svg>
+                      </div>
+                    )}
+                  </DishImageWithLoading>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.04em", marginBottom: 2 }}>
-                    {String(i + 1).padStart(2, "0")}
-                    {dish.rating_avg ? (
-                      <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>
-                        ★ {dish.rating_avg}
-                      </span>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.04em", marginBottom: 2 }}>
+                      {String(i + 1).padStart(2, "0")}
+                      {dish.rating_avg ? (
+                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>
+                          ★ {dish.rating_avg}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-start gap-2" style={{ marginBottom: 2 }}>
+                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.01em" }}>
+                        {dishText.translatedName}
+                      </div>
+                      {dishPriceLabel ? (
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            paddingTop: 1,
+                            fontFamily: "var(--font-body)",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: "var(--ink)",
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {dishPriceLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
+                      {originalNameLabel}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
+                      {insight.summary}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--primary)", marginBottom: 5, lineHeight: 1.4, fontWeight: 600 }}>
+                      {insight.recommendation}
+                    </div>
+                    {includedItems.length > 0 ? (
+                      <div
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          boxSizing: "border-box",
+                          overflowWrap: "break-word",
+                          padding: "4px 8px",
+                          borderRadius: 10,
+                          background: "rgba(76,175,80,0.07)",
+                          marginBottom: 5,
+                          fontFamily: "var(--font-ui)",
+                          fontSize: 7.5,
+                          lineHeight: 1.35,
+                          color: "var(--primary)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        <span style={{ color: "var(--muted)", marginRight: 4 }}>套餐包含：</span>
+                        {includedItems.join(" / ")}
+                      </div>
                     ) : null}
+                    <div className="flex gap-1 flex-wrap">
+                      {tags.map((t, j) => (
+                        <Pill key={j} label={t.label} type={t.type} />
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.01em", marginBottom: 2 }}>
-                    {dishText.translatedName}
+                </button>
+                {onOrderQuantityChange ? (
+                  <div style={{ position: "absolute", right: 12, bottom: 14, zIndex: 2 }}>
+                    <OrderQuantityControl
+                      compact
+                      quantity={orderQuantities?.[dish.id] || 0}
+                      onChange={(quantity) => onOrderQuantityChange(dish, quantity)}
+                    />
                   </div>
-                  <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
-                    {dishText.originalName}
-                  </div>
-                  <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
-                    {insight.summary}
-                  </div>
-                  <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--primary)", marginBottom: 5, lineHeight: 1.4, fontWeight: 600 }}>
-                    {insight.recommendation}
-                  </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {tags.map((t, j) => (
-                      <Pill key={j} label={t.label} type={t.type} />
-                    ))}
-                  </div>
-                </div>
-              </button>
+                ) : null}
+              </div>
             );
           })
         ) : isInfoPage ? (
@@ -333,6 +446,7 @@ export default function ResultsPage({
             </p>
           </div>
         )}
+        </div>
 
         {/* Failed pages warning */}
         {result?.failed_pages && result.failed_pages.length > 0 && (
@@ -351,6 +465,49 @@ export default function ResultsPage({
           </div>
         )}
       </div>
+      {onOrderQuantityChange && onOpenOrderConfirm && orderTotalQuantity > 0 ? (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onOpenOrderConfirm(); }}
+          className="inline-flex items-center gap-2 transition-all duration-150 active:scale-[0.97]"
+          style={{
+            position: "absolute",
+            right: 16,
+            bottom: 16,
+            zIndex: 7,
+            height: 44,
+            minHeight: 44,
+            padding: "0 12px",
+            border: "1px solid rgba(232,213,192,0.84)",
+            borderRadius: 18,
+            background: "rgba(255,240,221,0.96)",
+            color: "var(--ink-soft)",
+            boxShadow: "0 10px 24px rgba(45,45,45,0.08)",
+            fontFamily: "var(--font-ui)",
+            fontSize: 10,
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          <span
+            style={{
+              display: "grid",
+              placeItems: "center",
+              width: 24,
+              height: 24,
+              borderRadius: 10,
+              background: "rgba(76,175,80,0.08)",
+              color: "var(--primary)",
+              fontFamily: "var(--font-ui)",
+              fontSize: 10,
+              fontWeight: 900,
+            }}
+          >
+            {orderTotalQuantity}
+          </span>
+          <span>已选 · {orderTotalLabel}</span>
+        </button>
+      ) : null}
     </div>
   );
 }
