@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeMenuImage, analyzeMenuImageFast, refineTranslation, hasChinese } from "@/lib/ai";
 import type { Dish } from "@/types";
@@ -20,12 +21,14 @@ const translationCache = new Map<string, { result: Record<string, unknown>; crea
 const CACHE_MAX = 50;
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
-function hashImageName(targetLang: string, name: string, size: number): string {
-  // Lightweight cache key: filename + size is stable across re-encodes
-  let h = 0;
-  const key = `${targetLang}:${name}:${size}`;
-  for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
-  return Math.abs(h).toString(36);
+function hashImageContent(targetLang: string, buffer: Buffer): string {
+  return crypto
+    .createHash("sha256")
+    .update(targetLang)
+    .update(":")
+    .update(buffer)
+    .digest("hex")
+    .slice(0, 32);
 }
 
 export const maxDuration = 60;
@@ -40,6 +43,10 @@ const FULL_PROMPT_PAGE_LIMIT = FAST_OCR_MODE
   : Number.parseInt(process.env.MENU_FULL_PROMPT_PAGE_LIMIT || "4", 10) || 4;
 const REFINE_LOW_CONFIDENCE = process.env.MENU_REFINE_LOW_CONFIDENCE === "true";
 const FAST_FIRST_PASS = process.env.MENU_FAST_FIRST_PASS !== "false";
+const MENU_ENRICHMENT_DELAY_MS = Math.max(
+  0,
+  Math.min(30_000, Number.parseInt(process.env.MENU_ENRICHMENT_DELAY_MS || "3500", 10) || 3500),
+);
 const IMAGE_GENERATION_CONCURRENCY = Math.max(
   1,
   Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "1", 10) || 1),
@@ -56,6 +63,18 @@ type MenuImageInput = {
   mimeType: string;
   name: string;
   size: number;
+  normalizedSize: number;
+  hash: string;
+};
+
+type TranslationTimings = {
+  formDataMs?: number;
+  taskCreateMs?: number;
+  normalizationMs?: number;
+  intakeMs?: number;
+  firstPageMs?: number;
+  firstPassMs?: number;
+  enrichmentMs?: number;
 };
 
 function requestMeta(req: NextRequest): Record<string, string> {
@@ -274,6 +293,7 @@ function buildPartialPayload(
   failed: Array<{ page_index: number; error: string; retry_allowed: boolean }>,
   targetLang: string,
   startTime: number,
+  timings: TranslationTimings = {},
 ): Record<string, unknown> {
   const completed = pages.filter(Boolean) as Array<Record<string, unknown>>;
   const sorted = completed.sort(
@@ -298,6 +318,10 @@ function buildPartialPayload(
       restaurant: extractRestaurantMeta(sorted),
       insight: extractMenuInsight(sorted),
       signature: extractSignature(sorted),
+      timings: {
+        ...timings,
+        processing_time_ms: Date.now() - startTime,
+      },
     },
   };
 }
@@ -305,6 +329,7 @@ function buildPartialPayload(
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const meta = requestMeta(req);
+  const timings: TranslationTimings = {};
 
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -315,7 +340,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const formDataStart = Date.now();
     const formData = await req.formData();
+    timings.formDataMs = Date.now() - formDataStart;
     const images = formData
       .getAll("images")
       .filter((item): item is File => item instanceof File && item.size > 0);
@@ -331,7 +358,12 @@ export async function POST(req: NextRequest) {
 
     const taskId = crypto.randomUUID();
     const allowMemoryFallback = isLocalTaskFallbackRequest(req);
-    await createTask(taskId, images.length, { allowMemoryFallback });
+    const taskCreateStart = Date.now();
+    await createTask(taskId, images.length, {
+      allowMemoryFallback,
+      preferMemory: allowMemoryFallback,
+    });
+    timings.taskCreateMs = Date.now() - taskCreateStart;
     console.info("translate:task_started", {
       taskId,
       imageCount: images.length,
@@ -342,6 +374,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Read ALL file data into memory BEFORE returning response
+    const normalizationStart = Date.now();
     const imageBuffers = await Promise.all(
       images.map(async (file) => {
         const originalBuffer = Buffer.from(await file.arrayBuffer());
@@ -357,17 +390,42 @@ export async function POST(req: NextRequest) {
           name: file.name || "menu-photo",
           size: file.size,
           normalizedSize: normalized.buffer.length,
+          hash: hashImageContent(targetLang, normalized.buffer),
         };
       })
     );
+    timings.normalizationMs = Date.now() - normalizationStart;
+    timings.intakeMs = Date.now() - startTime;
+    console.info("translate:task_intake_ready", {
+      taskId,
+      elapsedMs: timings.intakeMs,
+      formDataMs: timings.formDataMs,
+      taskCreateMs: timings.taskCreateMs,
+      normalizationMs: timings.normalizationMs,
+      originalBytes: images.reduce((sum, image) => sum + image.size, 0),
+      normalizedBytes: imageBuffers.reduce((sum, image) => sum + image.normalizedSize, 0),
+      imageCount: images.length,
+      targetLang,
+      ...meta,
+    });
 
-    // Build stable cache key from filenames + sizes (survives re-encoding)
-    const cacheKey = imageBuffers.map((b) => hashImageName(targetLang, b.name, b.size)).sort().join("|");
+    // Build stable cache key from normalized image content so repeated uploads hit reliably.
+    const cacheKey = imageBuffers.map((b) => b.hash).sort().join("|");
 
     // Check in-memory cache
     const cached = translationCache.get(cacheKey);
     if (cached && Date.now() - cached.createdAt < CACHE_TTL) {
-      const cachedResult = { ...cached.result, metadata: { ...(cached.result.metadata as Record<string, unknown>), cached: true } };
+      const cachedResult = {
+        ...cached.result,
+        metadata: {
+          ...(cached.result.metadata as Record<string, unknown>),
+          cached: true,
+          timings: {
+            ...(((cached.result.metadata as Record<string, unknown>)?.timings as Record<string, unknown>) || {}),
+            ...timings,
+          },
+        },
+      };
       await updateTask(taskId, {
         status: "done",
         progress: { current: images.length, total: images.length },
@@ -387,7 +445,7 @@ export async function POST(req: NextRequest) {
 
     // Fire background processing — buffers are in memory, safe to use after response
     const processor = FAST_FIRST_PASS ? processImagesFastFirstPass : processImages;
-    processor(taskId, imageBuffers, targetLang, startTime, cacheKey, meta).catch(async (err) => {
+    processor(taskId, imageBuffers, targetLang, startTime, cacheKey, meta, timings).catch(async (err) => {
       console.error("translate:task_failed", {
         taskId,
         elapsedMs: Date.now() - startTime,
@@ -426,6 +484,7 @@ async function processImagesFastFirstPass(
   startTime: number,
   cacheKey?: string,
   meta?: Record<string, string>,
+  timings: TranslationTimings = {},
 ) {
   const results: Array<Record<string, unknown>> = [];
   const failedPages: Array<{ page_index: number; error: string; retry_allowed: boolean }> = [];
@@ -458,12 +517,23 @@ async function processImagesFastFirstPass(
             dishes: dishRecords,
             menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
           };
+          if (!timings.firstPageMs) timings.firstPageMs = Date.now() - startTime;
+          console.info("translate:page_first_pass_finished", {
+            taskId,
+            pageIndex: i,
+            elapsedMs: Date.now() - startTime,
+            firstPageMs: timings.firstPageMs,
+            dishCount: dishRecords.length,
+            normalizedSize: item.normalizedSize,
+            fastFirstPass: true,
+            ...meta,
+          });
 
           const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
           if (currentTask) {
             currentTask.perPageStatus[i].status = "done";
             currentTask.progress.current = results.filter(Boolean).length;
-            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime, timings);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
@@ -486,7 +556,7 @@ async function processImagesFastFirstPass(
           if (currentTask) {
             currentTask.perPageStatus[i].status = "failed";
             currentTask.progress.current = results.filter(Boolean).length + failedPages.length;
-            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime, timings);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
@@ -505,6 +575,7 @@ async function processImagesFastFirstPass(
   const sorted = results.filter(Boolean).sort(
     (a, b) => (a as { page_index: number }).page_index - (b as { page_index: number }).page_index
   );
+  timings.firstPassMs = Date.now() - startTime;
   const resultPayload = {
     task_id: taskId,
     status,
@@ -522,6 +593,10 @@ async function processImagesFastFirstPass(
       restaurant: extractRestaurantMeta(sorted),
       insight: extractMenuInsight(sorted),
       signature: extractSignature(sorted),
+      timings: {
+        ...timings,
+        processing_time_ms: Date.now() - startTime,
+      },
     },
   };
   resultPayload.metadata.source_language = resolveMenuSourceLanguage(resultPayload);
@@ -548,9 +623,11 @@ async function processImagesFastFirstPass(
     translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
   }
 
-  enrichResultInBackground(taskId, imageBuffers, resultPayload, targetLang, cacheKey, startTime, meta).catch((err) => {
-    console.error("Background menu enrichment failed:", err);
-  });
+  setTimeout(() => {
+    enrichResultInBackground(taskId, imageBuffers, resultPayload, targetLang, cacheKey, startTime, meta, timings).catch((err) => {
+      console.error("Background menu enrichment failed:", err);
+    });
+  }, MENU_ENRICHMENT_DELAY_MS);
 
 }
 
@@ -561,6 +638,7 @@ async function processImages(
   startTime: number,
   cacheKey?: string,
   meta?: Record<string, string>,
+  timings: TranslationTimings = {},
 ) {
   const results: Array<Record<string, unknown>> = [];
   const failedPages: Array<{ page_index: number; error: string; retry_allowed: boolean }> = [];
@@ -618,13 +696,24 @@ async function processImages(
             dishes: dishRecords,
             menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
           };
+          if (!timings.firstPageMs) timings.firstPageMs = Date.now() - startTime;
+          console.info("translate:page_first_pass_finished", {
+            taskId,
+            pageIndex: i,
+            elapsedMs: Date.now() - startTime,
+            firstPageMs: timings.firstPageMs,
+            dishCount: dishRecords.length,
+            normalizedSize: item.normalizedSize,
+            fastFirstPass: false,
+            ...meta,
+          });
 
           const currentTask = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
           if (currentTask) {
             currentTask.perPageStatus[i].status = "done";
             currentTask.progress.current = results.filter(Boolean).length;
             // Save partial result so frontend shows available pages immediately
-            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime, timings);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
@@ -647,7 +736,7 @@ async function processImages(
             currentTask.perPageStatus[i].status = "failed";
             currentTask.progress.current = results.filter(Boolean).length + failedPages.length;
             // Save partial result even when some pages failed
-            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime);
+            currentTask.result = buildPartialPayload(taskId, results, failedPages, targetLang, startTime, timings);
             await updateTask(taskId, {
               perPageStatus: currentTask.perPageStatus,
               progress: currentTask.progress,
@@ -670,6 +759,7 @@ async function processImages(
   const sorted = results.filter(Boolean).sort(
     (a, b) => (a as { page_index: number }).page_index - (b as { page_index: number }).page_index
   );
+  timings.firstPassMs = Date.now() - startTime;
 
   const resultPayload = {
     task_id: taskId,
@@ -687,6 +777,10 @@ async function processImages(
       restaurant: extractRestaurantMeta(sorted),
       insight: extractMenuInsight(sorted),
       signature: extractSignature(sorted),
+      timings: {
+        ...timings,
+        processing_time_ms: Date.now() - startTime,
+      },
     },
   };
   resultPayload.metadata.source_language = resolveMenuSourceLanguage(resultPayload);
@@ -727,6 +821,7 @@ async function enrichResultInBackground(
   cacheKey?: string,
   startTime?: number,
   meta?: Record<string, string>,
+  timings: TranslationTimings = {},
 ) {
   const enrichedPages: Array<Record<string, unknown>> = [];
   const usedImageIds = new Set<string>();
@@ -765,6 +860,7 @@ async function enrichResultInBackground(
   const pages = enrichedPages.filter(Boolean).sort(
     (a, b) => (a as { page_index: number }).page_index - (b as { page_index: number }).page_index
   );
+  if (startTime) timings.enrichmentMs = Date.now() - startTime;
   const enrichedPayload = {
     ...resultPayload,
     pages,
@@ -780,6 +876,10 @@ async function enrichResultInBackground(
       restaurant: extractRestaurantMeta(pages),
       insight: extractMenuInsight(pages),
       signature: extractSignature(pages),
+      timings: {
+        ...timings,
+        processing_time_ms: startTime ? Date.now() - startTime : undefined,
+      },
     },
   };
   (enrichedPayload.metadata as Record<string, unknown>).source_language = resolveMenuSourceLanguage(enrichedPayload);

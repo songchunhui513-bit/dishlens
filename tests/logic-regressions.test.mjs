@@ -486,8 +486,8 @@ test("server-side menu image normalization protects overseas uploads from large-
   const serverNormalization = await readFile(`${ROOT}/src/lib/server-image-normalization.ts`, "utf8");
 
   assert.equal(packageJson.dependencies.sharp, "^0.34.5");
-  assert.match(imageInput, /DEFAULT_SERVER_IMAGE_MAX_DIM = 1024/);
-  assert.match(imageInput, /DEFAULT_SERVER_IMAGE_QUALITY = 62/);
+  assert.match(imageInput, /DEFAULT_SERVER_IMAGE_MAX_DIM = 896/);
+  assert.match(imageInput, /DEFAULT_SERVER_IMAGE_QUALITY = 56/);
   assert.match(imageInput, /getServerImageMaxDim/);
   assert.match(imageInput, /getServerImageQuality/);
   assert.match(serverNormalization, /export async function normalizeServerMenuImage/);
@@ -501,6 +501,36 @@ test("server-side menu image normalization protects overseas uploads from large-
   assert.match(route, /normalizedSize/);
 });
 
+test("menu recognition has instrumentation and upload optimizations for fast first paint", async () => {
+  const apiClient = await readFile(`${ROOT}/src/lib/api-client.ts`, "utf8");
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
+
+  assert.match(apiClient, /maxDim = 1024,\s*quality = 0\.62/);
+  assert.match(apiClient, /console\.info\("translate:client_upload_prepared"/);
+  assert.match(apiClient, /originalBytes/);
+  assert.match(apiClient, /compressedBytes/);
+  assert.match(apiClient, /compressionMs/);
+
+  assert.match(route, /\.createHash\("sha256"\)/);
+  assert.match(route, /hashImageContent\(targetLang/);
+  assert.match(route, /const timings: TranslationTimings/);
+  assert.match(route, /formDataMs/);
+  assert.match(route, /normalizationMs/);
+  assert.match(route, /firstPassMs/);
+  assert.match(route, /firstPageMs/);
+  assert.match(route, /metadata[\s\S]*timings/);
+  assert.match(route, /translate:task_intake_ready/);
+  assert.match(route, /translate:page_first_pass_finished/);
+  assert.match(route, /setTimeout\(\(\) => \{/);
+  assert.match(route, /MENU_ENRICHMENT_DELAY_MS/);
+
+  assert.match(qwen, /MENU_FAST_FIRST_PASS_MAX_TOKENS/);
+  assert.match(qwen, /QWEN_FAST_VL_MODEL/);
+  assert.match(qwen, /model:\s*fastFirstPass \? FAST_VL_MODEL : VL_MODEL/);
+  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true\s*\}\)/);
+});
+
 test("fast overseas recognition returns a lightweight first result before enrichment", async () => {
   const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
   const aiIndex = await readFile(`${ROOT}/src/lib/ai/index.ts`, "utf8");
@@ -508,7 +538,7 @@ test("fast overseas recognition returns a lightweight first result before enrich
 
   assert.match(qwen, /VL_SYSTEM_PROMPT_FAST_FIRST_PASS/);
   assert.match(qwen, /export async function analyzeMenuImageFast/);
-  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*3072,\s*targetLang\)/);
+  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true\s*\}\)/);
   assert.match(qwen, /Do NOT generate recommendation/);
   assert.match(qwen, /provide ONLY[\s\S]*name_original[\s\S]*name_translated[\s\S]*description[\s\S]*confidence/);
   assert.doesNotMatch(qwen.match(/const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `([\s\S]*?)`;/)?.[1] || "", /ingredients|allergens|taste_profile/);
@@ -1015,8 +1045,8 @@ test("global menu recognition is resilient to slow overseas uploads and provider
 
   assert.match(apiClient, /TRANSLATION_UPLOAD_TIMEOUT_MS/);
   assert.match(apiClient, /AbortController/);
-  assert.match(apiClient, /maxDim = 1280/);
-  assert.match(apiClient, /quality = 0\.68/);
+  assert.match(apiClient, /maxDim = 1024/);
+  assert.match(apiClient, /quality = 0\.62/);
   assert.match(aiIndex, /providerOrder/);
   assert.match(aiIndex, /MENU_AI_PROVIDER/);
   assert.match(aiIndex, /analyzeMenuImage[\s\S]*lastError/);
@@ -1030,17 +1060,21 @@ test("global menu recognition is resilient to slow overseas uploads and provider
   assert.match(appPage, /海外网络/);
 });
 
-test("local translation tasks fall back to memory but production task creation fails loudly", async () => {
+test("translation tasks can fall back to memory when the remote task store is unavailable", async () => {
   const taskStore = await readFile(`${ROOT}/src/lib/cache/task-store.ts`, "utf8");
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
 
   assert.match(taskStore, /const memoryTasks = new Map/);
   assert.match(taskStore, /allowMemoryFallback\?:\s*boolean/);
+  assert.match(taskStore, /preferMemory\?:\s*boolean/);
+  assert.match(taskStore, /MENU_TASK_MEMORY_FALLBACK/);
+  assert.match(taskStore, /Task store request failed; using memory fallback/);
+  assert.match(taskStore, /if \(options\.preferMemory\)/);
   assert.match(taskStore, /if \(error\)/);
   assert.match(taskStore, /Task store unavailable/);
   assert.match(taskStore, /updates\.status \|\| existing\.status/);
   assert.match(route, /isLocalTaskFallbackRequest\(req\)/);
-  assert.match(route, /allowMemoryFallback/);
+  assert.match(route, /preferMemory:\s*allowMemoryFallback/);
   assert.match(route, /localhost|127\\.0\\.0\\.1|\[::1\]/);
 });
 
@@ -1086,13 +1120,14 @@ test("language settings affect API target language, cache keys, visible settings
   );
 
   assert.match(apiClient, /postTranslation\(images:\s*File\[\],\s*targetLang/);
-  assert.match(apiClient, /formData\.append\("target_lang",\s*normalizeTargetLang\(targetLang\)\)/);
+  assert.match(apiClient, /const normalizedTargetLang = normalizeTargetLang\(targetLang\)/);
+  assert.match(apiClient, /formData\.append\("target_lang",\s*normalizedTargetLang\)/);
   assert.doesNotMatch(apiClient, /formData\.append\("target_lang",\s*"zh"\)/);
   assert.match(appPage, /createTranslation\(files,\s*settings\.targetLang\)/);
   assert.match(appPage, /targetLang=\{settings\.targetLang\}/);
   assert.match(appPage, /uiLang=\{settings\.uiLang\}/);
   assert.match(route, /normalizeTargetLang/);
-  assert.match(route, /hashImageName\(targetLang/);
+  assert.match(route, /hashImageContent\(targetLang/);
   assert.match(route, /analyzeMenuImageFast\(item\.base64,\s*false,\s*item\.mimeType,\s*targetLang\)/);
   assert.match(route, /target_language:\s*targetLang/);
   assert.match(qwen, /TARGET_LANGUAGE_LABELS/);
@@ -1111,6 +1146,7 @@ test("home page responds to interface language settings beyond the settings scre
 
   assert.match(appPage, /uiLang=\{settings\.uiLang\}/);
   assert.match(appPage, /useDailyRecommendation\(settings\.uiLang\)/);
+  assert.match(appPage, /recentHistory=\{mounted \? buildRecentMenuRecords\(historyEntries, \{ targetLang: settings\.targetLang \}\) : undefined\}/);
   assert.match(appPage, /restaurantSource=\{dailyRestaurantSource\}/);
   assert.match(appPage, /selectedDishRestaurantSource/);
   assert.match(appPage, /restaurantSource=\{selectedDishRestaurantSource\}/);
@@ -1124,6 +1160,10 @@ test("home page responds to interface language settings beyond the settings scre
   assert.match(homePage, /copy\.albumCta/);
   assert.match(homePage, /copy\.recentTitle/);
   assert.match(homePage, /copy\.viewAll/);
+  assert.match(homePage, /visibility:\s*isEmpty\s*\?\s*"hidden"\s*:\s*"visible"/);
+  assert.doesNotMatch(homePage, /\{!isEmpty && \(/);
+  assert.match(homePage, /failedRecentThumbs/);
+  assert.match(homePage, /onError=\{\(\) => setFailedRecentThumbs/);
   assert.match(homePage, /copy\.navHistory/);
   assert.match(homePage, /copy\.navFavorites/);
   assert.match(homePage, /copy\.navSettings/);
@@ -1145,6 +1185,16 @@ test("home page responds to interface language settings beyond the settings scre
   assert.match(recommendationHook, /buildReason\(recommended,\s*temperature,\s*now\.getHours\(\),\s*uiLang,\s*nearbyRestaurant\)/);
   assert.match(recommendationHook, /Unknown weather/);
   assert.match(recommendationHook, /Dinner/);
+});
+
+test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
+  const recentRecords = await readFile(`${ROOT}/src/lib/recent-menu-records.ts`, "utf8");
+
+  assert.match(recentRecords, /function isSafeRecentThumbnail/);
+  assert.match(recentRecords, /url\.startsWith\("\/generated-dishes\/"\)/);
+  assert.match(recentRecords, /dashscope-result\.\*aliyuncs/);
+  assert.match(recentRecords, /image\\.pollinations\\.ai/);
+  assert.match(recentRecords, /isSafeRecentThumbnail\(url\)/);
 });
 
 test("location recommendation demo data is gated to local review only", async () => {

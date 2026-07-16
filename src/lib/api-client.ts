@@ -8,7 +8,7 @@ import { normalizeTargetLang } from "@/lib/languages";
 
 export const TRANSLATION_UPLOAD_TIMEOUT_MS = 45_000;
 
-async function compressImage(file: File, maxDim = 1280, quality = 0.68): Promise<File> {
+async function compressImage(file: File, maxDim = 1024, quality = 0.62): Promise<File> {
   // Keep small JPEG/PNG files untouched for OCR, but normalize WebP/large files
   // so the server and vision model receive a predictable browser-readable image.
   if (!shouldNormalizeClientImage(file)) return file;
@@ -48,9 +48,20 @@ async function compressImage(file: File, maxDim = 1280, quality = 0.68): Promise
 
 async function postTranslation(images: File[], targetLang = "zh"): Promise<TranslationResult> {
   const formData = new FormData();
+  const normalizedTargetLang = normalizeTargetLang(targetLang);
+  const compressionStart = performance.now();
+  const originalBytes = images.reduce((sum, img) => sum + img.size, 0);
   const compressed = await Promise.all(images.map((img) => compressImage(img)));
+  const compressedBytes = compressed.reduce((sum, img) => sum + img.size, 0);
+  console.info("translate:client_upload_prepared", {
+    imageCount: images.length,
+    originalBytes,
+    compressedBytes,
+    compressionMs: Math.round(performance.now() - compressionStart),
+    targetLang: normalizedTargetLang,
+  });
   compressed.forEach((img) => formData.append("images", img));
-  formData.append("target_lang", normalizeTargetLang(targetLang));
+  formData.append("target_lang", normalizedTargetLang);
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), TRANSLATION_UPLOAD_TIMEOUT_MS);

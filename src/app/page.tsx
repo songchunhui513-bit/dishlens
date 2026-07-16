@@ -816,7 +816,7 @@ export default function Page() {
               navigate("results");
             }
           }}
-          recentHistory={buildRecentMenuRecords(historyEntries, { targetLang: settings.targetLang })}
+          recentHistory={mounted ? buildRecentMenuRecords(historyEntries, { targetLang: settings.targetLang }) : undefined}
           dailyDish={dailyDish ? {
             id: dailyDish.id,
             name_en: dailyDish.names[0] || "",

@@ -12,7 +12,12 @@ const qwen = new OpenAI({
 });
 
 const VL_MODEL = process.env.QWEN_VL_MODEL || "qwen-vl-max";
+const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || VL_MODEL;
 const TEXT_MODEL = process.env.QWEN_TEXT_MODEL || "qwen-plus";
+const FAST_FIRST_PASS_MAX_TOKENS = Math.max(
+  1024,
+  Math.min(3072, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_MAX_TOKENS || "2048", 10) || 2048),
+);
 
 interface MenuDishAnalysis {
   name_original: string;
@@ -224,11 +229,13 @@ async function analyzeWithPrompt(
   mimeType: string,
   maxTokens: number,
   targetLang = "zh",
+  options: { fastFirstPass?: boolean } = {},
 ): Promise<MenuImageAnalysis> {
   const normalizedTargetLang = normalizeTargetLang(targetLang);
   const targetPrompt = targetLanguageInstruction(normalizedTargetLang);
+  const fastFirstPass = options.fastFirstPass === true;
   const response = await qwen.chat.completions.create({
-    model: VL_MODEL,
+    model: fastFirstPass ? FAST_VL_MODEL : VL_MODEL,
     messages: [
       { role: "system", content: `${systemPrompt}${targetPrompt}` },
       {
@@ -261,7 +268,7 @@ export async function analyzeMenuImageFast(base64Image: string, _rich?: boolean,
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const result = await analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, 3072, targetLang);
+      const result = await analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, FAST_FIRST_PASS_MAX_TOKENS, targetLang, { fastFirstPass: true });
 
       if (shouldRetryEmptyMenuResult(result, attempt, MAX_RETRIES)) {
         lastError = new Error("AI found no dishes");

@@ -94,6 +94,13 @@ const DEFAULT_RECORDS: RecentMenuRecord[] = [
   },
 ];
 
+function isSafeRecentThumbnail(url: string): boolean {
+  if (!url) return false;
+  if (url.startsWith("/generated-dishes/")) return false;
+  if (/dashscope-result.*aliyuncs\.com|image\.pollinations\.ai/i.test(url)) return false;
+  return true;
+}
+
 export function getDefaultRecentMenuRecords(): RecentMenuRecord[] {
   return DEFAULT_RECORDS;
 }
@@ -117,7 +124,7 @@ export function buildRecentMenuRecords(
         new Set([
           entry.thumbnail,
           ...dishes.map((dish) => getDishImageUrl(dish)).filter(Boolean),
-        ].filter(Boolean)),
+        ].filter((url): url is string => typeof url === "string" && isSafeRecentThumbnail(url))),
       ).slice(0, 3);
       const landmark = resolveRegionLandmark({
         sourceLang,

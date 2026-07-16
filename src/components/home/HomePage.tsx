@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, type ChangeEvent, type ReactNode } from "react";
+import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import type { CapturedPhoto } from "@/types";
 import type { RestaurantSource } from "@/lib/location-recommendation";
 import RegionLandmarkIcon from "@/components/shared/RegionLandmarkIcon";
@@ -127,6 +127,7 @@ export default function HomePage({
   const recentItems = recentHistory && recentHistory.length > 0 ? recentHistory : getDefaultRecentMenuRecords();
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
+  const [failedRecentThumbs, setFailedRecentThumbs] = useState<Record<string, true>>({});
 
   const handleAlbumPick = () => {
     albumInputRef.current?.click();
@@ -444,20 +445,23 @@ export default function HomePage({
         >
           {copy.recentTitle}
         </h3>
-        {!isEmpty && (
-          <span
-            onClick={() => onNavigate?.("history")}
-            style={{
-              fontFamily: "var(--font-ui)",
-              fontSize: 9,
-              fontWeight: 600,
-              color: "var(--primary)",
-              cursor: "pointer",
-            }}
-          >
-            {copy.viewAll}
-          </span>
-        )}
+        <span
+          aria-hidden={isEmpty}
+          onClick={() => {
+            if (!isEmpty) onNavigate?.("history");
+          }}
+          style={{
+            fontFamily: "var(--font-ui)",
+            fontSize: 9,
+            fontWeight: 600,
+            color: "var(--primary)",
+            cursor: isEmpty ? "default" : "pointer",
+            pointerEvents: isEmpty ? "none" : "auto",
+            visibility: isEmpty ? "hidden" : "visible",
+          }}
+        >
+          {copy.viewAll}
+        </span>
       </div>
 
       {isEmpty ? (
@@ -535,7 +539,15 @@ export default function HomePage({
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, minWidth: 0 }}>
                     {item.thumbnails.slice(0, 3).map((src, index) => (
                       <span key={`${src}-${index}`} className="relative overflow-hidden" style={{ width: 26, height: 26, borderRadius: 9, border: "1px solid rgba(255,255,255,0.65)", flexShrink: 0 }}>
-                        <Image src={src || fallbackRecentImage} alt="" fill loading="lazy" sizes="26px" style={{ objectFit: "cover" }} />
+                        <Image
+                          src={failedRecentThumbs[src] ? fallbackRecentImage : src || fallbackRecentImage}
+                          alt=""
+                          fill
+                          loading="lazy"
+                          sizes="26px"
+                          style={{ objectFit: "cover" }}
+                          onError={() => setFailedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
+                        />
                       </span>
                     ))}
                     <span style={{ font: "650 8px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

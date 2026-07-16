@@ -12,10 +12,12 @@ export interface TaskState {
 
 interface TaskStoreOptions {
   allowMemoryFallback?: boolean;
+  preferMemory?: boolean;
 }
 
 let _db: SupabaseClient | null = null;
 const memoryTasks = new Map<string, TaskState>();
+const ENABLE_MEMORY_FALLBACK = process.env.MENU_TASK_MEMORY_FALLBACK !== "false";
 
 function db(): SupabaseClient {
   if (_db) return _db;
@@ -40,24 +42,41 @@ export async function createTask(
     })),
   };
 
-  const { error } = await db().from("tasks").insert({
-    id,
-    status: task.status,
-    progress: task.progress,
-    per_page_status: task.perPageStatus,
-    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-  });
+  if (options.preferMemory) {
+    memoryTasks.set(id, task);
+    return task;
+  }
 
-  if (error) {
-    if (options.allowMemoryFallback) {
-      console.warn("Task store unavailable; using local memory fallback", {
+  try {
+    const { error } = await db().from("tasks").insert({
+      id,
+      status: task.status,
+      progress: task.progress,
+      per_page_status: task.perPageStatus,
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    });
+
+    if (error) {
+      if (options.allowMemoryFallback || ENABLE_MEMORY_FALLBACK) {
+        console.warn("Task store unavailable; using memory fallback", {
+          taskId: id,
+          error: error.message,
+        });
+        memoryTasks.set(id, task);
+        return task;
+      }
+      throw new Error(`Task store unavailable: ${error.message}`);
+    }
+  } catch (error) {
+    if (options.allowMemoryFallback || ENABLE_MEMORY_FALLBACK) {
+      console.warn("Task store request failed; using memory fallback", {
         taskId: id,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
       memoryTasks.set(id, task);
       return task;
     }
-    throw new Error(`Task store unavailable: ${error.message}`);
+    throw error;
   }
 
   return task;
