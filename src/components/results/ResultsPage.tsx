@@ -314,7 +314,7 @@ export default function ResultsPage({
                   }}
                 >
                   {/* Image */}
-                  <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName} pendingDone={imageGenProgress?.done} pendingTotal={imageGenProgress?.total}>
+                  <DishImageWithLoading dish={dish} size="card" alt={dishText.originalName} pendingDone={imageGenProgress?.done} pendingTotal={imageGenProgress?.total} priority={i === 0}>
                     {showVeg && isVeg && (
                       <div
                         className="absolute flex items-center justify-center"

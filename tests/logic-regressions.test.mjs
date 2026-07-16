@@ -1574,6 +1574,18 @@ test("dish image loading animation chooses category-specific food characters", a
   assert.doesNotMatch(component, /skeleton-shimmer/);
 });
 
+test("above-fold dish images are prioritized to reduce result-page LCP", async () => {
+  const component = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
+
+  assert.match(component, /priority\?: boolean/);
+  assert.match(component, /priority=\{priority\}/);
+  assert.match(component, /loading=\{priority \? "eager" : "lazy"\}/);
+  assert.match(resultsPage, /priority=\{i === 0\}/);
+  assert.match(detailPage, /priority/);
+});
+
 test("AI image generation prompt uses category-specific framing for drinks, soups, and seafood", async () => {
   const { buildDishImagePrompt, classifyDishImageKind } = await loadTsModule(
     `${ROOT}/src/lib/ai/image-gen.ts`,

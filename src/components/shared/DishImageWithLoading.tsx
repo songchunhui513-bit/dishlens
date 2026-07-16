@@ -17,6 +17,7 @@ type DishImageWithLoadingProps = {
   pendingTotal?: number;
   onRetry?: () => void;
   retrying?: boolean;
+  priority?: boolean;
 };
 
 function selectLoadingCharacter(dish: Dish): LoadingKind {
@@ -239,7 +240,7 @@ function LoadingIcon({ kind, compact }: { kind: LoadingKind; compact: boolean })
   return <MainIcon compact={compact} />;
 }
 
-export default function DishImageWithLoading({ dish, size, alt, children, pendingDone, pendingTotal, onRetry, retrying }: DishImageWithLoadingProps) {
+export default function DishImageWithLoading({ dish, size, alt, children, pendingDone, pendingTotal, onRetry, retrying, priority = false }: DishImageWithLoadingProps) {
   const compact = size === "card";
   const kind = selectLoadingCharacter(dish);
   const imageUrl = getDishImageUrl(dish, size);
@@ -320,6 +321,8 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
           src={imageUrl}
           alt={alt || getDishText(dish).translatedName}
           fill
+          priority={priority}
+          loading={priority ? "eager" : "lazy"}
           sizes={compact ? "128px" : "(max-width: 430px) 100vw, 430px"}
           style={{ objectFit: "cover" }}
           onError={() => setFailedUrl(imageUrl)}
