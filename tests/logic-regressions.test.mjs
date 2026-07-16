@@ -1754,6 +1754,45 @@ test("stale local generated image URLs from the database are not reused as valid
   );
 });
 
+test("task responses strip missing local generated dish image URLs before reaching the UI", async () => {
+  const { sanitizeTranslationResultImages } = await loadTsModule(
+    `${ROOT}/src/lib/server/sanitize-translation-result.ts`,
+  );
+
+  const sanitized = sanitizeTranslationResultImages({
+    task_id: "task-with-stale-images",
+    metadata: {},
+    pages: [
+      {
+        page_index: 0,
+        dishes: [
+          {
+            id: "missing",
+            name_original: "Missing cached image",
+            ai_image_url: "/generated-dishes/generated-file-that-does-not-exist.png",
+            image_status: "done",
+            image_source: "ai",
+          },
+          {
+            id: "existing",
+            name_original: "Cheese bombs",
+            ai_image_url: "/generated-dishes/generated-cheese-bombs.png",
+            image_status: "done",
+            image_source: "ai",
+          },
+        ],
+      },
+    ],
+  });
+
+  const dishes = sanitized.pages[0].dishes;
+  assert.equal(dishes[0].ai_image_url, undefined);
+  assert.equal(dishes[0].image_status, "failed");
+  assert.equal(dishes[1].ai_image_url, "/generated-dishes/generated-cheese-bombs.png");
+  assert.equal(dishes[1].image_status, "done");
+  assert.equal(sanitized.metadata.image_sanitized_count, 1);
+});
+
 test("translated menus can be shared through a public read-only menu page", async () => {
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
   const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");

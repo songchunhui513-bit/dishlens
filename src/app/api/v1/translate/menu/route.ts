@@ -16,6 +16,7 @@ import { dishNameLookupCandidates } from "@/lib/dish-name-normalization";
 import { isReusableExistingImageUrl } from "@/lib/dish-image-url";
 import { extractRestaurantMeta, extractMenuInsight, extractSignature } from "@/lib/results-insight-fallback";
 import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
+import { sanitizeTranslationResultImages } from "@/lib/server/sanitize-translation-result";
 
 // In-memory translation cache — avoids Supabase schema/RLS issues for anonymous users
 const translationCache = new Map<string, { result: Record<string, unknown>; createdAt: number }>();
@@ -426,7 +427,7 @@ export async function POST(req: NextRequest) {
       : await getCachedTranslationResult(cacheKey);
     if (cached) {
       if (cached !== memoryCached) translationCache.set(cacheKey, cached);
-      const cachedResult = {
+      const cachedResult = sanitizeTranslationResultImages({
         ...cached.result,
         metadata: {
           ...(cached.result.metadata as Record<string, unknown>),
@@ -436,7 +437,7 @@ export async function POST(req: NextRequest) {
             ...timings,
           },
         },
-      };
+      });
       await updateTask(taskId, {
         status: "done",
         progress: { current: images.length, total: images.length },

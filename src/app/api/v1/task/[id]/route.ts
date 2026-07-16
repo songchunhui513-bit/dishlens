@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/lib/cache/task-store";
+import { sanitizeTranslationResultImages } from "@/lib/server/sanitize-translation-result";
 
 export async function GET(
   _req: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
     status: task.status,
     progress: task.progress,
     per_page_status: task.perPageStatus,
-    result: task.result,
+    result: sanitizeTranslationResultImages(task.result),
     failed_pages: task.failedPages,
     estimated_remaining_seconds: task.estimatedRemaining,
   });
