@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { deleteFileTask, getFileTask, setFileTask } from "./task-file-store";
 
 export interface TaskState {
   status: "pending" | "processing" | "done" | "partial" | "failed";
@@ -55,11 +56,13 @@ export async function createTask(
   if (options.preferMemory) {
     memoryTasks.set(id, task);
     memoryOnlyTasks.add(id);
+    await setFileTask(id, task);
     return task;
   }
 
   if (options.allowMemoryFallback || ENABLE_MEMORY_FALLBACK) {
     memoryTasks.set(id, task);
+    await setFileTask(id, task);
   }
 
   try {
@@ -79,6 +82,7 @@ export async function createTask(
         });
         memoryTasks.set(id, task);
         memoryOnlyTasks.add(id);
+        await setFileTask(id, task);
         return task;
       }
       throw new Error(`Task store unavailable: ${error.message}`);
@@ -92,6 +96,7 @@ export async function createTask(
       });
       memoryTasks.set(id, task);
       memoryOnlyTasks.add(id);
+      await setFileTask(id, task);
       return task;
     }
     throw error;
@@ -105,6 +110,12 @@ export async function getTask(
 ): Promise<TaskState | undefined> {
   const memoryTask = memoryTasks.get(id);
   if (memoryTask) return memoryTask;
+
+  const fileTask = await getFileTask(id);
+  if (fileTask) {
+    memoryTasks.set(id, fileTask);
+    return fileTask;
+  }
 
   let data: TaskRow | null = null;
   let error: { message?: string } | null = null;
@@ -121,12 +132,12 @@ export async function getTask(
       taskId: id,
       error: err instanceof Error ? err.message : String(err),
     });
-    return undefined;
+    return await getFileTask(id);
   }
 
-  if (error || !data) return undefined;
+  if (error || !data) return await getFileTask(id);
 
-  return {
+  const task = {
     status: data.status,
     progress: data.progress,
     perPageStatus: data.per_page_status,
@@ -134,6 +145,9 @@ export async function getTask(
     failedPages: data.failed_pages,
     estimatedRemaining: data.estimated_remaining,
   };
+  memoryTasks.set(id, task);
+  await setFileTask(id, task);
+  return task;
 }
 
 export async function updateTask(
@@ -154,6 +168,7 @@ export async function updateTask(
 
   if (memoryTasks.has(id)) {
     memoryTasks.set(id, merged);
+    await setFileTask(id, merged);
     if (memoryOnlyTasks.has(id)) return;
   }
 
@@ -173,18 +188,21 @@ export async function updateTask(
         taskId: id,
         error: error.message,
       });
+      await setFileTask(id, merged);
     }
   } catch (err) {
     console.warn("Task store update request failed", {
       taskId: id,
       error: err instanceof Error ? err.message : String(err),
     });
+    await setFileTask(id, merged);
   }
 }
 
 export async function deleteTask(id: string): Promise<void> {
   memoryTasks.delete(id);
   memoryOnlyTasks.delete(id);
+  await deleteFileTask(id);
   try {
     await db().from("tasks").delete().eq("id", id);
   } catch (err) {

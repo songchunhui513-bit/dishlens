@@ -1211,6 +1211,47 @@ test("translation tasks can fall back to memory when the remote task store is un
   assert.match(route, /localhost|127\\.0\\.0\\.1|\[::1\]/);
 });
 
+test("translation task fallback persists to a local file store across process restarts", async () => {
+  const taskStoreSource = await readFile(`${ROOT}/src/lib/cache/task-store.ts`, "utf8");
+  const taskFileStoreSource = await readFile(`${ROOT}/src/lib/cache/task-file-store.ts`, "utf8");
+  assert.match(taskStoreSource, /setFileTask/);
+  assert.match(taskStoreSource, /getFileTask/);
+  assert.match(taskStoreSource, /deleteFileTask/);
+  assert.match(taskFileStoreSource, /MENU_TASK_FILE_STORE_DIR/);
+  assert.match(taskFileStoreSource, /MENU_TASK_FILE_STORE_TTL_MS/);
+
+  const previousDir = process.env.MENU_TASK_FILE_STORE_DIR;
+  const previousTtl = process.env.MENU_TASK_FILE_STORE_TTL_MS;
+  process.env.MENU_TASK_FILE_STORE_DIR = `${TMP_ROOT}/task-file-store-${Date.now()}`;
+  process.env.MENU_TASK_FILE_STORE_TTL_MS = "1000";
+
+  try {
+    const { getFileTask, setFileTask, deleteFileTask } = await loadTsModule(
+      `${ROOT}/src/lib/cache/task-file-store.ts`,
+    );
+    const task = {
+      status: "processing",
+      progress: { current: 1, total: 2 },
+      perPageStatus: [{ page_index: 0, status: "done" }, { page_index: 1, status: "processing" }],
+      result: { pages: [{ page_index: 0, dishes: [] }] },
+      estimatedRemaining: 8,
+    };
+
+    await setFileTask("task-1", task, 10_000);
+    assert.deepEqual(await getFileTask("task-1", 10_500), task);
+    assert.equal(await getFileTask("task-1", 75_000), undefined);
+
+    await setFileTask("task-2", task, 20_000);
+    await deleteFileTask("task-2");
+    assert.equal(await getFileTask("task-2", 20_100), undefined);
+  } finally {
+    if (previousDir === undefined) delete process.env.MENU_TASK_FILE_STORE_DIR;
+    else process.env.MENU_TASK_FILE_STORE_DIR = previousDir;
+    if (previousTtl === undefined) delete process.env.MENU_TASK_FILE_STORE_TTL_MS;
+    else process.env.MENU_TASK_FILE_STORE_TTL_MS = previousTtl;
+  }
+});
+
 test("translation cache survives process restarts through a server file cache", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
   const fileCache = await readFile(`${ROOT}/src/lib/cache/translation-file-cache.ts`, "utf8");
