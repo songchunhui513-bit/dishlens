@@ -12,8 +12,9 @@ const qwen = new OpenAI({
 });
 
 const VL_MODEL = process.env.QWEN_VL_MODEL || "qwen-vl-max";
-const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || VL_MODEL;
+const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || "qwen-vl-plus";
 const TEXT_MODEL = process.env.QWEN_TEXT_MODEL || "qwen-plus";
+const fastFirstPassModels = Array.from(new Set([FAST_VL_MODEL, VL_MODEL]));
 const FAST_FIRST_PASS_MAX_TOKENS = Math.max(
   1024,
   Math.min(3072, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_MAX_TOKENS || "2048", 10) || 2048),
@@ -229,13 +230,14 @@ async function analyzeWithPrompt(
   mimeType: string,
   maxTokens: number,
   targetLang = "zh",
-  options: { fastFirstPass?: boolean } = {},
+  options: { fastFirstPass?: boolean; modelOverride?: string } = {},
 ): Promise<MenuImageAnalysis> {
   const normalizedTargetLang = normalizeTargetLang(targetLang);
   const targetPrompt = targetLanguageInstruction(normalizedTargetLang);
   const fastFirstPass = options.fastFirstPass === true;
+  const model = options.modelOverride || (fastFirstPass ? FAST_VL_MODEL : VL_MODEL);
   const response = await qwen.chat.completions.create({
-    model: fastFirstPass ? FAST_VL_MODEL : VL_MODEL,
+    model,
     messages: [
       { role: "system", content: `${systemPrompt}${targetPrompt}` },
       {
@@ -264,14 +266,14 @@ async function analyzeWithPrompt(
 
 export async function analyzeMenuImageFast(base64Image: string, _rich?: boolean, mimeType = "image/jpeg", targetLang = "zh"): Promise<MenuImageAnalysis> {
   let lastError: Error | null = null;
-  const MAX_RETRIES = 1;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < fastFirstPassModels.length; attempt++) {
+    const model = fastFirstPassModels[attempt];
     try {
-      const result = await analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, FAST_FIRST_PASS_MAX_TOKENS, targetLang, { fastFirstPass: true });
+      const result = await analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, FAST_FIRST_PASS_MAX_TOKENS, targetLang, { fastFirstPass: true, modelOverride: model });
 
-      if (shouldRetryEmptyMenuResult(result, attempt, MAX_RETRIES)) {
-        lastError = new Error("AI found no dishes");
+      if (shouldRetryEmptyMenuResult(result, attempt, fastFirstPassModels.length)) {
+        lastError = new Error(`AI found no dishes with ${model}`);
         continue;
       }
 
@@ -282,7 +284,7 @@ export async function analyzeMenuImageFast(base64Image: string, _rich?: boolean,
   }
 
   throw new Error(
-    `Fast menu analysis failed after ${MAX_RETRIES} attempts: ${lastError?.message || "unknown error"}`
+    `Fast menu analysis failed after ${fastFirstPassModels.length} attempts: ${lastError?.message || "unknown error"}`
   );
 }
 

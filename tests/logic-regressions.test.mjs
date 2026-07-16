@@ -543,8 +543,8 @@ test("menu recognition has instrumentation and upload optimizations for fast fir
 
   assert.match(qwen, /MENU_FAST_FIRST_PASS_MAX_TOKENS/);
   assert.match(qwen, /QWEN_FAST_VL_MODEL/);
-  assert.match(qwen, /model:\s*fastFirstPass \? FAST_VL_MODEL : VL_MODEL/);
-  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true\s*\}\)/);
+  assert.match(qwen, /const model = options\.modelOverride \|\| \(fastFirstPass \? FAST_VL_MODEL : VL_MODEL\)/);
+  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true,\s*modelOverride:\s*model\s*\}\)/);
 });
 
 test("fast overseas recognition returns a lightweight first result before enrichment", async () => {
@@ -554,7 +554,10 @@ test("fast overseas recognition returns a lightweight first result before enrich
 
   assert.match(qwen, /VL_SYSTEM_PROMPT_FAST_FIRST_PASS/);
   assert.match(qwen, /export async function analyzeMenuImageFast/);
-  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true\s*\}\)/);
+  assert.match(qwen, /const FAST_VL_MODEL = process\.env\.QWEN_FAST_VL_MODEL \|\| "qwen-vl-plus"/);
+  assert.match(qwen, /const fastFirstPassModels = Array\.from\(new Set\(\[FAST_VL_MODEL, VL_MODEL\]\)\)/);
+  assert.match(qwen, /modelOverride:\s*model/);
+  assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true,\s*modelOverride:\s*model\s*\}\)/);
   assert.match(qwen, /Do NOT generate recommendation/);
   assert.match(qwen, /provide ONLY[\s\S]*name_original[\s\S]*name_translated[\s\S]*description[\s\S]*confidence/);
   assert.doesNotMatch(qwen.match(/const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `([\s\S]*?)`;/)?.[1] || "", /ingredients|allergens|taste_profile/);
