@@ -26,6 +26,7 @@ type TaskRow = {
 
 let _db: SupabaseClient | null = null;
 const memoryTasks = new Map<string, TaskState>();
+const memoryOnlyTasks = new Set<string>();
 const ENABLE_MEMORY_FALLBACK = process.env.MENU_TASK_MEMORY_FALLBACK !== "false";
 
 function db(): SupabaseClient {
@@ -53,7 +54,12 @@ export async function createTask(
 
   if (options.preferMemory) {
     memoryTasks.set(id, task);
+    memoryOnlyTasks.add(id);
     return task;
+  }
+
+  if (options.allowMemoryFallback || ENABLE_MEMORY_FALLBACK) {
+    memoryTasks.set(id, task);
   }
 
   try {
@@ -72,10 +78,12 @@ export async function createTask(
           error: error.message,
         });
         memoryTasks.set(id, task);
+        memoryOnlyTasks.add(id);
         return task;
       }
       throw new Error(`Task store unavailable: ${error.message}`);
     }
+    memoryOnlyTasks.delete(id);
   } catch (error) {
     if (options.allowMemoryFallback || ENABLE_MEMORY_FALLBACK) {
       console.warn("Task store request failed; using memory fallback", {
@@ -83,6 +91,7 @@ export async function createTask(
         error: error instanceof Error ? error.message : String(error),
       });
       memoryTasks.set(id, task);
+      memoryOnlyTasks.add(id);
       return task;
     }
     throw error;
@@ -131,7 +140,7 @@ export async function updateTask(
   id: string,
   updates: Partial<TaskState>
 ): Promise<void> {
-  const existing = await getTask(id);
+  const existing = memoryTasks.get(id) || await getTask(id);
   if (!existing) return;
 
   const merged: TaskState = {
@@ -145,7 +154,7 @@ export async function updateTask(
 
   if (memoryTasks.has(id)) {
     memoryTasks.set(id, merged);
-    return;
+    if (memoryOnlyTasks.has(id)) return;
   }
 
   const row: Record<string, unknown> = {
@@ -175,6 +184,7 @@ export async function updateTask(
 
 export async function deleteTask(id: string): Promise<void> {
   memoryTasks.delete(id);
+  memoryOnlyTasks.delete(id);
   try {
     await db().from("tasks").delete().eq("id", id);
   } catch (err) {

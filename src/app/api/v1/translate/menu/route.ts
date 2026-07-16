@@ -365,11 +365,11 @@ export async function POST(req: NextRequest) {
     }
 
     const taskId = crypto.randomUUID();
-    const allowMemoryFallback = isLocalTaskFallbackRequest(req);
+    const preferMemoryTask = isLocalTaskFallbackRequest(req);
     const taskCreateStart = Date.now();
     await createTask(taskId, images.length, {
-      allowMemoryFallback,
-      preferMemory: allowMemoryFallback,
+      allowMemoryFallback: true,
+      preferMemory: preferMemoryTask,
     });
     timings.taskCreateMs = Date.now() - taskCreateStart;
     console.info("translate:task_started", {

@@ -1070,6 +1070,7 @@ test("translation tasks can fall back to memory when the remote task store is un
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
 
   assert.match(taskStore, /const memoryTasks = new Map/);
+  assert.match(taskStore, /const memoryOnlyTasks = new Set/);
   assert.match(taskStore, /allowMemoryFallback\?:\s*boolean/);
   assert.match(taskStore, /preferMemory\?:\s*boolean/);
   assert.match(taskStore, /MENU_TASK_MEMORY_FALLBACK/);
@@ -1077,11 +1078,16 @@ test("translation tasks can fall back to memory when the remote task store is un
   assert.match(taskStore, /Task store read failed/);
   assert.match(taskStore, /Task store update request failed/);
   assert.match(taskStore, /if \(options\.preferMemory\)/);
+  assert.match(taskStore, /memoryTasks\.set\(id, task\)/);
+  assert.match(taskStore, /memoryOnlyTasks\.add\(id\)/);
+  assert.match(taskStore, /memoryTasks\.get\(id\) \|\| await getTask\(id\)/);
+  assert.match(taskStore, /if \(memoryOnlyTasks\.has\(id\)\) return/);
   assert.match(taskStore, /if \(error\)/);
   assert.match(taskStore, /Task store unavailable/);
   assert.match(taskStore, /updates\.status \|\| existing\.status/);
   assert.match(route, /isLocalTaskFallbackRequest\(req\)/);
-  assert.match(route, /preferMemory:\s*allowMemoryFallback/);
+  assert.match(route, /allowMemoryFallback:\s*true/);
+  assert.match(route, /preferMemory:\s*preferMemoryTask/);
   assert.match(route, /localhost|127\\.0\\.0\\.1|\[::1\]/);
 });
 
