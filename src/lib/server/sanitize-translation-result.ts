@@ -14,7 +14,12 @@ function isMissingGeneratedDishUrl(value: unknown): value is string {
   if (typeof value !== "string" || !value.startsWith(GENERATED_DISH_PREFIX)) return false;
   const fileName = basename(value.split("?")[0] || "");
   if (!fileName || fileName.includes("..")) return true;
-  return !existsSync(join(GENERATED_DISH_DIR, fileName));
+  if (existsSync(join(GENERATED_DISH_DIR, fileName))) return false;
+  if (fileName.toLowerCase().endsWith(".png")) {
+    const webpFileName = fileName.replace(/\.png$/i, ".webp");
+    return !existsSync(join(GENERATED_DISH_DIR, webpFileName));
+  }
+  return true;
 }
 
 function localizedText(value: unknown): string {

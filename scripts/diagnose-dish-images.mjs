@@ -110,8 +110,12 @@ async function diagnoseName(db, supabaseRows, name) {
   }
 
   const storageId = storageIdForGeneratedDishImage(name);
-  const generatedPath = join(GENERATED_DIR, `${storageId}.png`);
-  if (existsSync(generatedPath)) {
+  const generatedWebpPath = join(GENERATED_DIR, `${storageId}.webp`);
+  if (existsSync(generatedWebpPath)) {
+    return { name, layer: "generated_local", id: storageId, url: `/generated-dishes/${storageId}.webp` };
+  }
+  const generatedPngPath = join(GENERATED_DIR, `${storageId}.png`);
+  if (existsSync(generatedPngPath)) {
     return { name, layer: "generated_local", id: storageId, url: `/generated-dishes/${storageId}.png` };
   }
 

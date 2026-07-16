@@ -2099,6 +2099,9 @@ test("task responses strip missing local generated dish image URLs before reachi
 test("runtime generated dish images are served outside the build-time public asset manifest", async () => {
   const routePath = `${ROOT}/src/app/generated-dishes/[file]/route.ts`;
   const route = await readFile(routePath, "utf8");
+  const sanitizer = await readFile(`${ROOT}/src/lib/server/sanitize-translation-result.ts`, "utf8");
+  const diagnostics = await readFile(`${ROOT}/scripts/diagnose-dish-images.mjs`, "utf8");
+  const optimizer = await readFile(`${ROOT}/scripts/optimize-generated-dish-images.mjs`, "utf8");
 
   assert.match(route, /join\(process\.cwd\(\), "public", "generated-dishes"\)/);
   assert.match(route, /params:\s*Promise<\{\s*file:\s*string\s*\}>/);
@@ -2111,7 +2114,16 @@ test("runtime generated dish images are served outside the build-time public ass
   assert.match(route, /contentType/);
   assert.match(route, /image\/png/);
   assert.match(route, /image\/webp/);
+  assert.match(route, /fallbackWebpFileName/);
+  assert.match(route, /\.replace\(\/\\\.png\$\/i, "\.webp"\)/);
   assert.match(route, /Cache-Control": "public, max-age=31536000, immutable"/);
+  assert.match(sanitizer, /webpFileName/);
+  assert.match(sanitizer, /\.replace\(\/\\\.png\$\/i, "\.webp"\)/);
+  assert.match(diagnostics, /generatedWebpPath/);
+  assert.match(diagnostics, /generatedPngPath/);
+  assert.match(optimizer, /sharp\(inputPath, \{ failOn: "none" \}\)/);
+  assert.match(optimizer, /\.webp\(\{ quality: WEBP_QUALITY/);
+  assert.match(optimizer, /--prune-png/);
 });
 
 test("translated menus can be shared through a public read-only menu page", async () => {
