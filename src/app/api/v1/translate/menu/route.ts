@@ -39,6 +39,18 @@ function hashImageContent(targetLang: string, buffer: Buffer): string {
     .slice(0, 32);
 }
 
+function isPersistableGeneratedDishImageUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  if (url.startsWith("/generated-dishes/")) return false;
+  if (url.startsWith("/")) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.pathname.startsWith("/storage/v1/object/public/dishes/");
+  } catch {
+    return false;
+  }
+}
+
 export const maxDuration = 60;
 
 const OCR_CONCURRENCY = Math.max(
@@ -972,35 +984,35 @@ async function generateImagesInBackground(
       }
       const finalUrl = publicUrl;
 
-      // Persist image: upsert into dishes table so next translation reuses it
-      const translated = typeof dish.name_translated === "string"
-        ? dish.name_translated
-        : (dish.name_translated as Record<string, string>)?.zh || "";
-      const dishRow = {
-        name_original: dish.name_original,
-        name_translated: translated,
-        ai_image_url: finalUrl,
-        image_source: "ai",
-      };
+      const persistableImageUrl = isPersistableGeneratedDishImageUrl(finalUrl) ? finalUrl : null;
+      if (persistableImageUrl) {
+        const translated = typeof dish.name_translated === "string"
+          ? dish.name_translated
+          : (dish.name_translated as Record<string, string>)?.zh || "";
+        const dishRow = {
+          name_original: dish.name_original,
+          name_translated: translated,
+          ai_image_url: persistableImageUrl,
+          image_source: "ai",
+        };
 
-      if (isNewDish) {
-        // Insert new dish row with generated image
-        const client = getSupabaseAdminClient() || supabase;
-        const { data: inserted } = await client
-          .from("dishes")
-          .insert(dishRow)
-          .select("id")
-          .single()
-          .then((r) => r, () => ({ data: null }));
-        if (inserted?.id) dish.id = inserted.id;
-      } else {
-        // Update existing dish row
-        const client = getSupabaseAdminClient() || supabase;
-        await client
-          .from("dishes")
-          .update({ ai_image_url: finalUrl, image_source: "ai" })
-          .eq("id", dish.id)
-          .then(() => {}, () => {});
+        if (isNewDish) {
+          const client = getSupabaseAdminClient() || supabase;
+          const { data: inserted } = await client
+            .from("dishes")
+            .insert(dishRow)
+            .select("id")
+            .single()
+            .then((r) => r, () => ({ data: null }));
+          if (inserted?.id) dish.id = inserted.id;
+        } else {
+          const client = getSupabaseAdminClient() || supabase;
+          await client
+            .from("dishes")
+            .update({ ai_image_url: persistableImageUrl, image_source: "ai" })
+            .eq("id", dish.id)
+            .then(() => {}, () => {});
+        }
       }
 
       // Update in-memory task result so frontend polling picks it up

@@ -1927,6 +1927,9 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.doesNotMatch(uploadDishImageBody, /getSupabaseAdminClient\(\) \|\| getSupabaseClient\(\)/);
   assert.match(route, /metadata\.image_generation_status = status/);
   assert.match(route, /updateImageGenerationTask\("processing"\)/);
+  assert.match(route, /isPersistableGeneratedDishImageUrl/);
+  assert.match(route, /if \(persistableImageUrl\)/);
+  assert.doesNotMatch(route, /ai_image_url:\s*finalUrl,\s*\n\s*image_source:\s*"ai"/);
   assert.match(route, /finalStatus = failures\.length === 0\s*\n\s*\? "done"/);
   assert.match(route, /"failed" : "partial"/);
   assert.match(route, /image_generation_progress/);
