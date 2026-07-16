@@ -375,6 +375,10 @@ function hasStrongDrinkTerm(text: string): boolean {
   return /\b(?:wine|beer|cocktail|mocktail|juice|smoothie|lemonade|aperitif|apéritif|digestif|pommeau|calvados|cidre|cider|liqueur|spritz)\b|啤酒|鸡尾酒|果汁|冰沙|冰饮|饮品|饮料|葡萄酒|红酒|白酒|苹果酒|利口酒/.test(text);
 }
 
+function isDessertFormatText(text: string): boolean {
+  return /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕|饼|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|可丽饼|芝士蛋糕|曲奇/.test(text);
+}
+
 type DishInsightFlags = {
   isVeg: boolean;
   isFried: boolean;
@@ -458,8 +462,10 @@ export function getDishInsight(dish: Dish, preferredLang = "zh"): DishInsight {
   const isHearty = /beef|steak|chicken|pork|lamb|牛排|牛肉|鸡肉|猪|羊/.test(normalizedSearchText);
   const isSalad = /salad|沙拉|fresh|蔬菜/.test(normalizedSearchText);
   const rawCategory = (dish.category || "").toLowerCase();
-  const hasDrinkTerm = rawCategory === "drink" || rawCategory === "beverage" || hasExplicitDrinkTerm(normalizedSearchText);
-  const drinkWinsOverDessert = rawCategory === "drink" || rawCategory === "beverage" || hasStrongDrinkTerm(normalizedSearchText);
+  const dessertFormat = isDessertFormatText(normalizedSearchText);
+  const rawDrinkCategory = rawCategory === "drink" || rawCategory === "beverage";
+  const hasDrinkTerm = (rawDrinkCategory && !dessertFormat) || hasExplicitDrinkTerm(normalizedSearchText);
+  const drinkWinsOverDessert = (rawDrinkCategory && !dessertFormat) || hasStrongDrinkTerm(normalizedSearchText);
   const alcoholCookedDish =
     /(?:wine|beer|sake|shaoxing|huadiao|rice wine|red wine|white wine).{0,24}(?:sauce|stew|brais|cook|boil|simmer|steam|roast|grill)|(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒).{0,10}(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤)|(?:煮|炖|焗|烧|烩|蒸|炒|醉|浸|腌|卤).{0,10}(?:red wine|white wine|beer|shaoxing|huadiao|rice wine|sake|酒|红酒|白酒|啤酒|米酒|花雕|绍兴酒|料酒|黄酒|清酒)/.test(normalizedSearchText) &&
     /beef|chicken|duck|pork|lamb|fish|crab|shrimp|prawn|shellfish|conch|whelk|clam|oyster|snail|escargot|tofu|egg|noodle|rice|vegetable|mushroom|牛|鸡|鸭|猪|羊|肉|鱼|虾|蟹|贝|蚝|蛤|鲍|鳝|鱿|螺|花螺|海螺|蛏|扇贝|豆腐|蛋|面|粉|饭|菜|菇|茄子|排骨/.test(normalizedSearchText);

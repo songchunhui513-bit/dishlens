@@ -1,4 +1,5 @@
 import type { RestaurantMeta, MenuInsight, SignatureRecommendation } from "@/types";
+import { isPlaceholderRestaurantName } from "@/lib/restaurant-display";
 
 interface PageLike {
   source_language?: string;
@@ -19,7 +20,7 @@ interface PageLike {
 export function extractRestaurantMeta(pages: PageLike[]): RestaurantMeta | undefined {
   for (const page of pages) {
     const m = page.menu_metadata?.restaurant;
-    if (m && m.display_name) {
+    if (m && m.display_name && !isPlaceholderRestaurantName(m.display_name)) {
       return {
         display_name: String(m.display_name).slice(0, 60),
         restaurant_type: String(m.restaurant_type || "").slice(0, 30),

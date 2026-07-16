@@ -169,6 +169,10 @@ function isStrongDrinkText(text: string): boolean {
   return /饮品|饮料|冰饮|beverage|cocktail|mocktail|juice|smoothie|lemonade|aperitif|apéritif|digestif|pommeau|calvados|cidre|cider|liqueur|wine|beer|spritz|啤酒|葡萄酒|红酒|白酒|苹果酒|利口酒/.test(text);
 }
 
+function isDessertFormatText(text: string): boolean {
+  return /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕|饼|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|可丽饼|芝士蛋糕|曲奇/.test(text);
+}
+
 function isSeafoodText(text: string): boolean {
   return /海鲜|鱼|虾|蟹|贝|蚝|蛤|鳀鱼|金枪鱼|三文鱼|鳕鱼|鱿鱼|章鱼|海螺|花螺|蛏|扇贝|seafood|fish|tuna|anchovy|salmon|cod|shrimp|prawn|crab|clam|oyster|shellfish|calamari|octopus|conch|whelk/.test(text);
 }
@@ -226,10 +230,11 @@ function dishCategoryKey(dish: Dish): CategoryKey | null {
   if (!c) return null;
   const pizzaLike = isPizzaText(c);
   const dessertLike = isDessertText(c);
+  const dessertFormat = isDessertFormatText(c);
   const drinkLike = isDrinkText(c);
-  if (rawCategory === "drink" || rawCategory === "beverage") return "drink";
+  if ((rawCategory === "drink" || rawCategory === "beverage") && !dessertFormat) return "drink";
   if (pizzaLike) return "staple";
-  if (isStrongDrinkText(c) || (drinkLike && !dessertLike)) return "drink";
+  if (isStrongDrinkText(c) || (drinkLike && !dessertLike && !dessertFormat)) return "drink";
   if (dessertLike) return "dessert";
   if (isStapleText(c)) return "staple";
   if (rawCategory === "appetizer") return "appetizer";

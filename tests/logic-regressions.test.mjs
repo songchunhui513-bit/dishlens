@@ -804,6 +804,68 @@ test("results categories adapt count to menu size instead of forcing sparse menu
   assert.equal(filterDishesByCategory(result, "seafood").map((dish) => dish.id).join(","), "tonno");
 });
 
+test("matcha dessert formats are not treated as beverages", async () => {
+  const { filterDishesByCategory } = await loadTsModule(
+    `${ROOT}/src/lib/results-categories.ts`,
+  );
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
+  const { getDishInsight } = await loadTsModule(
+    `${ROOT}/src/lib/dish-presentation.ts`,
+  );
+
+  const result = {
+    task_id: "matcha-dessert",
+    status: "done",
+    pages: [{
+      page_index: 0,
+      page_label: "Dessert",
+      image_thumbnail: "",
+      dishes: [{
+        id: "matcha-roll",
+        name_original: "MATCHA ROLL",
+        name_translated: { zh: "抹茶卷" },
+        description: { zh: "抹茶戚风蛋糕与覆盆子夹心。" },
+        ingredients: ["抹茶", "戚风蛋糕", "覆盆子"],
+        allergens: ["gluten", "egg", "dairy"],
+        taste_profile: ["sweet"],
+        category: "drink",
+        image_source: "ai",
+      }],
+    }],
+    metadata: { source_language: "en", target_language: "zh", total_dishes: 1, cached: false },
+  };
+
+  assert.deepEqual(filterDishesByCategory(result, "dessert").map((dish) => dish.id), ["matcha-roll"]);
+  assert.deepEqual(filterDishesByCategory(result, "drink").map((dish) => dish.id), []);
+
+  const recommendation = getDishInsight(result.pages[0].dishes[0]).recommendation;
+  assert.match(recommendation, /抹茶卷|甜点|餐后|甜度|分享/);
+  assert.doesNotMatch(recommendation, /饮品|点一杯|补一杯|冷饮|热饮|单独喝|餐后慢慢喝/);
+});
+
+test("placeholder restaurant names fall back to inferred menu identity", async () => {
+  const { getRestaurantDisplayMeta } = await loadTsModule(`${ROOT}/src/lib/restaurant-display.ts`);
+  const { extractRestaurantMeta } = await loadTsModule(`${ROOT}/src/lib/results-insight-fallback.ts`);
+
+  const fallback = getRestaurantDisplayMeta("en", "zh", {
+    display_name: "餐厅名（未显示） - 精致西式料理",
+    restaurant_type: "精致西式料理",
+    rating_estimate: 4.5,
+  });
+  assert.equal(fallback.display_name, "纽约小馆 New York Bistro");
+  assert.equal(fallback.rating_estimate, 4.0);
+
+  assert.equal(extractRestaurantMeta([{
+    menu_metadata: {
+      restaurant: {
+        display_name: "Restaurant name not shown",
+        restaurant_type: "Bistro",
+        rating_estimate: 4.5,
+      },
+    },
+  }]), undefined);
+});
+
 test("results categories still provide richer filters for larger menus", async () => {
   const { buildCategoryList } = await loadTsModule(
     `${ROOT}/src/lib/results-categories.ts`,

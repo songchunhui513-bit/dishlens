@@ -39,7 +39,7 @@ export function getRestaurantDisplayMeta(
 ): RestaurantMeta & { country: string; city: string } {
   const fallback = getFallbackRestaurantMeta(sourceLang, targetLang);
   const displayName = restaurant?.display_name?.trim();
-  if (!displayName) return fallback;
+  if (!displayName || isPlaceholderRestaurantName(displayName)) return fallback;
   const shouldUseOriginalOnly = targetLang === "en" || hasCjkText(displayName);
   const localizedDisplayName = shouldUseOriginalOnly
     ? displayName
@@ -52,6 +52,16 @@ export function getRestaurantDisplayMeta(
     country: fallback.country,
     city: fallback.city,
   };
+}
+
+export function isPlaceholderRestaurantName(value: string | null | undefined): boolean {
+  if (!value) return true;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  if (!normalized) return true;
+  return /餐厅名|店名|未显示|未提供|未知|未识别|待补充|restaurant name|not shown|not provided|unknown|unnamed|n\/a/.test(normalized);
 }
 
 function localizedFallbackName(sourceLang: string, targetLang: string): string {
