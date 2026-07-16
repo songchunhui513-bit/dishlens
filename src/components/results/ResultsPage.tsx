@@ -33,7 +33,7 @@ function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "10px",
+        fontSize: "11px",
         fontWeight: type === "allergen" || type === "veg" ? 700 : 600,
         padding: "5px 10px",
         borderRadius: 20,
@@ -131,9 +131,9 @@ export default function ResultsPage({
     return (
       <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
         <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
-          <button onClick={onBack} className="text-[11px] cursor-pointer" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
-          <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>加载中...</span>
-          <span className="text-[7px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>AI 识别</span>
+          <button onClick={onBack} className="text-sm cursor-pointer" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
+          <span className="text-sm font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>加载中...</span>
+          <span className="text-[10px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>AI 识别</span>
         </div>
         <div className="flex-1 overflow-auto" style={{ padding: "8px 16px 12px" }}>
           <SkeletonRow />
@@ -182,16 +182,16 @@ export default function ResultsPage({
       <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
         <button
           onClick={onBack}
-          className="text-[11px] cursor-pointer transition-opacity hover:opacity-50"
+          className="text-sm cursor-pointer transition-opacity hover:opacity-50"
           style={{ minWidth: 44, minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "flex-start", color: "var(--ink)", background: "none", border: "none" }}
         >
           ←
         </button>
-        <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+        <span className="text-sm font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>
           {isReal ? titleText : pageLabel}
         </span>
         <span
-          className="text-[7px] font-bold px-2 py-1 rounded-xl"
+          className="text-[10px] font-bold px-2 py-1 rounded-xl"
           style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}
         >
           {sourceLang} → {targetLangLabel}
@@ -330,7 +330,7 @@ export default function ResultsPage({
               background: "var(--allergen-bg)",
               borderRadius: "var(--radius-sm)",
               fontFamily: "var(--font-ui)",
-              fontSize: 8,
+              fontSize: 11,
               fontWeight: 600,
               color: "var(--accent)",
               animation: "fadeSlideUp 0.3s ease-out",
@@ -378,9 +378,9 @@ export default function ResultsPage({
                   className="flex items-start gap-4 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
                   style={{
                     background: "var(--card)",
-                    borderRadius: 26,
-                    padding: 16,
-                    paddingRight: 16 + orderControlOffset,
+                    borderRadius: 28,
+                    padding: 18,
+                    paddingRight: 18 + orderControlOffset,
                     boxShadow: "0 14px 34px rgba(69,48,30,0.08)",
                     cursor: "pointer",
                     border: "1px solid rgba(231,205,174,0.42)",
@@ -411,16 +411,16 @@ export default function ResultsPage({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 800, color: "var(--primary)", letterSpacing: 0, marginBottom: 4 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 800, color: "var(--primary)", letterSpacing: 0, marginBottom: 5 }}>
                       {String(i + 1).padStart(2, "0")}
                       {dish.rating_avg ? (
-                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 11, color: "var(--accent)", fontWeight: 800 }}>
+                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 12, color: "var(--accent)", fontWeight: 800 }}>
                           ★ {dish.rating_avg}
                         </span>
                       ) : null}
                     </div>
-                    <div className="flex items-start gap-2" style={{ marginBottom: 4 }}>
-                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.24 }}>
+                    <div className="flex items-start gap-2" style={{ marginBottom: 5 }}>
+                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.2 }}>
                         {dishText.translatedName}
                       </div>
                       {dishPriceLabel ? (
@@ -429,7 +429,7 @@ export default function ResultsPage({
                             flexShrink: 0,
                             paddingTop: 1,
                             fontFamily: "var(--font-body)",
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: 800,
                             color: "var(--ink)",
                             lineHeight: 1.2,
@@ -439,13 +439,13 @@ export default function ResultsPage({
                         </span>
                       ) : null}
                     </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 11.5, color: "var(--muted)", fontStyle: "italic", marginBottom: 5, lineHeight: 1.25 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--muted)", fontStyle: "italic", marginBottom: 7, lineHeight: 1.3 }}>
                       {originalNameLabel}
                     </div>
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--ink-soft)", marginBottom: 6, lineHeight: 1.55 }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", marginBottom: 7, lineHeight: 1.55 }}>
                       {insight.summary}
                     </div>
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--primary)", marginBottom: 8, lineHeight: 1.55, fontWeight: 700 }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--primary)", marginBottom: 10, lineHeight: 1.55, fontWeight: 700 }}>
                       {insight.recommendation}
                     </div>
                     {includedItems.length > 0 ? (
@@ -460,7 +460,7 @@ export default function ResultsPage({
                           background: "rgba(76,175,80,0.07)",
                           marginBottom: 8,
                           fontFamily: "var(--font-ui)",
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           lineHeight: 1.45,
                           color: "var(--primary)",
                           fontWeight: 700,
@@ -497,10 +497,10 @@ export default function ResultsPage({
                 <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
               </svg>
             </div>
-            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
+            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 6 }}>
               非菜单页面
             </h4>
-            <p style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--ink-soft)", lineHeight: 1.6, maxWidth: 260 }}>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.6, maxWidth: 280 }}>
               {infoDescription || "这是餐厅的品牌介绍或食材理念页，不包含可点单的菜品。请翻到带价格和菜品名的菜单页再拍摄。"}
             </p>
           </div>
@@ -512,10 +512,10 @@ export default function ResultsPage({
                 <circle cx="12" cy="12" r="9" /><path d="M8 12h8" />
               </svg>
             </div>
-            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 600, color: "var(--muted)", marginBottom: 2 }}>
+            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: "var(--muted)", marginBottom: 4 }}>
               没有识别到菜品
             </h4>
-            <p style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", opacity: 0.7 }}>
+            <p style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)", opacity: 0.7 }}>
               请重新拍摄清晰的菜单照片
             </p>
           </div>
@@ -530,7 +530,7 @@ export default function ResultsPage({
               background: "var(--allergen-bg)",
               borderRadius: "var(--radius-sm)",
               fontFamily: "var(--font-ui)",
-              fontSize: 8,
+              fontSize: 11,
               color: "var(--accent)",
               fontWeight: 600,
             }}

@@ -2512,11 +2512,13 @@ test("results dish cards use app-like readable food card typography", async () =
   const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
   const dishImage = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
 
-  assert.match(resultsPage, /borderRadius:\s*26/);
-  assert.match(resultsPage, /fontSize:\s*18/);
-  assert.match(resultsPage, /fontSize:\s*12,\s*color:\s*"var\(--ink-soft\)"/);
-  assert.match(resultsPage, /fontSize:\s*12,\s*color:\s*"var\(--primary\)"/);
-  assert.match(resultsPage, /fontSize:\s*"10px"/);
+  assert.match(resultsPage, /borderRadius:\s*28/);
+  assert.match(resultsPage, /padding:\s*18/);
+  assert.match(resultsPage, /fontSize:\s*20/);
+  assert.match(resultsPage, /fontSize:\s*13,\s*color:\s*"var\(--ink-soft\)"/);
+  assert.match(resultsPage, /fontSize:\s*13,\s*color:\s*"var\(--primary\)"/);
+  assert.match(resultsPage, /fontSize:\s*"11px"/);
+  assert.doesNotMatch(resultsPage, /fontSize:\s*8,/);
   assert.match(dishImage, /const width = compact \? 128 : "100%"/);
   assert.match(dishImage, /sizes=\{compact \? "128px"/);
 });
