@@ -504,6 +504,9 @@ test("server-side menu image normalization protects overseas uploads from large-
   assert.match(serverNormalization, /await import\("sharp"\)/);
   assert.match(serverNormalization, /const maxDim = getServerImageMaxDim\(\)/);
   assert.match(serverNormalization, /const quality = getServerImageQuality\(\)/);
+  assert.match(serverNormalization, /const metadata = await image\.metadata\(\)/);
+  assert.match(serverNormalization, /const exceedsMaxDim = Boolean/);
+  assert.match(serverNormalization, /shouldNormalizeClientImage[\s\S]*exceedsMaxDim/);
   assert.match(serverNormalization, /jpeg\(\{ quality/);
   assert.match(route, /normalizeServerMenuImage/);
   assert.match(route, /normalized\.buffer\.toString\("base64"\)/);
@@ -516,7 +519,10 @@ test("menu recognition has instrumentation and upload optimizations for fast fir
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
   const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
 
-  assert.match(apiClient, /maxDim = 1024,\s*quality = 0\.62/);
+  assert.match(apiClient, /CLIENT_MENU_IMAGE_MAX_DIM = 896/);
+  assert.match(apiClient, /CLIENT_MENU_IMAGE_QUALITY = 0\.58/);
+  assert.match(apiClient, /const exceedsMaxDim = width > maxDim \|\| height > maxDim/);
+  assert.match(apiClient, /!shouldNormalizeClientImage\(file\) && !exceedsMaxDim/);
   assert.match(apiClient, /console\.info\("translate:client_upload_prepared"/);
   assert.match(apiClient, /originalBytes/);
   assert.match(apiClient, /compressedBytes/);
@@ -1151,8 +1157,8 @@ test("global menu recognition is resilient to slow overseas uploads and provider
 
   assert.match(apiClient, /TRANSLATION_UPLOAD_TIMEOUT_MS/);
   assert.match(apiClient, /AbortController/);
-  assert.match(apiClient, /maxDim = 1024/);
-  assert.match(apiClient, /quality = 0\.62/);
+  assert.match(apiClient, /CLIENT_MENU_IMAGE_MAX_DIM = 896/);
+  assert.match(apiClient, /CLIENT_MENU_IMAGE_QUALITY = 0\.58/);
   assert.match(aiIndex, /providerOrder/);
   assert.match(aiIndex, /MENU_AI_PROVIDER/);
   assert.match(aiIndex, /analyzeMenuImage[\s\S]*lastError/);

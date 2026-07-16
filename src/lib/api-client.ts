@@ -7,18 +7,24 @@ import { normalizeTargetLang } from "@/lib/languages";
 // ── Image compression (for Vercel 4.5MB body limit) ───────────────
 
 export const TRANSLATION_UPLOAD_TIMEOUT_MS = 45_000;
+const CLIENT_MENU_IMAGE_MAX_DIM = 896;
+const CLIENT_MENU_IMAGE_QUALITY = 0.58;
 
-async function compressImage(file: File, maxDim = 1024, quality = 0.62): Promise<File> {
-  // Keep small JPEG/PNG files untouched for OCR, but normalize WebP/large files
-  // so the server and vision model receive a predictable browser-readable image.
-  if (!shouldNormalizeClientImage(file)) return file;
-
+async function compressImage(file: File, maxDim = CLIENT_MENU_IMAGE_MAX_DIM, quality = CLIENT_MENU_IMAGE_QUALITY): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
       let { width, height } = img;
+      const exceedsMaxDim = width > maxDim || height > maxDim;
+      // Keep genuinely small JPEG/PNG files untouched for OCR. Large dimensions,
+      // WebP, or heavy files are normalized before upload so the server and vision
+      // model receive a predictable image quickly.
+      if (!shouldNormalizeClientImage(file) && !exceedsMaxDim) {
+        resolve(file);
+        return;
+      }
       if (width > maxDim || height > maxDim) {
         const ratio = Math.min(maxDim / width, maxDim / height);
         width = Math.round(width * ratio);
