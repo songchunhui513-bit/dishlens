@@ -146,7 +146,7 @@ const imageRules: DishImageRule[] = [
   {
     patterns: ["juice", "smoothie", "lemonade", "果汁", "冰沙", "柠檬水"],
     card: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1622597467836-f2131b8?w=600&h=400&fit=crop&auto=format",
+    hero: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=600&h=400&fit=crop&auto=format",
   },
   {
     patterns: ["ham", "jambon", "prosciutto", "parma", "cold cut", "charcuterie", "salami", "sausage", "saucisson", "火腿", "香肠", "冷切", "肉肠", "萨拉米"],

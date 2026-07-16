@@ -1365,6 +1365,10 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   assert.equal(unwrapNextImageUrl(nextWrappedTemporary).includes("dashscope-result"), true);
   assert.equal(unwrapNextImageUrl(absoluteNextWrappedGenerated), "/generated-dishes/missing.png");
   assert.equal(isSafeStoredThumbnail("/dishes/apple-pie.png"), true);
+  assert.equal(isSafeStoredThumbnail("/dishes/missing-dish-photo.png"), false);
+  assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/dishes/apple-pie.png"), true);
+  assert.equal(isSafeStoredThumbnail("https://gbkallzbksmaahzvxezq.supabase.co/storage/v1/object/public/dishes/generated-rare-soup.webp"), true);
+  assert.equal(isSafeStoredThumbnail("https://example.com/random-food.jpg"), false);
   assert.equal(isSafeStoredThumbnail("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120"), false);
   assert.equal(isSafeStoredThumbnail("/generated-dishes/generated-old-local-only.png"), false);
   assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/generated-dishes/generated-old-local-only.png"), false);
@@ -1379,6 +1383,7 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
       pages: [{
         dishes: [
           { id: "old", name_original: "Old", ai_image_url: "https://image.pollinations.ai/prompt/old" },
+          { id: "missing-local", name_original: "Missing", ai_image_url: "/dishes/missing-dish-photo.png" },
           { id: "safe", name_original: "Apple Pie", ai_image_url: "/dishes/apple-pie.png" },
         ],
       }],
@@ -1390,6 +1395,10 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   assert.match(recentRecords, /isSafeStoredThumbnail/);
   assert.match(historyPage, /pickSafeMenuThumbnail\(e\)/);
   assert.match(appPage, /thumbnail:\s*pickSafeMenuThumbnail/);
+
+  const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
+  assert.match(homePage, /failedRecentThumbs\[src\]\s*\?\s*null/);
+  assert.match(homePage, /onError=\{\(\) => setFailedRecentThumbs/);
 });
 
 test("location recommendation demo data is gated to local review only", async () => {

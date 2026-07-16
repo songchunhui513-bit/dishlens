@@ -1,4 +1,13 @@
+import dishKnowledgeDb from "../../public/dish-knowledge-db.json";
+import type { DishKnowledgeEntry } from "./dish-knowledge-types";
+
 const UNSAFE_REMOTE_IMAGE_RE = /dashscope-result.*aliyuncs\.com|image\.pollinations\.ai|images\.unsplash\.com/i;
+const APP_IMAGE_HOSTS = new Set(["dishlens.wukongmkt.com", "localhost", "127.0.0.1"]);
+const KNOWN_LOCAL_DISH_IMAGE_PATHS = new Set(
+  (dishKnowledgeDb as DishKnowledgeEntry[])
+    .flatMap((entry) => [entry.card, entry.hero])
+    .filter((url): url is string => typeof url === "string" && url.startsWith("/dishes/")),
+);
 
 export function unwrapNextImageUrl(url: string): string {
   const trimmed = url.trim();
@@ -44,9 +53,34 @@ export function isGeneratedDishPath(url: string | null | undefined): boolean {
   return pathForImageUrl(url).startsWith("/generated-dishes/");
 }
 
+function isKnownLocalDishPath(pathname: string): boolean {
+  return pathname.startsWith("/dishes/") && KNOWN_LOCAL_DISH_IMAGE_PATHS.has(pathname);
+}
+
+function isSupabaseStorageDishUrl(url: URL): boolean {
+  return url.hostname.endsWith(".supabase.co")
+    && url.pathname.startsWith("/storage/v1/object/public/dishes/");
+}
+
 export function isSafeStoredThumbnail(url: string | null | undefined): url is string {
   if (!url) return false;
   if (isGeneratedDishPath(url)) return false;
   if (isUnsafeTemporaryRemoteImage(url)) return false;
-  return true;
+
+  const normalizedUrl = unwrapNextImageUrl(url.trim());
+  if (normalizedUrl.startsWith("/")) {
+    return isKnownLocalDishPath(normalizedUrl);
+  }
+
+  try {
+    const parsed = new URL(normalizedUrl);
+    if (isSupabaseStorageDishUrl(parsed)) return true;
+    if (APP_IMAGE_HOSTS.has(parsed.hostname)) {
+      return isKnownLocalDishPath(parsed.pathname);
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }

@@ -539,17 +539,19 @@ export default function HomePage({
                 {i === 0 ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, minWidth: 0 }}>
                     {item.thumbnails.slice(0, 3).map((src, index) => (
-                      <span key={`${src}-${index}`} className="relative overflow-hidden" style={{ width: 26, height: 26, borderRadius: 9, border: "1px solid rgba(255,255,255,0.65)", flexShrink: 0 }}>
-                        <Image
-                          src={failedRecentThumbs[src] ? fallbackRecentImage : src || fallbackRecentImage}
-                          alt=""
-                          fill
-                          loading="lazy"
-                          sizes="26px"
-                          style={{ objectFit: "cover" }}
-                          onError={() => setFailedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
-                        />
-                      </span>
+                      !src || failedRecentThumbs[src] ? null : (
+                        <span key={`${src}-${index}`} className="relative overflow-hidden" style={{ width: 26, height: 26, borderRadius: 9, border: "1px solid rgba(255,255,255,0.65)", flexShrink: 0, background: "rgba(255,247,235,0.72)" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={src || fallbackRecentImage}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            onError={() => setFailedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
+                          />
+                        </span>
+                      )
                     ))}
                     <span style={{ font: "650 8px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.summary}
