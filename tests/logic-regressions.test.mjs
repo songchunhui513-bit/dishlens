@@ -1189,6 +1189,9 @@ test("global menu recognition is resilient to slow overseas uploads and provider
   assert.match(route, /translate:task_started/);
   assert.match(route, /translate:page_failed/);
   assert.match(route, /provider/);
+  assert.match(route, /isCacheableTranslationResult/);
+  assert.match(route, /result\.status === "failed"/);
+  assert.match(route, /translationCache\.delete\(cacheKey\)/);
   assert.match(loadingPage, /MAX_POLLING_MS/);
   assert.match(loadingPage, /onTimeout/);
   assert.match(loadingPage, /clientStage/);

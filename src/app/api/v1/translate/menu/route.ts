@@ -23,8 +23,19 @@ const translationCache = new Map<string, { result: Record<string, unknown>; crea
 const CACHE_MAX = 50;
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
+function isCacheableTranslationResult(result: Record<string, unknown>): boolean {
+  if (result.status === "failed") return false;
+  const pages = Array.isArray(result.pages) ? result.pages : [];
+  const metadata = result.metadata as { total_dishes?: unknown } | undefined;
+  const totalDishes = typeof metadata?.total_dishes === "number"
+    ? metadata.total_dishes
+    : pages.reduce((sum, page) => sum + (Array.isArray((page as { dishes?: unknown[] }).dishes) ? (page as { dishes: unknown[] }).dishes.length : 0), 0);
+  return pages.length > 0 && totalDishes > 0;
+}
+
 async function rememberTranslation(cacheKey: string | undefined, result: Record<string, unknown>): Promise<void> {
   if (!cacheKey) return;
+  if (!isCacheableTranslationResult(result)) return;
   translationCache.set(cacheKey, { result, createdAt: Date.now() });
   await setCachedTranslationResult(cacheKey, result);
 }
@@ -466,7 +477,9 @@ export async function POST(req: NextRequest) {
     const cached = memoryCached && Date.now() - memoryCached.createdAt < CACHE_TTL
       ? memoryCached
       : await getCachedTranslationResult(cacheKey);
-    if (cached) {
+    if (cached && !isCacheableTranslationResult(cached.result)) {
+      translationCache.delete(cacheKey);
+    } else if (cached) {
       if (cached !== memoryCached) translationCache.set(cacheKey, cached);
       const cachedRawStatus = typeof cached.result.status === "string" ? cached.result.status : "";
       const cachedStatus: "done" | "partial" | "failed" =
