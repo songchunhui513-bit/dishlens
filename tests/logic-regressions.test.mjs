@@ -1909,9 +1909,17 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(route, /findExistingDishImages/);
   assert.match(route, /existingImagesByIndex/);
   assert.doesNotMatch(route, /await findExistingDishImage\(dish\.name_original\)/);
+  assert.match(route, /SUPABASE_LOOKUP_COOLDOWN_MS/);
+  assert.match(route, /supabaseLookupDisabledUntil/);
+  assert.match(route, /isSupabaseLookupUnavailable\(\)/);
+  assert.match(route, /markSupabaseLookupUnavailable/);
   assert.match(route, /progress:\s*\{\s*current:\s*images\.length,\s*total:\s*images\.length\s*\}/);
   assert.match(route, /localMatch\?\.card \|\| cachedGeneratedImageUrl \|\| existingImageUrl/);
   assert.match(storage, /public", "generated-dishes/);
+  assert.match(storage, /STORAGE_UPLOAD_COOLDOWN_MS/);
+  assert.match(storage, /storageUploadDisabledUntil/);
+  assert.match(storage, /isStorageUploadDisabled\(\)/);
+  assert.match(storage, /markStorageUploadUnavailable/);
   assert.match(storage, /existsSync\(localDishImagePath\(dishId,\s*"webp"\)\)/);
   assert.match(storage, /existsSync\(localDishImagePath\(dishId,\s*"png"\)\)/);
   assert.match(storage, /return localUrl/);

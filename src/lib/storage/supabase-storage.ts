@@ -9,6 +9,11 @@ const LOCAL_GENERATED_DIR = join(process.cwd(), "public", "generated-dishes");
 const ENABLE_REMOTE_CACHE_HEAD = process.env.ENABLE_REMOTE_IMAGE_CACHE_HEAD === "true";
 const GENERATED_DISH_MAX_DIM = Number.parseInt(process.env.GENERATED_DISH_MAX_DIM || "768", 10) || 768;
 const GENERATED_DISH_WEBP_QUALITY = Number.parseInt(process.env.GENERATED_DISH_WEBP_QUALITY || "82", 10) || 82;
+const STORAGE_UPLOAD_COOLDOWN_MS = Math.max(
+  10_000,
+  Math.min(10 * 60_000, Number.parseInt(process.env.STORAGE_UPLOAD_COOLDOWN_MS || "120000", 10) || 120000),
+);
+let storageUploadDisabledUntil = 0;
 
 type GeneratedDishFormat = "webp" | "png";
 
@@ -18,6 +23,18 @@ function localDishImagePath(dishId: string, format: GeneratedDishFormat = "webp"
 
 function localDishImageUrl(dishId: string, format: GeneratedDishFormat = "webp"): string {
   return `/generated-dishes/${dishId}.${format}`;
+}
+
+function isStorageUploadDisabled(): boolean {
+  return Date.now() < storageUploadDisabledUntil;
+}
+
+function markStorageUploadUnavailable(error: unknown): void {
+  storageUploadDisabledUntil = Date.now() + STORAGE_UPLOAD_COOLDOWN_MS;
+  console.warn("uploadDishImage storage unavailable", {
+    cooldownMs: STORAGE_UPLOAD_COOLDOWN_MS,
+    error: error instanceof Error ? error.message : String(error),
+  });
 }
 
 async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
@@ -58,31 +75,39 @@ export async function uploadDishImage(
   imageUrl: string,
 ): Promise<string | null> {
   let localUrl: string | null = null;
+  let buffer: Buffer;
 
   try {
     const sourceBuffer = await fetchImageBuffer(imageUrl);
-    const buffer = await optimizeGeneratedDishImage(sourceBuffer);
+    buffer = await optimizeGeneratedDishImage(sourceBuffer);
     localUrl = await saveLocalDishImage(dishId, buffer, "webp");
+  } catch (err) {
+    console.error("uploadDishImage error:", err);
+    return localUrl;
+  }
 
-    const client = getSupabaseAdminClient();
-    if (!client) return localUrl;
+  if (isStorageUploadDisabled()) return localUrl;
 
-    const path = `${dishId}.webp`;
+  const client = getSupabaseAdminClient();
+  if (!client) return localUrl;
 
+  const path = `${dishId}.webp`;
+
+  try {
     const { error } = await client.storage.from(BUCKET).upload(path, buffer, {
       contentType: "image/webp",
       upsert: true,
     });
 
     if (error) {
-      console.error("uploadDishImage storage error:", error);
+      markStorageUploadUnavailable(error);
       return localUrl;
     }
 
     const { data } = client.storage.from(BUCKET).getPublicUrl(path);
     return data.publicUrl || localUrl;
   } catch (err) {
-    console.error("uploadDishImage error:", err);
+    markStorageUploadUnavailable(err);
     return localUrl;
   }
 }

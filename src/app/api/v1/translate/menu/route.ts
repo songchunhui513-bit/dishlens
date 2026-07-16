@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeMenuImage, analyzeMenuImageFast, refineTranslation, hasChinese } from "@/lib/ai";
 import type { Dish } from "@/types";
-import { getSupabaseAdminClient, supabase } from "@/lib/db/supabase";
+import { getSupabaseAdminClient, getSupabaseClient, supabase } from "@/lib/db/supabase";
 import { createTask, updateTask } from "@/lib/cache/task-store";
 import { getCachedTranslationResult, setCachedTranslationResult } from "@/lib/cache/translation-file-cache";
 import { generateImagesForDishes } from "@/lib/ai/image-gen";
@@ -71,6 +71,11 @@ const IMAGE_GENERATION_CONCURRENCY = Math.max(
   1,
   Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "2", 10) || 2),
 );
+const SUPABASE_LOOKUP_COOLDOWN_MS = Math.max(
+  10_000,
+  Math.min(10 * 60_000, Number.parseInt(process.env.SUPABASE_LOOKUP_COOLDOWN_MS || "120000", 10) || 120000),
+);
+let supabaseLookupDisabledUntil = 0;
 
 type ImageGenerationFailure = {
   dish_id: string;
@@ -96,6 +101,18 @@ type TranslationTimings = {
   firstPassMs?: number;
   enrichmentMs?: number;
 };
+
+function isSupabaseLookupUnavailable(): boolean {
+  return Date.now() < supabaseLookupDisabledUntil;
+}
+
+function markSupabaseLookupUnavailable(error: unknown): void {
+  supabaseLookupDisabledUntil = Date.now() + SUPABASE_LOOKUP_COOLDOWN_MS;
+  console.warn("translate:supabase_lookup_unavailable", {
+    cooldownMs: SUPABASE_LOOKUP_COOLDOWN_MS,
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
 
 function requestMeta(req: NextRequest): Record<string, string> {
   return {
@@ -197,7 +214,10 @@ async function refineDishesForTargetLanguage(
 async function findExistingDishImages(
   dishes: Array<{ name_original: string; name_translated?: string | Record<string, string> }>,
 ): Promise<Map<number, ExistingDishImage>> {
-  const client = getSupabaseAdminClient() || supabase;
+  if (isSupabaseLookupUnavailable()) return new Map();
+
+  const client = getSupabaseAdminClient() || getSupabaseClient();
+  if (!client) return new Map();
   const candidateToIndices = new Map<string, number[]>();
 
   dishes.forEach((dish, index) => {
@@ -215,19 +235,28 @@ async function findExistingDishImages(
   const candidates = Array.from(candidateToIndices.keys());
   if (candidates.length === 0) return new Map();
 
-  const { data: originalRows } = await client
-    .from("dishes")
-    .select("id, name_original, name_translated, ai_image_url, image_source")
-    .in("name_original", candidates)
-    .limit(200)
-    .then((r) => r, () => ({ data: null }));
+  let originalRows: unknown[] | null = null;
+  let translatedRows: unknown[] | null = null;
+  try {
+    const originalResponse = await client
+      .from("dishes")
+      .select("id, name_original, name_translated, ai_image_url, image_source")
+      .in("name_original", candidates)
+      .limit(200);
+    if (originalResponse.error) throw originalResponse.error;
+    originalRows = originalResponse.data || null;
 
-  const { data: translatedRows } = await client
-    .from("dishes")
-    .select("id, name_original, name_translated, ai_image_url, image_source")
-    .in("name_translated", candidates)
-    .limit(200)
-    .then((r) => r, () => ({ data: null }));
+    const translatedResponse = await client
+      .from("dishes")
+      .select("id, name_original, name_translated, ai_image_url, image_source")
+      .in("name_translated", candidates)
+      .limit(200);
+    if (translatedResponse.error) throw translatedResponse.error;
+    translatedRows = translatedResponse.data || null;
+  } catch (error) {
+    markSupabaseLookupUnavailable(error);
+    return new Map();
+  }
 
   const results = new Map<number, ExistingDishImage>();
   for (const row of ([...(originalRows || []), ...(translatedRows || [])]) as ExistingDishImage[]) {
