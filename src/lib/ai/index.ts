@@ -16,15 +16,24 @@ function hasProviderConfig(provider: ProviderName): boolean {
   return Boolean(process.env.OLLAMA_BASE_URL);
 }
 
-function providerOrder(): ProviderName[] {
+function providerOrder(options: { vision?: boolean } = {}): ProviderName[] {
   const configured = (process.env.MENU_AI_PROVIDER || "")
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter((item): item is ProviderName => ["qwen", "deepseek", "gemini", "ollama"].includes(item));
-  const defaults: ProviderName[] = ["qwen", "deepseek", "gemini", "ollama"];
+  const defaults: ProviderName[] = options.vision ? ["qwen", "gemini", "ollama"] : ["qwen", "deepseek", "gemini", "ollama"];
   const ordered = [...configured, ...defaults].filter((provider, index, arr) => arr.indexOf(provider) === index);
-  const available = ordered.filter(hasProviderConfig);
+  const available = ordered.filter((provider) => {
+    if (options.vision && provider === "deepseek" && process.env.DEEPSEEK_VISION_ENABLED !== "true") {
+      return false;
+    }
+    return hasProviderConfig(provider);
+  });
   return available.length ? available : ["ollama"];
+}
+
+function visionProviderOrder(): ProviderName[] {
+  return providerOrder({ vision: true });
 }
 
 async function load(provider: ProviderName): Promise<ProviderModule> {
@@ -41,7 +50,7 @@ async function load(provider: ProviderName): Promise<ProviderModule> {
 
 export async function analyzeMenuImage(base64Image: string, rich?: boolean, mimeType?: string, targetLang = "zh") {
   let lastError: unknown = null;
-  for (const provider of providerOrder()) {
+  for (const provider of visionProviderOrder()) {
     try {
       return await (await load(provider)).analyzeMenuImage(base64Image, rich, mimeType, targetLang);
     } catch (err) {
@@ -55,7 +64,7 @@ export async function analyzeMenuImage(base64Image: string, rich?: boolean, mime
 
 export async function analyzeMenuImageFast(base64Image: string, rich?: boolean, mimeType?: string, targetLang = "zh") {
   let lastError: unknown = null;
-  for (const provider of providerOrder()) {
+  for (const provider of visionProviderOrder()) {
     try {
       const mod = await load(provider);
       const fastAnalyze = "analyzeMenuImageFast" in mod

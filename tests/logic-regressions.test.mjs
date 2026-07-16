@@ -542,6 +542,8 @@ test("menu recognition has instrumentation and upload optimizations for fast fir
   assert.match(route, /MENU_ENRICHMENT_DELAY_MS/);
 
   assert.match(qwen, /MENU_FAST_FIRST_PASS_MAX_TOKENS/);
+  assert.match(qwen, /process\.env\.MENU_FAST_FIRST_PASS_MAX_TOKENS \|\| "4096"/);
+  assert.match(qwen, /Math\.min\(8192/);
   assert.match(qwen, /QWEN_FAST_VL_MODEL/);
   assert.match(qwen, /const model = options\.modelOverride \|\| \(fastFirstPass \? FAST_VL_MODEL : VL_MODEL\)/);
   assert.match(qwen, /analyzeWithPrompt\(base64Image,\s*VL_SYSTEM_PROMPT_FAST_FIRST_PASS,\s*mimeType,\s*FAST_FIRST_PASS_MAX_TOKENS,\s*targetLang,\s*\{\s*fastFirstPass:\s*true,\s*modelOverride:\s*model\s*\}\)/);
@@ -1178,7 +1180,10 @@ test("global menu recognition is resilient to slow overseas uploads and provider
   assert.match(apiClient, /CLIENT_MENU_IMAGE_MAX_DIM = 896/);
   assert.match(apiClient, /CLIENT_MENU_IMAGE_QUALITY = 0\.58/);
   assert.match(aiIndex, /providerOrder/);
+  assert.match(aiIndex, /visionProviderOrder/);
   assert.match(aiIndex, /MENU_AI_PROVIDER/);
+  assert.match(aiIndex, /options\.vision/);
+  assert.match(aiIndex, /provider === "deepseek" && process\.env\.DEEPSEEK_VISION_ENABLED !== "true"/);
   assert.match(aiIndex, /analyzeMenuImage[\s\S]*lastError/);
   assert.match(aiIndex, /Provider \$\{provider\} failed/);
   assert.match(route, /translate:task_started/);

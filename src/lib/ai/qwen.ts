@@ -16,8 +16,8 @@ const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || "qwen-vl-plus";
 const TEXT_MODEL = process.env.QWEN_TEXT_MODEL || "qwen-plus";
 const fastFirstPassModels = Array.from(new Set([FAST_VL_MODEL, VL_MODEL]));
 const FAST_FIRST_PASS_MAX_TOKENS = Math.max(
-  1024,
-  Math.min(3072, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_MAX_TOKENS || "2048", 10) || 2048),
+  2048,
+  Math.min(8192, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_MAX_TOKENS || "4096", 10) || 4096),
 );
 
 interface MenuDishAnalysis {
@@ -187,7 +187,7 @@ Optimize for speed and recall. Read multi-column menus top-to-bottom and left-to
 For each dish, provide ONLY:
 1. name_original: exact dish/course title from the menu. Include visible price only if attached to the title line. Do NOT include comma-separated garnishes, sauces, wine pairings, or ingredient explanations in name_original.
 2. name_translated: short dish name in the requested target language.
-3. description: concise ingredient/type hint only in the requested target language.
+3. description: concise ingredient/type hint only in the requested target language. Keep it under 18 Chinese characters or 12 English words when possible.
 4. included_items: array of visible combo/set contents when this item is a meal/set/combo/menu deal. Include main item, fries/sides, drink names, sauce, dessert, or upgrades if visible. Use the requested target language. Return [] for ordinary single dishes.
 5. category: one of "appetizer","main","staple","dessert","drink".
 6. confidence: 0.0-1.0.
