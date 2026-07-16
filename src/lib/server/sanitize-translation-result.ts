@@ -17,10 +17,35 @@ function isMissingGeneratedDishUrl(value: unknown): value is string {
   return !existsSync(join(GENERATED_DISH_DIR, fileName));
 }
 
+function localizedText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!isRecord(value)) return "";
+  return [value.zh, value.en, value.ja, value.ko, value.fr, value.it]
+    .filter((item): item is string => typeof item === "string")
+    .join(" ");
+}
+
+function correctedCategory(dish: JsonRecord): string | null {
+  const category = typeof dish.category === "string" ? dish.category.toLowerCase() : "";
+  if (category !== "drink" && category !== "beverage") return null;
+
+  const text = [
+    dish.name_original,
+    localizedText(dish.name_translated),
+    localizedText(dish.description),
+    ...(Array.isArray(dish.ingredients) ? dish.ingredients : []),
+  ].filter((item): item is string => typeof item === "string").join(" ").toLowerCase();
+
+  const dessertFormat =
+    /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit|fritter)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕点|糕|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|可丽饼|芝士蛋糕|曲奇|炸饼/.test(text);
+  return dessertFormat ? "dessert" : null;
+}
+
 export function sanitizeTranslationResultImages<T extends JsonRecord | null | undefined>(result: T): T {
   if (!isRecord(result) || !Array.isArray(result.pages)) return result;
 
   let removedCount = 0;
+  let categoryCorrectedCount = 0;
   const pages = result.pages.map((page) => {
     if (!isRecord(page) || !Array.isArray(page.dishes)) return page;
 
@@ -30,11 +55,14 @@ export function sanitizeTranslationResultImages<T extends JsonRecord | null | un
 
       const staleAiUrl = isMissingGeneratedDishUrl(dish.ai_image_url);
       const staleImageUrl = isMissingGeneratedDishUrl(dish.image_url);
-      if (!staleAiUrl && !staleImageUrl) return dish;
+      const nextCategory = correctedCategory(dish);
+      if (!staleAiUrl && !staleImageUrl && !nextCategory) return dish;
 
       pageChanged = true;
       removedCount += Number(staleAiUrl) + Number(staleImageUrl);
+      categoryCorrectedCount += nextCategory ? 1 : 0;
       const nextDish = { ...dish };
+      if (nextCategory) nextDish.category = nextCategory;
       if (staleAiUrl) delete nextDish.ai_image_url;
       if (staleImageUrl) delete nextDish.image_url;
       if (!nextDish.ai_image_url && !nextDish.image_url) {
@@ -46,10 +74,12 @@ export function sanitizeTranslationResultImages<T extends JsonRecord | null | un
     return pageChanged ? { ...page, dishes } : page;
   });
 
-  if (removedCount === 0) return result;
+  if (removedCount === 0 && categoryCorrectedCount === 0) return result;
 
   const metadata = isRecord(result.metadata)
-    ? { ...result.metadata, image_sanitized_count: removedCount }
-    : { image_sanitized_count: removedCount };
+    ? { ...result.metadata }
+    : {};
+  if (removedCount > 0) metadata.image_sanitized_count = removedCount;
+  if (categoryCorrectedCount > 0) metadata.category_sanitized_count = categoryCorrectedCount;
   return { ...result, pages, metadata } as T;
 }

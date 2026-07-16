@@ -1934,6 +1934,16 @@ test("task responses strip missing local generated dish image URLs before reachi
             image_status: "done",
             image_source: "ai",
           },
+          {
+            id: "matcha-roll",
+            name_original: "MATCHA ROLL",
+            name_translated: { zh: "抹茶卷" },
+            description: { zh: "抹茶戚风蛋糕与覆盆子夹心" },
+            category: "drink",
+            ai_image_url: "/dishes/apple-pie.png",
+            image_status: "done",
+            image_source: "mixed",
+          },
         ],
       },
     ],
@@ -1944,7 +1954,9 @@ test("task responses strip missing local generated dish image URLs before reachi
   assert.equal(dishes[0].image_status, "failed");
   assert.equal(dishes[1].ai_image_url, "/generated-dishes/generated-cheese-bombs.png");
   assert.equal(dishes[1].image_status, "done");
+  assert.equal(dishes[2].category, "dessert");
   assert.equal(sanitized.metadata.image_sanitized_count, 1);
+  assert.equal(sanitized.metadata.category_sanitized_count, 1);
 });
 
 test("translated menus can be shared through a public read-only menu page", async () => {
