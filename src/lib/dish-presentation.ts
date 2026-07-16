@@ -376,7 +376,7 @@ function hasStrongDrinkTerm(text: string): boolean {
 }
 
 function isDessertFormatText(text: string): boolean {
-  return /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕|饼|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|可丽饼|芝士蛋糕|曲奇/.test(text);
+  return /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕点|糕|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|月饼|可丽饼|芝士蛋糕|曲奇/.test(text);
 }
 
 type DishInsightFlags = {

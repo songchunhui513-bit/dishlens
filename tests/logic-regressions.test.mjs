@@ -939,6 +939,24 @@ test("dish cards and detail can show smart category labels as normal dish pills"
   assert.deepEqual(tags.map((tag) => tag.label), ["本店必点", "AI 推荐", "女生喜欢", "素食"]);
   assert.ok(tags.every((tag) => tag.type === "green" || tag.type === "veg"));
 
+  const burgerTags = buildDishDisplayTags({
+    dish: {
+      id: "grain-burger",
+      name_original: "GRAIN BURGER L",
+      name_translated: { zh: "谷物汉堡" },
+      description: { zh: "和牛烟熏胸肉饼，酸黄瓜，奶酪，焦糖洋葱，西班牙辣香肠酱。" },
+      ingredients: ["和牛", "汉堡", "奶酪"],
+      allergens: ["dairy", "gluten"],
+      taste_profile: [],
+      category: "dessert",
+      image_source: "ai",
+    },
+    signature: { dish_ids: ["grain-burger"], reason: "招牌推荐" },
+    maxTags: 4,
+  }).map((tag) => tag.label);
+  assert.ok(burgerTags.includes("主食"));
+  assert.ok(!burgerTags.includes("甜点"));
+
   const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
   const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");

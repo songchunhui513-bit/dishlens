@@ -170,7 +170,7 @@ function isStrongDrinkText(text: string): boolean {
 }
 
 function isDessertFormatText(text: string): boolean {
-  return /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕|饼|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|可丽饼|芝士蛋糕|曲奇/.test(text);
+  return /\b(?:roll|cake|chiffon|swiss roll|pastry|pudding|mousse|tart|pie|mochi|dorayaki|waffle|pancake|crepe|cheesecake|brownie|cookie|biscuit)\b|卷|蛋糕|戚风|点心|甜点|甜品|糕点|糕|布丁|慕斯|挞|派|麻薯|大福|铜锣烧|华夫|松饼|月饼|可丽饼|芝士蛋糕|曲奇/.test(text);
 }
 
 function isSeafoodText(text: string): boolean {
@@ -231,12 +231,14 @@ function dishCategoryKey(dish: Dish): CategoryKey | null {
   const pizzaLike = isPizzaText(c);
   const dessertLike = isDessertText(c);
   const dessertFormat = isDessertFormatText(c);
+  const stapleLike = isStapleText(c);
   const drinkLike = isDrinkText(c);
   if ((rawCategory === "drink" || rawCategory === "beverage") && !dessertFormat) return "drink";
   if (pizzaLike) return "staple";
   if (isStrongDrinkText(c) || (drinkLike && !dessertLike && !dessertFormat)) return "drink";
+  if (stapleLike && !dessertFormat) return "staple";
   if (dessertLike) return "dessert";
-  if (isStapleText(c)) return "staple";
+  if (stapleLike) return "staple";
   if (rawCategory === "appetizer") return "appetizer";
   if (rawCategory === "main") return "main";
   if (rawCategory === "staple" || STAPLE_CATEGORIES.has(rawCategory)) return "staple";
