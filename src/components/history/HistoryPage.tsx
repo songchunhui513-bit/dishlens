@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import type { HistoryEntry } from "@/types";
 import { sourceLanguageName } from "@/lib/order-state";
 import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
@@ -66,6 +67,8 @@ interface HistoryPageProps {
 }
 
 export default function HistoryPage({ onBack, onSelect, loading, history }: HistoryPageProps) {
+  const [failedThumbs, setFailedThumbs] = useState<Record<string, true>>({});
+
   if (loading) {
     return (
       <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
@@ -210,7 +213,16 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
                   className="relative flex-shrink-0 flex items-center justify-center overflow-hidden"
                   style={{ width: 44, height: 44, borderRadius: "var(--radius-sm)", background: "var(--card)" }}
                 >
-                  <Image src={item.img || fallbackHistoryImage} alt={item.restaurant} fill sizes="44px" style={{ objectFit: "cover" }} />
+                  <Image
+                    src={failedThumbs[item.img] ? fallbackHistoryImage : item.img || fallbackHistoryImage}
+                    alt={item.restaurant}
+                    fill
+                    sizes="44px"
+                    style={{ objectFit: "cover" }}
+                    onError={() => {
+                      if (item.img) setFailedThumbs((prev) => ({ ...prev, [item.img]: true }));
+                    }}
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600, color: "var(--ink)", marginBottom: 2 }}>
