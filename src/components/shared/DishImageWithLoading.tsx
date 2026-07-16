@@ -251,8 +251,8 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
   const pending = isDishImagePending(dish) || imageFailed;
   const showIllustration = pending || imageUnavailable;
   const hasWaitedLong = stalePending?.key === pendingKey && stalePending.stale;
-  const width = compact ? 120 : "100%";
-  const height = compact ? 120 : 200;
+  const width = compact ? 128 : "100%";
+  const height = compact ? 128 : 220;
   const radius = compact ? "var(--radius)" : "var(--radius-lg)";
   const pendingPercent =
     !hasWaitedLong && pendingDone !== undefined && pendingTotal !== undefined && pendingTotal > 0
@@ -320,7 +320,7 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
           src={imageUrl}
           alt={alt || getDishText(dish).translatedName}
           fill
-          sizes={compact ? "120px" : "(max-width: 430px) 100vw, 430px"}
+          sizes={compact ? "128px" : "(max-width: 430px) 100vw, 430px"}
           style={{ objectFit: "cover" }}
           onError={() => setFailedUrl(imageUrl)}
         />

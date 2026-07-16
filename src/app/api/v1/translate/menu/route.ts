@@ -4,6 +4,7 @@ import { analyzeMenuImage, analyzeMenuImageFast, refineTranslation, hasChinese }
 import type { Dish } from "@/types";
 import { getSupabaseAdminClient, supabase } from "@/lib/db/supabase";
 import { createTask, updateTask } from "@/lib/cache/task-store";
+import { getCachedTranslationResult, setCachedTranslationResult } from "@/lib/cache/translation-file-cache";
 import { generateImagesForDishes } from "@/lib/ai/image-gen";
 import { getCachedDishImageUrl, uploadDishImage } from "@/lib/storage/supabase-storage";
 import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
@@ -20,6 +21,12 @@ import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
 const translationCache = new Map<string, { result: Record<string, unknown>; createdAt: number }>();
 const CACHE_MAX = 50;
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
+
+async function rememberTranslation(cacheKey: string | undefined, result: Record<string, unknown>): Promise<void> {
+  if (!cacheKey) return;
+  translationCache.set(cacheKey, { result, createdAt: Date.now() });
+  await setCachedTranslationResult(cacheKey, result);
+}
 
 function hashImageContent(targetLang: string, buffer: Buffer): string {
   return crypto
@@ -412,9 +419,13 @@ export async function POST(req: NextRequest) {
     // Build stable cache key from normalized image content so repeated uploads hit reliably.
     const cacheKey = imageBuffers.map((b) => b.hash).sort().join("|");
 
-    // Check in-memory cache
-    const cached = translationCache.get(cacheKey);
-    if (cached && Date.now() - cached.createdAt < CACHE_TTL) {
+    // Check fast in-memory cache first, then the filesystem cache that survives restarts.
+    const memoryCached = translationCache.get(cacheKey);
+    const cached = memoryCached && Date.now() - memoryCached.createdAt < CACHE_TTL
+      ? memoryCached
+      : await getCachedTranslationResult(cacheKey);
+    if (cached) {
+      if (cached !== memoryCached) translationCache.set(cacheKey, cached);
       const cachedResult = {
         ...cached.result,
         metadata: {
@@ -619,9 +630,7 @@ async function processImagesFastFirstPass(
     ...meta,
   });
 
-  if (cacheKey) {
-    translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
-  }
+  await rememberTranslation(cacheKey, resultPayload);
 
   setTimeout(() => {
     enrichResultInBackground(taskId, imageBuffers, resultPayload, targetLang, cacheKey, startTime, meta, timings).catch((err) => {
@@ -803,9 +812,7 @@ async function processImages(
   });
 
   // Store result in memory cache for instant repeat lookups
-  if (cacheKey) {
-    translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
-  }
+  await rememberTranslation(cacheKey, resultPayload);
 
   // Async image generation — runs in background, updates task when done
   generateImagesInBackground(taskId, resultPayload, cacheKey).catch((err) => {
@@ -885,9 +892,7 @@ async function enrichResultInBackground(
   (enrichedPayload.metadata as Record<string, unknown>).source_language = resolveMenuSourceLanguage(enrichedPayload);
 
   await updateTask(taskId, { result: enrichedPayload });
-  if (cacheKey) {
-    translationCache.set(cacheKey, { result: enrichedPayload, createdAt: Date.now() });
-  }
+  await rememberTranslation(cacheKey, enrichedPayload);
   console.info("translate:task_enriched", {
     taskId,
     elapsedMs: startTime ? Date.now() - startTime : undefined,
@@ -942,9 +947,7 @@ async function generateImagesInBackground(
     if (currentTask?.result) {
       await updateTask(taskId, { result: resultPayload });
     }
-    if (cacheKey) {
-      translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
-    }
+    await rememberTranslation(cacheKey, resultPayload);
   };
 
   await updateImageGenerationTask("processing");
@@ -1040,7 +1043,7 @@ async function generateImagesInBackground(
   await updateImageGenerationTask(finalStatus);
 
   // Update translation cache with generated images so repeat uploads are instant
-  if (cacheKey && dishesForGeneration.some((d) => d.ai_image_url)) {
-    translationCache.set(cacheKey, { result: resultPayload, createdAt: Date.now() });
+  if (dishesForGeneration.some((d) => d.ai_image_url)) {
+    await rememberTranslation(cacheKey, resultPayload);
   }
 }

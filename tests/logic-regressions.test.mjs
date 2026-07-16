@@ -1074,6 +1074,8 @@ test("translation tasks can fall back to memory when the remote task store is un
   assert.match(taskStore, /preferMemory\?:\s*boolean/);
   assert.match(taskStore, /MENU_TASK_MEMORY_FALLBACK/);
   assert.match(taskStore, /Task store request failed; using memory fallback/);
+  assert.match(taskStore, /Task store read failed/);
+  assert.match(taskStore, /Task store update request failed/);
   assert.match(taskStore, /if \(options\.preferMemory\)/);
   assert.match(taskStore, /if \(error\)/);
   assert.match(taskStore, /Task store unavailable/);
@@ -1081,6 +1083,20 @@ test("translation tasks can fall back to memory when the remote task store is un
   assert.match(route, /isLocalTaskFallbackRequest\(req\)/);
   assert.match(route, /preferMemory:\s*allowMemoryFallback/);
   assert.match(route, /localhost|127\\.0\\.0\\.1|\[::1\]/);
+});
+
+test("translation cache survives process restarts through a server file cache", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const fileCache = await readFile(`${ROOT}/src/lib/cache/translation-file-cache.ts`, "utf8");
+
+  assert.match(route, /getCachedTranslationResult\(cacheKey\)/);
+  assert.match(route, /rememberTranslation\(cacheKey,\s*resultPayload\)/);
+  assert.match(route, /rememberTranslation\(cacheKey,\s*enrichedPayload\)/);
+  assert.match(route, /setCachedTranslationResult\(cacheKey,\s*result\)/);
+  assert.match(fileCache, /MENU_TRANSLATION_FILE_CACHE_DIR/);
+  assert.match(fileCache, /MENU_TRANSLATION_FILE_CACHE_TTL_MS/);
+  assert.match(fileCache, /createHash\("sha256"\)\.update\(cacheKey\)/);
+  assert.match(fileCache, /\.cache", "translation-results"/);
 });
 
 test("dietary settings persist locally across page refreshes without an account", async () => {
@@ -2192,7 +2208,20 @@ test("results dish cards preserve the production information hierarchy when orde
   assert.match(resultsPage, /const orderControlOffset = onOrderQuantityChange \? 58 : 0/);
   assert.match(resultsPage, /\{insight\.recommendation\}/);
   assert.doesNotMatch(resultsPage, /const pd = parseDishPrice\(dish\); return pd \? `\$\{pd\.amount\}\$\{pd\.currency\}` : "";/);
-  assert.doesNotMatch(resultsPage, /fontSize:\s*14,\s*fontWeight:\s*800/);
+  assert.match(resultsPage, /getDishPriceDisplay\(dish\)/);
+});
+
+test("results dish cards use app-like readable food card typography", async () => {
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+  const dishImage = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
+
+  assert.match(resultsPage, /borderRadius:\s*26/);
+  assert.match(resultsPage, /fontSize:\s*18/);
+  assert.match(resultsPage, /fontSize:\s*12,\s*color:\s*"var\(--ink-soft\)"/);
+  assert.match(resultsPage, /fontSize:\s*12,\s*color:\s*"var\(--primary\)"/);
+  assert.match(resultsPage, /fontSize:\s*"10px"/);
+  assert.match(dishImage, /const width = compact \? 128 : "100%"/);
+  assert.match(dishImage, /sizes=\{compact \? "128px"/);
 });
 
 test("dish prices are displayed beside translated names instead of only inside original names", async () => {

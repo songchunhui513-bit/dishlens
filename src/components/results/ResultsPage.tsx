@@ -33,11 +33,11 @@ function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "7.5px",
+        fontSize: "10px",
         fontWeight: type === "allergen" || type === "veg" ? 700 : 600,
-        padding: "3px 9px",
+        padding: "5px 10px",
         borderRadius: 20,
-        letterSpacing: "0.03em",
+        letterSpacing: 0,
         background: bgMap[type],
         color: colorMap[type],
       }}
@@ -297,19 +297,19 @@ export default function ResultsPage({
               <div
                 key={dish.id || `dish-${i}`}
                 className="relative"
-                style={{ marginBottom: 10, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
+                style={{ marginBottom: 14, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
               >
                 <button
                   onClick={() => onDishDetail(dish)}
-                  className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="flex items-start gap-4 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
                   style={{
                     background: "var(--card)",
-                    borderRadius: "var(--radius-lg)",
-                    padding: 14,
-                    paddingRight: 14 + orderControlOffset,
-                    boxShadow: "var(--shadow)",
+                    borderRadius: 26,
+                    padding: 16,
+                    paddingRight: 16 + orderControlOffset,
+                    boxShadow: "0 14px 34px rgba(69,48,30,0.08)",
                     cursor: "pointer",
-                    border: "none",
+                    border: "1px solid rgba(231,205,174,0.42)",
                     fontFamily: "inherit",
                   }}
                 >
@@ -337,16 +337,16 @@ export default function ResultsPage({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.04em", marginBottom: 2 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 800, color: "var(--primary)", letterSpacing: 0, marginBottom: 4 }}>
                       {String(i + 1).padStart(2, "0")}
                       {dish.rating_avg ? (
-                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>
+                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 11, color: "var(--accent)", fontWeight: 800 }}>
                           ★ {dish.rating_avg}
                         </span>
                       ) : null}
                     </div>
-                    <div className="flex items-start gap-2" style={{ marginBottom: 2 }}>
-                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.01em" }}>
+                    <div className="flex items-start gap-2" style={{ marginBottom: 4 }}>
+                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.24 }}>
                         {dishText.translatedName}
                       </div>
                       {dishPriceLabel ? (
@@ -355,7 +355,7 @@ export default function ResultsPage({
                             flexShrink: 0,
                             paddingTop: 1,
                             fontFamily: "var(--font-body)",
-                            fontSize: 11,
+                            fontSize: 14,
                             fontWeight: 800,
                             color: "var(--ink)",
                             lineHeight: 1.2,
@@ -365,13 +365,13 @@ export default function ResultsPage({
                         </span>
                       ) : null}
                     </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 11.5, color: "var(--muted)", fontStyle: "italic", marginBottom: 5, lineHeight: 1.25 }}>
                       {originalNameLabel}
                     </div>
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--ink-soft)", marginBottom: 6, lineHeight: 1.55 }}>
                       {insight.summary}
                     </div>
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--primary)", marginBottom: 5, lineHeight: 1.4, fontWeight: 600 }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--primary)", marginBottom: 8, lineHeight: 1.55, fontWeight: 700 }}>
                       {insight.recommendation}
                     </div>
                     {includedItems.length > 0 ? (
@@ -384,10 +384,10 @@ export default function ResultsPage({
                           padding: "4px 8px",
                           borderRadius: 10,
                           background: "rgba(76,175,80,0.07)",
-                          marginBottom: 5,
+                          marginBottom: 8,
                           fontFamily: "var(--font-ui)",
-                          fontSize: 7.5,
-                          lineHeight: 1.35,
+                          fontSize: 10.5,
+                          lineHeight: 1.45,
                           color: "var(--primary)",
                           fontWeight: 700,
                         }}

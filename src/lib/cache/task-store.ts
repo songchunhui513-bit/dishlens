@@ -15,6 +15,15 @@ interface TaskStoreOptions {
   preferMemory?: boolean;
 }
 
+type TaskRow = {
+  status: TaskState["status"];
+  progress: TaskState["progress"];
+  per_page_status: TaskState["perPageStatus"];
+  result?: Record<string, unknown>;
+  failed_pages?: TaskState["failedPages"];
+  estimated_remaining?: number;
+};
+
 let _db: SupabaseClient | null = null;
 const memoryTasks = new Map<string, TaskState>();
 const ENABLE_MEMORY_FALLBACK = process.env.MENU_TASK_MEMORY_FALLBACK !== "false";
@@ -88,11 +97,23 @@ export async function getTask(
   const memoryTask = memoryTasks.get(id);
   if (memoryTask) return memoryTask;
 
-  const { data, error } = await db()
-    .from("tasks")
-    .select("*")
-    .eq("id", id)
-    .single();
+  let data: TaskRow | null = null;
+  let error: { message?: string } | null = null;
+  try {
+    const response = await db()
+      .from("tasks")
+      .select("*")
+      .eq("id", id)
+      .single();
+    data = response.data;
+    error = response.error;
+  } catch (err) {
+    console.warn("Task store read failed", {
+      taskId: id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  }
 
   if (error || !data) return undefined;
 
@@ -136,10 +157,30 @@ export async function updateTask(
   if (merged.failedPages) row.failed_pages = merged.failedPages;
   if (merged.estimatedRemaining !== undefined) row.estimated_remaining = merged.estimatedRemaining;
 
-  await db().from("tasks").update(row).eq("id", id);
+  try {
+    const { error } = await db().from("tasks").update(row).eq("id", id);
+    if (error) {
+      console.warn("Task store update failed", {
+        taskId: id,
+        error: error.message,
+      });
+    }
+  } catch (err) {
+    console.warn("Task store update request failed", {
+      taskId: id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 export async function deleteTask(id: string): Promise<void> {
   memoryTasks.delete(id);
-  await db().from("tasks").delete().eq("id", id);
+  try {
+    await db().from("tasks").delete().eq("id", id);
+  } catch (err) {
+    console.warn("Task store delete request failed", {
+      taskId: id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
