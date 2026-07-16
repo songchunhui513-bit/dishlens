@@ -1,4 +1,4 @@
-const UNSAFE_REMOTE_IMAGE_RE = /dashscope-result.*aliyuncs\.com|image\.pollinations\.ai/i;
+const UNSAFE_REMOTE_IMAGE_RE = /dashscope-result.*aliyuncs\.com|image\.pollinations\.ai|images\.unsplash\.com/i;
 
 export function unwrapNextImageUrl(url: string): string {
   const trimmed = url.trim();

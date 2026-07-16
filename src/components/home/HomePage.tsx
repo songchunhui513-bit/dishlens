@@ -35,7 +35,8 @@ interface HomePageProps {
   uiLang?: "zh" | "en";
 }
 
-const fallbackRecentImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
+const fallbackRecentImage = "/dishes/pizza-margherita.png";
+const fallbackDailyDishImage = "/dishes/boeuf-bourguignon.png";
 
 const CUISINE_LABELS: Record<string, string> = {
   french: "法式料理", japanese: "日式料理", italian: "意式料理", chinese: "中式料理",
@@ -367,7 +368,7 @@ export default function HomePage({
             style={{ width: 112, height: 112, borderRadius: "var(--radius-lg)", justifySelf: "end" }}
           >
             <Image
-              src={dailyDish?.image_url || "https://images.unsplash.com/photo-1667396702543-a239efa7a7f2?w=200&h=200&fit=crop&auto=format"}
+              src={dailyDish?.image_url || fallbackDailyDishImage}
               alt={dailyDish?.name_en || "Boeuf"}
               fill
               loading="eager"

@@ -1352,12 +1352,13 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   assert.equal(unwrapNextImageUrl(nextWrappedTemporary).includes("dashscope-result"), true);
   assert.equal(unwrapNextImageUrl(absoluteNextWrappedGenerated), "/generated-dishes/missing.png");
   assert.equal(isSafeStoredThumbnail("/dishes/apple-pie.png"), true);
-  assert.equal(isSafeStoredThumbnail("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120"), true);
+  assert.equal(isSafeStoredThumbnail("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120"), false);
   assert.equal(isSafeStoredThumbnail("/generated-dishes/generated-old-local-only.png"), false);
   assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/generated-dishes/generated-old-local-only.png"), false);
   assert.equal(isSafeStoredThumbnail(absoluteNextWrappedGenerated), false);
   assert.equal(isSafeStoredThumbnail(nextWrappedTemporary), false);
   assert.equal(isSafeStoredThumbnail("https://image.pollinations.ai/prompt/professional-food"), false);
+  assert.equal(isSafeStoredThumbnail("/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1504674900247-0877df9cc836&w=64&q=75"), false);
 
   const picked = pickSafeMenuThumbnail({
     thumbnail: "https://dishlens.wukongmkt.com/generated-dishes/generated-old-local-only.png",

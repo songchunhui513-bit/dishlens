@@ -59,9 +59,9 @@ const DEFAULT_RECORDS: RecentMenuRecord[] = [
     timeLabel: "示例",
     summary: "含披萨、主菜、甜点",
     thumbnails: [
-      "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=120&h=120&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1544025162-d76694265947?w=120&h=120&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=120&h=120&fit=crop&auto=format",
+      "/dishes/pizza-margherita.png",
+      "/dishes/steak-frites-hero.jpg",
+      "/dishes/creme-brulee.png",
     ],
     landmarkKey: "it",
   },

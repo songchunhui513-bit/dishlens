@@ -8,7 +8,7 @@ import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 import { isSafeStoredThumbnail } from "@/lib/safe-image-url";
 import { pickSafeMenuThumbnail } from "@/lib/recent-menu-records";
 
-const fallbackHistoryImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
+const fallbackHistoryImage = "/dishes/pizza-margherita.png";
 
 interface HistoryItem {
   id: string;
