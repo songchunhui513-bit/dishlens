@@ -50,6 +50,39 @@ async function compressImage(file: File, maxDim = CLIENT_MENU_IMAGE_MAX_DIM, qua
   });
 }
 
+function bytesToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function buildClientImageHash(file: File, targetLang: string): Promise<string> {
+  const prefix = new TextEncoder().encode(`${targetLang}:`);
+  const imageBytes = new Uint8Array(await file.arrayBuffer());
+  const bytes = new Uint8Array(prefix.length + imageBytes.length);
+  bytes.set(prefix, 0);
+  bytes.set(imageBytes, prefix.length);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return bytesToHex(digest).slice(0, 32);
+}
+
+async function probeTranslationCache(images: File[], targetLang: string): Promise<TranslationResult | null> {
+  if (!globalThis.crypto?.subtle) return null;
+  try {
+    const hashes = await Promise.all(images.map((img) => buildClientImageHash(img, targetLang)));
+    const res = await fetch("/api/v1/translate/menu/cache", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target_lang: targetLang, hashes }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { hit?: boolean; result?: TranslationResult };
+    return data.hit && data.result ? data.result : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Translation ────────────────────────────────────────────────────
 
 async function postTranslation(images: File[], targetLang = "zh"): Promise<TranslationResult> {
@@ -66,6 +99,9 @@ async function postTranslation(images: File[], targetLang = "zh"): Promise<Trans
     compressionMs: Math.round(performance.now() - compressionStart),
     targetLang: normalizedTargetLang,
   });
+  const cached = await probeTranslationCache(compressed, normalizedTargetLang);
+  if (cached) return cached;
+
   compressed.forEach((img) => formData.append("images", img));
   formData.append("target_lang", normalizedTargetLang);
 

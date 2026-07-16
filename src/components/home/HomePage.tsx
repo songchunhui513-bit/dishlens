@@ -129,6 +129,7 @@ export default function HomePage({
   const hasHistory = recentHistory !== undefined && recentHistory.length >= 0;
   const isEmpty = hasHistory && recentHistory!.length === 0;
   const [failedRecentThumbs, setFailedRecentThumbs] = useState<Record<string, true>>({});
+  const [loadedRecentThumbs, setLoadedRecentThumbs] = useState<Record<string, true>>({});
 
   const handleAlbumPick = () => {
     albumInputRef.current?.click();
@@ -547,7 +548,14 @@ export default function HomePage({
                             alt=""
                             loading="lazy"
                             decoding="async"
-                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              display: "block",
+                              visibility: loadedRecentThumbs[src] ? "visible" : "hidden",
+                            }}
+                            onLoad={() => setLoadedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
                             onError={() => setFailedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
                           />
                         </span>

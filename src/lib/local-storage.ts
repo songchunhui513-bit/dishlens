@@ -1,5 +1,10 @@
 import type { HistoryEntry, FavoriteDish, OrderedVisit, UserSettings } from "@/types";
 import type { DishKnowledgeEntry } from "./dish-knowledge-types";
+import {
+  isGeneratedDishPath,
+  isSafeStoredThumbnail,
+  isUnsafeTemporaryRemoteImage,
+} from "./safe-image-url";
 
 const KEYS = {
   history: "dishlens_history",
@@ -114,8 +119,55 @@ export function setSettings(settings: UserSettings): void {
 
 // ── History ──────────────────────────────────────────────────────
 
+function isUnsafePersistedImageUrl(url: unknown): url is string {
+  return typeof url === "string" && (
+    isGeneratedDishPath(url) || isUnsafeTemporaryRemoteImage(url)
+  );
+}
+
+function sanitizeHistoryEntry(entry: HistoryEntry): HistoryEntry {
+  let changed = false;
+  const next: HistoryEntry = { ...entry };
+
+  if (next.thumbnail && !isSafeStoredThumbnail(next.thumbnail)) {
+    next.thumbnail = "";
+    changed = true;
+  }
+
+  if (next.result_summary?.pages?.length) {
+    const pages = next.result_summary.pages.map((page) => {
+      let pageChanged = false;
+      const dishes = (page.dishes || []).map((dish) => {
+        const staleAiUrl = isUnsafePersistedImageUrl(dish.ai_image_url);
+        const staleImageUrl = isUnsafePersistedImageUrl((dish as { image_url?: string }).image_url);
+        if (!staleAiUrl && !staleImageUrl) return dish;
+
+        pageChanged = true;
+        const nextDish = { ...dish } as typeof dish & { image_url?: string };
+        if (staleAiUrl) delete nextDish.ai_image_url;
+        if (staleImageUrl) delete nextDish.image_url;
+        if (!nextDish.ai_image_url && !nextDish.image_url) nextDish.image_status = "failed";
+        return nextDish;
+      });
+      return pageChanged ? { ...page, dishes } : page;
+    });
+
+    if (pages.some((page, index) => page !== next.result_summary?.pages[index])) {
+      next.result_summary = { ...next.result_summary, pages };
+      changed = true;
+    }
+  }
+
+  return changed ? next : entry;
+}
+
 export function getHistory(): HistoryEntry[] {
-  return read<HistoryEntry[]>(KEYS.history, []);
+  const history = read<HistoryEntry[]>(KEYS.history, []);
+  const sanitized = history.map(sanitizeHistoryEntry);
+  if (sanitized.some((entry, index) => entry !== history[index])) {
+    write(KEYS.history, sanitized);
+  }
+  return sanitized;
 }
 
 export function addHistory(entry: HistoryEntry): void {

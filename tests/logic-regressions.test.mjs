@@ -1274,6 +1274,24 @@ test("translation cache survives process restarts through a server file cache", 
   assert.match(fileCache, /\.cache", "translation-results"/);
 });
 
+test("cached menu uploads can return through a lightweight preflight probe before sending images", async () => {
+  const apiClient = await readFile(`${ROOT}/src/lib/api-client.ts`, "utf8");
+  const cacheRoute = await readFile(`${ROOT}/src/app/api/v1/translate/menu/cache/route.ts`, "utf8");
+
+  assert.match(apiClient, /probeTranslationCache/);
+  assert.match(apiClient, /buildClientImageHash/);
+  assert.match(apiClient, /\/api\/v1\/translate\/menu\/cache/);
+  assert.match(apiClient, /if \(cached\) return cached/);
+  assert.match(apiClient, /compressed\.forEach/);
+  assert.match(cacheRoute, /getCachedTranslationResult\(cacheKey\)/);
+  assert.match(cacheRoute, /hashes\.slice\(\)\.sort\(\)\.join\("\|"\)/);
+  assert.match(cacheRoute, /createTask\(taskId,\s*pageCount/);
+  assert.match(cacheRoute, /updateTask\(taskId,\s*\{/);
+  assert.match(cacheRoute, /cached:\s*true/);
+  assert.match(cacheRoute, /cache_probe:\s*true/);
+  assert.match(cacheRoute, /NextResponse\.json\(\{\s*hit:\s*false/);
+});
+
 test("dietary settings persist locally across page refreshes without an account", async () => {
   const localStorage = await readFile(`${ROOT}/src/lib/local-storage.ts`, "utf8");
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
@@ -1395,6 +1413,7 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   const recentRecords = await readFile(`${ROOT}/src/lib/recent-menu-records.ts`, "utf8");
   const historyPage = await readFile(`${ROOT}/src/components/history/HistoryPage.tsx`, "utf8");
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const localStorage = await readFile(`${ROOT}/src/lib/local-storage.ts`, "utf8");
   const {
     isSafeStoredThumbnail,
     unwrapNextImageUrl,
@@ -1436,10 +1455,17 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   assert.match(recentRecords, /isSafeStoredThumbnail/);
   assert.match(historyPage, /pickSafeMenuThumbnail\(e\)/);
   assert.match(appPage, /thumbnail:\s*pickSafeMenuThumbnail/);
+  assert.match(localStorage, /sanitizeHistoryEntry/);
+  assert.match(localStorage, /isUnsafePersistedImageUrl/);
+  assert.match(localStorage, /thumbnail\s*=\s*""/);
+  assert.match(localStorage, /delete nextDish\.ai_image_url/);
+  assert.match(localStorage, /delete nextDish\.image_url/);
 
   const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
   assert.match(homePage, /failedRecentThumbs\[src\]\s*\?\s*null/);
   assert.match(homePage, /onError=\{\(\) => setFailedRecentThumbs/);
+  assert.match(homePage, /onLoad=\{\(\) => setLoadedRecentThumbs/);
+  assert.match(homePage, /visibility:\s*loadedRecentThumbs\[src\]/);
 });
 
 test("location recommendation demo data is gated to local review only", async () => {
