@@ -54,7 +54,11 @@ export function isGeneratedDishPath(url: string | null | undefined): boolean {
 }
 
 function isKnownLocalDishPath(pathname: string): boolean {
-  return pathname.startsWith("/dishes/") && KNOWN_LOCAL_DISH_IMAGE_PATHS.has(pathname);
+  if (!pathname.startsWith("/dishes/")) return false;
+  if (KNOWN_LOCAL_DISH_IMAGE_PATHS.has(pathname)) return true;
+
+  const webpPathname = pathname.replace(/\.(png|jpe?g)$/i, ".webp");
+  return webpPathname !== pathname && KNOWN_LOCAL_DISH_IMAGE_PATHS.has(webpPathname);
 }
 
 function isSupabaseStorageDishUrl(url: URL): boolean {

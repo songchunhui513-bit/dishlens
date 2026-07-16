@@ -1433,9 +1433,11 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   const absoluteNextWrappedGenerated = "https://dishlens.wukongmkt.com/_next/image?url=%2Fgenerated-dishes%2Fmissing.png&w=64&q=75";
   assert.equal(unwrapNextImageUrl(nextWrappedTemporary).includes("dashscope-result"), true);
   assert.equal(unwrapNextImageUrl(absoluteNextWrappedGenerated), "/generated-dishes/missing.png");
+  assert.equal(isSafeStoredThumbnail("/dishes/apple-pie.webp"), true);
   assert.equal(isSafeStoredThumbnail("/dishes/apple-pie.png"), true);
-  assert.equal(isSafeStoredThumbnail("/dishes/missing-dish-photo.png"), false);
-  assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/dishes/apple-pie.png"), true);
+  assert.equal(isSafeStoredThumbnail("/dishes/missing-dish-photo.webp"), false);
+  assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/dishes/apple-pie.webp"), true);
+  assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/dishes/apple-pie.jpg"), true);
   assert.equal(isSafeStoredThumbnail("https://gbkallzbksmaahzvxezq.supabase.co/storage/v1/object/public/dishes/generated-rare-soup.webp"), true);
   assert.equal(isSafeStoredThumbnail("https://example.com/random-food.jpg"), false);
   assert.equal(isSafeStoredThumbnail("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120"), false);
@@ -1452,13 +1454,13 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
       pages: [{
         dishes: [
           { id: "old", name_original: "Old", ai_image_url: "https://image.pollinations.ai/prompt/old" },
-          { id: "missing-local", name_original: "Missing", ai_image_url: "/dishes/missing-dish-photo.png" },
-          { id: "safe", name_original: "Apple Pie", ai_image_url: "/dishes/apple-pie.png" },
+          { id: "missing-local", name_original: "Missing", ai_image_url: "/dishes/missing-dish-photo.webp" },
+          { id: "safe", name_original: "Apple Pie", ai_image_url: "/dishes/apple-pie.webp" },
         ],
       }],
     },
   });
-  assert.equal(picked, "/dishes/apple-pie.png");
+  assert.equal(picked, "/dishes/apple-pie.webp");
 
   assert.match(recentRecords, /pickSafeMenuThumbnail/);
   assert.match(recentRecords, /isSafeStoredThumbnail/);
@@ -2034,7 +2036,7 @@ test("stale local generated image URLs from the database are not reused as valid
     }),
     false,
   );
-  assert.equal(isReusableExistingImageUrl("/dishes/pizza-marinara.png"), true);
+  assert.equal(isReusableExistingImageUrl("/dishes/pizza-marinara.webp"), true);
   assert.equal(
     isReusableExistingImageUrl("https://gbkallzbksmaahzvxezq.supabase.co/storage/v1/object/public/dishes/generated-dish-xoismf.png"),
     true,
@@ -2077,7 +2079,7 @@ test("task responses strip missing local generated dish image URLs before reachi
             name_translated: { zh: "抹茶卷" },
             description: { zh: "抹茶戚风蛋糕与覆盆子夹心" },
             category: "drink",
-            ai_image_url: "/dishes/apple-pie.png",
+            ai_image_url: "/dishes/apple-pie.webp",
             image_status: "done",
             image_source: "mixed",
           },
@@ -2124,6 +2126,26 @@ test("runtime generated dish images are served outside the build-time public ass
   assert.match(optimizer, /sharp\(inputPath, \{ failOn: "none" \}\)/);
   assert.match(optimizer, /\.webp\(\{ quality: WEBP_QUALITY/);
   assert.match(optimizer, /--prune-png/);
+});
+
+test("legacy knowledge dish image URLs fall back to optimized webp assets", async () => {
+  const routePath = `${ROOT}/src/app/dishes/[file]/route.ts`;
+  const route = await readFile(routePath, "utf8");
+
+  assert.match(route, /join\(process\.cwd\(\), "public", "dishes"\)/);
+  assert.match(route, /params:\s*Promise<\{\s*file:\s*string\s*\}>/);
+  assert.match(route, /decodeURIComponent\(params\.file \|\| ""\)/);
+  assert.match(route, /allowedTypes/);
+  assert.match(route, /\.jpeg/);
+  assert.match(route, /\.jpg/);
+  assert.match(route, /\.png/);
+  assert.match(route, /\.webp/);
+  assert.match(route, /basename\(fileName\) !== fileName/);
+  assert.match(route, /fallbackWebpFileName/);
+  assert.match(route, /\.replace\(\/\\\.\(png\|jpe\?g\)\$\/i, "\.webp"\)/);
+  assert.match(route, /readFile\(filePath\)/);
+  assert.match(route, /image\/webp/);
+  assert.match(route, /Cache-Control": "public, max-age=31536000, immutable"/);
 });
 
 test("translated menus can be shared through a public read-only menu page", async () => {

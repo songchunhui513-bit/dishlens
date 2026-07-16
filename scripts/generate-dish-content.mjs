@@ -10,6 +10,7 @@
 
 import { writeFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { join } from "path";
+import sharp from "sharp";
 
 // Load .env.local manually
 const envPath = join(import.meta.dirname, "..", ".env.local");
@@ -34,6 +35,8 @@ const CONTENT_CONCURRENCY = 5;
 const IMAGE_CONCURRENCY = 1;
 const POLL_INTERVAL = 3000;
 const POLL_TIMEOUT = 90_000;
+const KNOWLEDGE_DISH_MAX_DIM = Number.parseInt(process.env.KNOWLEDGE_DISH_MAX_DIM || "768", 10) || 768;
+const KNOWLEDGE_DISH_WEBP_QUALITY = Number.parseInt(process.env.KNOWLEDGE_DISH_WEBP_QUALITY || "82", 10) || 82;
 
 const DISH_IMAGE_STYLE_SPEC = [
   "realistic restaurant food photography",
@@ -268,7 +271,17 @@ async function pollImageTask(taskId) {
 async function downloadImage(url, dest) {
   const res = await fetch(url);
   if (!res.ok) return false;
-  writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+  const optimized = await sharp(Buffer.from(await res.arrayBuffer()), { failOn: "none" })
+    .rotate()
+    .resize({
+      width: KNOWLEDGE_DISH_MAX_DIM,
+      height: KNOWLEDGE_DISH_MAX_DIM,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: KNOWLEDGE_DISH_WEBP_QUALITY, effort: 5 })
+    .toBuffer();
+  writeFileSync(dest, optimized);
   return true;
 }
 
@@ -291,10 +304,10 @@ async function generateImage(dish, content) {
   const imageUrl = await pollImageTask(taskId);
   if (!imageUrl) return null;
 
-  const localPath = join(OUT_DIR, `${dish.id}.png`);
+  const localPath = join(OUT_DIR, `${dish.id}.webp`);
   await downloadImage(imageUrl, localPath);
 
-  const imagePath = `/dishes/${dish.id}.png`;
+  const imagePath = `/dishes/${dish.id}.webp`;
   progress[dish.id] = progress[dish.id] || {};
   progress[dish.id].image = imagePath;
   saveProgress();

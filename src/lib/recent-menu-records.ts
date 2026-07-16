@@ -59,9 +59,9 @@ const DEFAULT_RECORDS: RecentMenuRecord[] = [
     timeLabel: "示例",
     summary: "含披萨、主菜、甜点",
     thumbnails: [
-      "/dishes/pizza-margherita.png",
-      "/dishes/steak-frites-hero.jpg",
-      "/dishes/creme-brulee.png",
+      "/dishes/pizza-margherita.webp",
+      "/dishes/steak-frites-hero.webp",
+      "/dishes/creme-brulee.webp",
     ],
     landmarkKey: "it",
   },

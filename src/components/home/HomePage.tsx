@@ -35,8 +35,8 @@ interface HomePageProps {
   uiLang?: "zh" | "en";
 }
 
-const fallbackRecentImage = "/dishes/pizza-margherita.png";
-const fallbackDailyDishImage = "/dishes/boeuf-bourguignon.png";
+const fallbackRecentImage = "/dishes/pizza-margherita.webp";
+const fallbackDailyDishImage = "/dishes/boeuf-bourguignon.webp";
 
 const CUISINE_LABELS: Record<string, string> = {
   french: "法式料理", japanese: "日式料理", italian: "意式料理", chinese: "中式料理",

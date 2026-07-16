@@ -70,8 +70,8 @@ const imageRules: DishImageRule[] = [
   },
   {
     patterns: ["shellfish", "clam", "oyster", "conch", "whelk", "sea snail", "snail", "escargot", "贝", "蚝", "蛤", "蛏", "扇贝", "螺", "花螺", "海螺", "响螺", "田螺"],
-    card: "/dishes/escargots-de-bourgogne.png",
-    hero: "/dishes/escargots-de-bourgogne.png",
+    card: "/dishes/escargots-de-bourgogne.webp",
+    hero: "/dishes/escargots-de-bourgogne.webp",
   },
   {
     patterns: ["pasta", "spaghetti", "carbonara", "意面", "面"],

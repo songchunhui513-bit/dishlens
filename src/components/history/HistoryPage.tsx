@@ -8,7 +8,7 @@ import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 import { isSafeStoredThumbnail } from "@/lib/safe-image-url";
 import { pickSafeMenuThumbnail } from "@/lib/recent-menu-records";
 
-const fallbackHistoryImage = "/dishes/pizza-margherita.png";
+const fallbackHistoryImage = "/dishes/pizza-margherita.webp";
 
 interface HistoryItem {
   id: string;

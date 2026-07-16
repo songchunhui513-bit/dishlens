@@ -2,7 +2,7 @@
 
 /**
  * Download images from pollinations.ai URLs in dish-knowledge-db.json
- * and update the JSON to point to local /dishes/<slug>.png paths.
+ * and update the JSON to point to compact local /dishes/<slug>.webp paths.
  *
  * IMPORTANT: pollinations.ai limits to 1 concurrent request per IP.
  * This script processes strictly sequentially with rate-limit-aware retries.
@@ -18,6 +18,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -38,6 +39,8 @@ const RATE_LIMIT_INITIAL_DELAY_MS = 30000; // 30 seconds initial wait on rate li
 const MAX_RATE_LIMIT_RETRIES = 5;
 const SAVE_EVERY_N = 25;
 const USER_AGENT = 'DishLensImageDownloader/1.0 (contact@dishlens.app)';
+const KNOWLEDGE_DISH_MAX_DIM = Number.parseInt(process.env.KNOWLEDGE_DISH_MAX_DIM || '768', 10) || 768;
+const KNOWLEDGE_DISH_WEBP_QUALITY = Number.parseInt(process.env.KNOWLEDGE_DISH_WEBP_QUALITY || '82', 10) || 82;
 
 // Ensure dishes directory exists
 if (!existsSync(DISHES_DIR)) {
@@ -127,7 +130,17 @@ async function downloadImage(url, destPath) {
         throw new Error(`Response too small (${buffer.length} bytes)`);
       }
 
-      writeFileSync(destPath, buffer);
+      const optimized = await sharp(buffer, { failOn: 'none' })
+        .rotate()
+        .resize({
+          width: KNOWLEDGE_DISH_MAX_DIM,
+          height: KNOWLEDGE_DISH_MAX_DIM,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: KNOWLEDGE_DISH_WEBP_QUALITY, effort: 5 })
+        .toBuffer();
+      writeFileSync(destPath, optimized);
       return { ok: true };
     } catch (err) {
       if (err.name === 'AbortError' || err.message.includes('timeout')) {
@@ -164,8 +177,8 @@ const startTime = Date.now();
 
 for (let i = 0; i < workItems.length; i++) {
   const { id, entry, cardNeedsDownload, heroNeedsDownload } = workItems[i];
-  const localPath = `/dishes/${id}.png`;
-  const destPath = join(DISHES_DIR, `${id}.png`);
+  const localPath = `/dishes/${id}.webp`;
+  const destPath = join(DISHES_DIR, `${id}.webp`);
 
   const fileExists = existsSync(destPath);
 
