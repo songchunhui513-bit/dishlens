@@ -24,6 +24,12 @@ const basePhases = [
 
 const FOOD_CHARACTER_ROTATE_MS = 4000;
 const MAX_POLLING_MS = 180_000;
+const LOADING_STEPS = [
+  { label: "整理照片", detail: "压缩并上传菜单" },
+  { label: "识别菜品", detail: "读取菜名、价格和描述" },
+  { label: "翻译推荐", detail: "生成适合点菜的中文说明" },
+  { label: "补齐图片", detail: "优先匹配本地图，缺失再生成" },
+] as const;
 
 function buildPhases(count: number): string[] {
   if (count <= 1) return basePhases;
@@ -259,27 +265,43 @@ export default function LoadingPage({
 
   const pctNum = Math.min(Math.round(progress), 100);
   const isNearDone = pctNum > 90;
+  const activeStep = Math.min(LOADING_STEPS.length - 1, Math.floor((pctNum / 100) * LOADING_STEPS.length));
+  const currentHint = FOOD_CHARACTER_HINTS[foodCharacterIndex];
+  const elapsedSeconds = Math.round(((isPolling ? pollingElapsed : pendingElapsed) || 0) / 1000);
+  const elapsedLabel = elapsedSeconds > 0 ? `${elapsedSeconds}s` : "刚刚开始";
 
   return (
     <div
-      className="h-full flex flex-col items-center justify-center flex-1"
-      style={{ background: "var(--bg)", padding: "30px 20px" }}
+      className="h-full flex flex-col flex-1"
+      style={{
+        background: "linear-gradient(180deg, #FFF8EE 0%, var(--bg) 48%, #F6E5CF 100%)",
+        padding: "calc(34px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom))",
+      }}
     >
       {/* Failed state */}
       {isFailed ? (
-        <>
+        <div
+          className="flex flex-1 flex-col items-center justify-center text-center"
+          style={{
+            border: "1px solid rgba(212,165,116,0.34)",
+            borderRadius: 28,
+            background: "rgba(255,245,233,0.72)",
+            padding: "32px 24px",
+            boxShadow: "0 18px 42px rgba(94, 56, 18, 0.08)",
+          }}
+        >
           <div
             className="flex items-center justify-center"
             style={{
-              width: 48,
-              height: 48,
+              width: 68,
+              height: 68,
               borderRadius: "50%",
               background: "var(--allergen-bg)",
-              marginBottom: 20,
+              marginBottom: 22,
               animation: "popIn 0.3s ease-out",
             }}
           >
-            <svg viewBox="0 0 24 24" style={{ width: 24, height: 24, stroke: "var(--accent)", fill: "none", strokeWidth: 2, strokeLinecap: "round" }}>
+            <svg viewBox="0 0 24 24" style={{ width: 30, height: 30, stroke: "var(--accent)", fill: "none", strokeWidth: 2, strokeLinecap: "round" }}>
               <circle cx="12" cy="12" r="9" />
               <path d="M12 8v4M12 16h0" />
             </svg>
@@ -288,10 +310,11 @@ export default function LoadingPage({
             key={`status-${statusKey}`}
             style={{
               fontFamily: "var(--font-body)",
-              fontSize: 13,
-              fontWeight: 600,
+              fontSize: 22,
+              fontWeight: 800,
               color: "var(--ink)",
-              marginBottom: 4,
+              marginBottom: 8,
+              letterSpacing: 0,
               animation: "fadeIn 0.5s ease-out",
             }}
           >
@@ -300,9 +323,10 @@ export default function LoadingPage({
           <div
             style={{
               fontFamily: "var(--font-ui)",
-              fontSize: 9,
+              fontSize: 14,
+              lineHeight: 1.55,
               color: "var(--muted)",
-              marginBottom: 18,
+              marginBottom: 24,
               animation: "fadeIn 0.5s ease-out",
             }}
           >
@@ -314,106 +338,263 @@ export default function LoadingPage({
               className="transition-opacity hover:opacity-70"
               style={{
                 fontFamily: "var(--font-ui)",
-                fontSize: 10,
-                fontWeight: 600,
-                color: "var(--muted)",
-                background: "none",
-                border: "none",
+                fontSize: 15,
+                fontWeight: 800,
+                color: "#FFF",
+                background: "var(--ink)",
+                border: "1px solid rgba(45,45,45,0.12)",
+                borderRadius: 999,
+                minHeight: 46,
+                padding: "0 24px",
                 cursor: "pointer",
               }}
             >
               返回首页
             </button>
           </div>
-        </>
+        </div>
       ) : (
-        <>
-          {/* Pulsing dots */}
-          <div data-testid="loading-food-character">
-            <FoodCharacters activeIndex={foodCharacterIndex} />
+        <div className="flex flex-1 flex-col" style={{ gap: 16, minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 8 }} />
+
+          <div
+            style={{
+              textAlign: "center",
+              animation: "fadeSlideUp 420ms ease-out both",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "var(--primary)",
+                marginBottom: 8,
+              }}
+            >
+              DishLens 正在读菜单
+            </div>
+            <h1
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 28,
+                lineHeight: 1.16,
+                fontWeight: 900,
+                color: "var(--ink)",
+                letterSpacing: 0,
+                margin: 0,
+              }}
+            >
+              把照片变成可点菜清单
+            </h1>
+            <p
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 14,
+                lineHeight: 1.55,
+                color: "var(--muted)",
+                margin: "10px auto 0",
+                maxWidth: 280,
+              }}
+            >
+              先返回菜名和推荐，图片会继续在后台补齐。
+            </p>
           </div>
 
-          {/* Progress bar */}
-          <div style={{ width: 200, marginBottom: 12 }}>
+          <div
+            style={{
+              border: "1px solid rgba(212,165,116,0.34)",
+              borderRadius: 30,
+              background: "linear-gradient(180deg, rgba(255,255,255,0.44), rgba(254,230,203,0.5))",
+              boxShadow: "0 20px 52px rgba(94, 56, 18, 0.1)",
+              padding: "20px 18px 18px",
+              animation: "fadeSlideUp 520ms ease-out both",
+            }}
+          >
+            <div
+              data-testid="loading-food-character"
+              className="loading-food-stage"
+              style={{
+                width: 172,
+                height: 142,
+                margin: "0 auto 10px",
+                borderRadius: 28,
+                background: "radial-gradient(circle at 50% 30%, rgba(255,255,255,0.9), rgba(255,245,233,0.42) 58%, rgba(255,159,28,0.08))",
+                border: "1px solid rgba(255,255,255,0.7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <FoodCharacters activeIndex={foodCharacterIndex} />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                gap: 12,
+                marginBottom: 10,
+              }}
+            >
+              <div
+                key={`status-${statusKey}`}
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 20,
+                  fontWeight: 850,
+                  color: "var(--ink)",
+                  lineHeight: 1.25,
+                  animation: "fadeIn 0.5s ease-out",
+                }}
+              >
+                {statusText}
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 30,
+                  fontWeight: 900,
+                  color: isNearDone ? "var(--primary)" : "var(--ink)",
+                  lineHeight: 1,
+                  letterSpacing: 0,
+                }}
+              >
+                {pctNum}%
+              </div>
+            </div>
+
+            <div
+              key={`food-hint-${foodCharacterIndex}`}
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 13,
+                color: "var(--muted)",
+                marginBottom: 14,
+                lineHeight: 1.45,
+                animation: "fadeIn 0.5s ease-out",
+              }}
+            >
+              {currentHint} · 已等待 {elapsedLabel}
+            </div>
+
             <div
               className="w-full overflow-hidden"
-              style={{ height: 4, borderRadius: 2, background: "var(--rule)" }}
+              style={{ height: 10, borderRadius: 999, background: "rgba(212,165,116,0.26)" }}
             >
               <div
                 className="h-full"
                 style={{
                   width: `${Math.max(pctNum, 3)}%`,
-                  borderRadius: 2,
+                  borderRadius: 999,
                   background: isNearDone
                     ? "linear-gradient(90deg, var(--accent), var(--accent-soft))"
                     : "linear-gradient(90deg, var(--primary), var(--primary-soft))",
                   transition: "width 300ms ease-out",
+                  boxShadow: "0 0 18px rgba(76,175,80,0.22)",
                 }}
               />
             </div>
           </div>
 
-          {/* Status text — key forces re-mount on text change → fadeIn replays */}
           <div
-            key={`status-${statusKey}`}
             style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--ink)",
-              marginBottom: 4,
-              animation: "fadeIn 0.5s ease-out",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+              animation: "fadeSlideUp 620ms ease-out both",
             }}
           >
-            {statusText}
+            {LOADING_STEPS.map((step, index) => {
+              const complete = pctNum >= ((index + 1) / LOADING_STEPS.length) * 100;
+              const active = index === activeStep && !complete;
+              return (
+                <div
+                  key={step.label}
+                  style={{
+                    borderRadius: 20,
+                    background: complete || active ? "rgba(76,175,80,0.1)" : "rgba(255,255,255,0.34)",
+                    border: `1px solid ${complete || active ? "rgba(76,175,80,0.22)" : "rgba(212,165,116,0.28)"}`,
+                    padding: "12px 12px 11px",
+                    minHeight: 76,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-ui)",
+                      fontSize: 11,
+                      fontWeight: 900,
+                      color: complete || active ? "var(--primary)" : "var(--muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {complete ? "完成" : active ? "进行中" : "排队中"}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: 15,
+                      lineHeight: 1.25,
+                      fontWeight: 850,
+                      color: "var(--ink)",
+                      marginBottom: 3,
+                    }}
+                  >
+                    {step.label}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-ui)",
+                      fontSize: 11,
+                      lineHeight: 1.35,
+                      color: "var(--muted)",
+                    }}
+                  >
+                    {step.detail}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div
-            key={`food-hint-${foodCharacterIndex}`}
             style={{
+              borderRadius: 22,
+              background: "rgba(45,45,45,0.06)",
+              border: "1px solid rgba(45,45,45,0.07)",
+              padding: "13px 14px",
               fontFamily: "var(--font-ui)",
-              fontSize: 9,
-              color: "var(--muted)",
-              marginBottom: 14,
-              animation: "fadeIn 0.5s ease-out",
+              fontSize: 12,
+              lineHeight: 1.55,
+              color: "var(--ink-soft)",
+              animation: "fadeSlideUp 720ms ease-out both",
             }}
           >
-            {FOOD_CHARACTER_HINTS[foodCharacterIndex]}
+            菜名识别完成后会直接进入结果页；图片和更细的推荐会继续自动更新，不需要一直停在这里。
           </div>
 
-          {/* Percentage — re-animate when crossing 90% threshold */}
-          <div
-            key={`pct-${isNearDone ? "near" : "far"}-${Math.floor(pctNum / 10)}`}
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 40,
-              fontWeight: 800,
-              color: isNearDone ? "var(--primary)" : "var(--ink)",
-              letterSpacing: 0,
-              marginBottom: 18,
-              animation: "fadeIn 0.5s ease-out",
-            }}
-          >
-            {pctNum}%
-          </div>
-
-          {/* Cancel */}
           <button
             onClick={onCancel}
-            className="transition-opacity hover:opacity-70"
+            className="transition-all duration-150 active:scale-[0.98]"
             style={{
               fontFamily: "var(--font-ui)",
-              fontSize: 10,
-              fontWeight: 600,
+              fontSize: 15,
+              fontWeight: 850,
               color: "var(--muted)",
-              background: "none",
-              border: "none",
+              background: "rgba(255,255,255,0.45)",
+              border: "1px solid rgba(212,165,116,0.34)",
+              borderRadius: 999,
+              minHeight: 48,
+              width: "100%",
               cursor: "pointer",
             }}
           >
             取消
           </button>
-        </>
+
+          <div style={{ flex: 1, minHeight: 8 }} />
+        </div>
       )}
     </div>
   );

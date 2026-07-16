@@ -575,6 +575,22 @@ test("loading screen copy does not imply blocking AI image generation", async ()
   assert.match(loadingPage, /正在准备结果/);
 });
 
+test("loading screen uses app-like readable staged progress", async () => {
+  const loadingPage = await readFile(`${ROOT}/src/components/results/LoadingPage.tsx`, "utf8");
+  const globals = await readFile(`${ROOT}/src/app/globals.css`, "utf8");
+
+  assert.match(loadingPage, /把照片变成可点菜清单/);
+  assert.match(loadingPage, /先返回菜名和推荐，图片会继续在后台补齐/);
+  assert.match(loadingPage, /LOADING_STEPS/);
+  assert.match(loadingPage, /整理照片/);
+  assert.match(loadingPage, /识别菜品/);
+  assert.match(loadingPage, /翻译推荐/);
+  assert.match(loadingPage, /补齐图片/);
+  assert.match(loadingPage, /fontSize:\s*28/);
+  assert.match(loadingPage, /minHeight:\s*48/);
+  assert.match(globals, /\.loading-food-stage \.food-character-stage/);
+});
+
 test("result-page AI fields are requested in fast and enriched menu analysis", async () => {
   const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
 
