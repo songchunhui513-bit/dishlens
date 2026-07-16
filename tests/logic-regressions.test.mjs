@@ -1704,11 +1704,45 @@ test("AI image generation queue drains every dish after the first concurrent bat
 });
 
 test("stale local generated image URLs from the database are not reused as valid cached images", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
+  const { getDishImageUrl, isDishImagePending } = await loadTsModule(
+    `${ROOT}/src/lib/dish-presentation.ts`,
+  );
   const { isReusableExistingImageUrl } = await loadTsModule(
     `${ROOT}/src/lib/dish-image-url.ts`,
   );
 
   assert.equal(isReusableExistingImageUrl("/generated-dishes/generated-old-local-only.png"), false);
+  assert.equal(
+    getDishImageUrl({
+      id: "temp-current",
+      name_original: "TRUFFLE PECORINO FRIES",
+      name_translated: { zh: "松露佩科里诺薯条" },
+      description: { zh: "已生成图片的当前结果" },
+      ai_image_url: "/generated-dishes/generated-truffle-pecorino-fries.png",
+      image_status: "done",
+      image_source: "ai",
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+    }),
+    "/generated-dishes/generated-truffle-pecorino-fries.png",
+  );
+  assert.equal(
+    isDishImagePending({
+      id: "temp-current",
+      name_original: "TRUFFLE PECORINO FRIES",
+      name_translated: { zh: "松露佩科里诺薯条" },
+      description: { zh: "已生成图片的当前结果" },
+      ai_image_url: "/generated-dishes/generated-truffle-pecorino-fries.png",
+      image_status: "done",
+      image_source: "ai",
+      ingredients: [],
+      allergens: [],
+      taste_profile: [],
+    }),
+    false,
+  );
   assert.equal(isReusableExistingImageUrl("/dishes/pizza-marinara.png"), true);
   assert.equal(
     isReusableExistingImageUrl("https://gbkallzbksmaahzvxezq.supabase.co/storage/v1/object/public/dishes/generated-dish-xoismf.png"),
