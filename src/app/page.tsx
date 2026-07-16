@@ -19,7 +19,7 @@ import OrderConfirmPage from "@/components/order/OrderConfirmPage";
 import OrderedPage from "@/components/order/OrderedPage";
 import OrderedDetailPage from "@/components/order/OrderedDetailPage";
 import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish, OrderedVisit, OrderNote, OrderQuantityMap, UserSettings } from "@/types";
-import { createTranslation } from "@/lib/api-client";
+import { createTranslation, type TranslationClientStage } from "@/lib/api-client";
 import {
   getHistory as getStoredHistory,
   addHistory,
@@ -113,6 +113,7 @@ export default function Page() {
   const [useMockFallback, setUseMockFallback] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [settings, setSettings] = useState<UserSettings>(() => getStoredSettings());
+  const [loadingClientStage, setLoadingClientStage] = useState<TranslationClientStage | undefined>(undefined);
 
   // localStorage-backed state — init empty on SSR, hydrate on mount
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>(() =>
@@ -282,6 +283,7 @@ export default function Page() {
     setCapturedPhotos([]);
     setTranslationResult(null);
     setUseMockFallback(false);
+    setLoadingClientStage(undefined);
     setErrorMessage("");
     navigate("camera");
   }, [navigate]);
@@ -292,6 +294,7 @@ export default function Page() {
       latestResultRef.current = null;
       setTranslationResult(null);
       setUseMockFallback(false);
+      setLoadingClientStage(undefined);
       setErrorMessage("");
       navigate("loading");
 
@@ -314,11 +317,12 @@ export default function Page() {
       }
 
       try {
-        const preliminary = await createTranslation(files, settings.targetLang);
+        const preliminary = await createTranslation(files, settings.targetLang, { onStage: setLoadingClientStage });
         const nextResult = preliminary as unknown as TranslationResult;
         latestResultRef.current = nextResult;
         setTranslationResult(nextResult);
       } catch (err) {
+        setLoadingClientStage(undefined);
         const message = err instanceof Error ? err.message : "";
         setErrorMessage(
           message.includes("timed out")
@@ -340,12 +344,14 @@ export default function Page() {
   const handleLoadingComplete = useCallback(() => {
     const completedResult = latestResultRef.current || translationResult;
     if (completedResult?.pages?.length) saveToHistory(completedResult);
+    setLoadingClientStage(undefined);
     navigate("results");
   }, [navigate, translationResult, saveToHistory]);
 
   const handleCancelLoading = useCallback(() => {
     setTranslationResult(null);
     setUseMockFallback(false);
+    setLoadingClientStage(undefined);
     navigate("home");
   }, [navigate]);
 
@@ -353,6 +359,7 @@ export default function Page() {
     setErrorMessage("海外网络或 AI 服务响应较慢，本次识别超过等待时间。请减少图片数量或稍后重试。");
     setTranslationResult(null);
     setUseMockFallback(false);
+    setLoadingClientStage(undefined);
     navigate("error");
   }, [navigate]);
 
@@ -599,6 +606,7 @@ export default function Page() {
           onCancel={handleCancelLoading}
           onTimeout={handleLoadingTimeout}
           onResult={handleResultReceived}
+          clientStage={loadingClientStage}
         />
       );
       break;

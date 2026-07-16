@@ -10,6 +10,12 @@ export const TRANSLATION_UPLOAD_TIMEOUT_MS = 45_000;
 const CLIENT_MENU_IMAGE_MAX_DIM = 896;
 const CLIENT_MENU_IMAGE_QUALITY = 0.58;
 
+export type TranslationClientStage = "compressing" | "cache" | "uploading" | "task";
+
+type TranslationClientOptions = {
+  onStage?: (stage: TranslationClientStage) => void;
+};
+
 async function compressImage(file: File, maxDim = CLIENT_MENU_IMAGE_MAX_DIM, quality = CLIENT_MENU_IMAGE_QUALITY): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -85,11 +91,12 @@ async function probeTranslationCache(images: File[], targetLang: string): Promis
 
 // ── Translation ────────────────────────────────────────────────────
 
-async function postTranslation(images: File[], targetLang = "zh"): Promise<TranslationResult> {
+async function postTranslation(images: File[], targetLang = "zh", options: TranslationClientOptions = {}): Promise<TranslationResult> {
   const formData = new FormData();
   const normalizedTargetLang = normalizeTargetLang(targetLang);
   const compressionStart = performance.now();
   const originalBytes = images.reduce((sum, img) => sum + img.size, 0);
+  options.onStage?.("compressing");
   const compressed = await Promise.all(images.map((img) => compressImage(img)));
   const compressedBytes = compressed.reduce((sum, img) => sum + img.size, 0);
   console.info("translate:client_upload_prepared", {
@@ -99,6 +106,7 @@ async function postTranslation(images: File[], targetLang = "zh"): Promise<Trans
     compressionMs: Math.round(performance.now() - compressionStart),
     targetLang: normalizedTargetLang,
   });
+  options.onStage?.("cache");
   const cached = await probeTranslationCache(compressed, normalizedTargetLang);
   if (cached) return cached;
 
@@ -108,6 +116,7 @@ async function postTranslation(images: File[], targetLang = "zh"): Promise<Trans
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), TRANSLATION_UPLOAD_TIMEOUT_MS);
 
+  options.onStage?.("uploading");
   const res = await fetch("/api/v1/translate/menu", {
     method: "POST",
     body: formData,
@@ -126,15 +135,16 @@ async function postTranslation(images: File[], targetLang = "zh"): Promise<Trans
     throw new Error(err.error || `HTTP ${res.status}`);
   }
 
+  options.onStage?.("task");
   return res.json();
 }
 
-export async function createTranslation(images: File[], targetLang = "zh"): Promise<TranslationResult> {
-  return postTranslation(images, targetLang);
+export async function createTranslation(images: File[], targetLang = "zh", options: TranslationClientOptions = {}): Promise<TranslationResult> {
+  return postTranslation(images, targetLang, options);
 }
 
-export async function translateMenu(images: File[], targetLang = "zh"): Promise<TranslationResult> {
-  return postTranslation(images, targetLang);
+export async function translateMenu(images: File[], targetLang = "zh", options: TranslationClientOptions = {}): Promise<TranslationResult> {
+  return postTranslation(images, targetLang, options);
 }
 
 export async function pollTask(taskId: string): Promise<TaskProgress> {

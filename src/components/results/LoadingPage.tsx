@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { pollTask } from "@/lib/api-client";
+import type { TranslationClientStage } from "@/lib/api-client";
 import { FoodCharacters, FOOD_CHARACTER_HINTS } from "./FoodCharacters";
 
 interface LoadingPageProps {
@@ -13,6 +14,7 @@ interface LoadingPageProps {
   onCancel: () => void;
   onTimeout?: () => void;
   onResult?: (result: Record<string, unknown>) => void;
+  clientStage?: TranslationClientStage;
 }
 
 const basePhases = [
@@ -51,6 +53,7 @@ export default function LoadingPage({
   onCancel,
   onTimeout,
   onResult,
+  clientStage,
 }: LoadingPageProps) {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState(0);
@@ -246,6 +249,10 @@ export default function LoadingPage({
     if (isDone) return "分析完成";
     if (isMock) return phaseList[Math.min(phase, phaseList.length - 1)];
     const sec = pendingElapsed / 1000;
+    if (clientStage === "compressing") return "正在压缩图片...";
+    if (clientStage === "cache") return "正在检查缓存...";
+    if (clientStage === "uploading") return "正在上传识别...";
+    if (clientStage === "task") return "等待 AI 返回结果...";
     if (sec < 3) return "正在压缩图片...";
     if (sec < 8) return "正在上传...";
     if (sec < 20) return "等待 AI 响应...";
@@ -269,6 +276,12 @@ export default function LoadingPage({
   const currentHint = FOOD_CHARACTER_HINTS[foodCharacterIndex];
   const elapsedSeconds = Math.round(((isPolling ? pollingElapsed : pendingElapsed) || 0) / 1000);
   const elapsedLabel = elapsedSeconds > 0 ? `${elapsedSeconds}s` : "刚刚开始";
+  const clientStageLabel: Record<TranslationClientStage, string> = {
+    compressing: "压缩照片",
+    cache: "检查缓存",
+    uploading: "上传识别",
+    task: "等待结果",
+  };
 
   return (
     <div
@@ -476,7 +489,7 @@ export default function LoadingPage({
                 animation: "fadeIn 0.5s ease-out",
               }}
             >
-              {currentHint} · 已等待 {elapsedLabel}
+              {clientStage ? `阶段：${clientStageLabel[clientStage]} · ` : ""}{currentHint} · 已等待 {elapsedLabel}
             </div>
 
             <div

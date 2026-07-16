@@ -1170,6 +1170,11 @@ test("global menu recognition is resilient to slow overseas uploads and provider
 
   assert.match(apiClient, /TRANSLATION_UPLOAD_TIMEOUT_MS/);
   assert.match(apiClient, /AbortController/);
+  assert.match(apiClient, /type TranslationClientStage/);
+  assert.match(apiClient, /onStage\?:/);
+  assert.match(apiClient, /onStage\?\.\("compressing"\)/);
+  assert.match(apiClient, /onStage\?\.\("cache"\)/);
+  assert.match(apiClient, /onStage\?\.\("uploading"\)/);
   assert.match(apiClient, /CLIENT_MENU_IMAGE_MAX_DIM = 896/);
   assert.match(apiClient, /CLIENT_MENU_IMAGE_QUALITY = 0\.58/);
   assert.match(aiIndex, /providerOrder/);
@@ -1181,7 +1186,11 @@ test("global menu recognition is resilient to slow overseas uploads and provider
   assert.match(route, /provider/);
   assert.match(loadingPage, /MAX_POLLING_MS/);
   assert.match(loadingPage, /onTimeout/);
+  assert.match(loadingPage, /clientStage/);
+  assert.match(loadingPage, /阶段：/);
   assert.match(appPage, /handleLoadingTimeout/);
+  assert.match(appPage, /setLoadingClientStage/);
+  assert.match(appPage, /onStage:\s*setLoadingClientStage/);
   assert.match(appPage, /海外网络/);
 });
 
@@ -1345,7 +1354,7 @@ test("language settings affect API target language, cache keys, visible settings
   assert.match(apiClient, /const normalizedTargetLang = normalizeTargetLang\(targetLang\)/);
   assert.match(apiClient, /formData\.append\("target_lang",\s*normalizedTargetLang\)/);
   assert.doesNotMatch(apiClient, /formData\.append\("target_lang",\s*"zh"\)/);
-  assert.match(appPage, /createTranslation\(files,\s*settings\.targetLang\)/);
+  assert.match(appPage, /createTranslation\(files,\s*settings\.targetLang/);
   assert.match(appPage, /targetLang=\{settings\.targetLang\}/);
   assert.match(appPage, /uiLang=\{settings\.uiLang\}/);
   assert.match(route, /normalizeTargetLang/);
@@ -1385,7 +1394,7 @@ test("home page responds to interface language settings beyond the settings scre
   assert.match(homePage, /visibility:\s*isEmpty\s*\?\s*"hidden"\s*:\s*"visible"/);
   assert.doesNotMatch(homePage, /\{!isEmpty && \(/);
   assert.match(homePage, /failedRecentThumbs/);
-  assert.match(homePage, /onError=\{\(\) => setFailedRecentThumbs/);
+  assert.match(homePage, /event\.currentTarget\.style\.display = "none"/);
   assert.match(homePage, /copy\.navHistory/);
   assert.match(homePage, /copy\.navFavorites/);
   assert.match(homePage, /copy\.navSettings/);
@@ -1463,8 +1472,9 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
 
   const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
   assert.match(homePage, /failedRecentThumbs\[src\]\s*\?\s*null/);
-  assert.match(homePage, /onError=\{\(\) => setFailedRecentThumbs/);
-  assert.match(homePage, /onLoad=\{\(\) => setLoadedRecentThumbs/);
+  assert.match(homePage, /naturalWidth > 0/);
+  assert.match(homePage, /event\.currentTarget\.style\.display = "none"/);
+  assert.match(homePage, /onError=\{\(event\) => \{/);
   assert.match(homePage, /visibility:\s*loadedRecentThumbs\[src\]/);
 });
 

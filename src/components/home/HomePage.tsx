@@ -555,8 +555,15 @@ export default function HomePage({
                               display: "block",
                               visibility: loadedRecentThumbs[src] ? "visible" : "hidden",
                             }}
-                            onLoad={() => setLoadedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
-                            onError={() => setFailedRecentThumbs((prev) => ({ ...prev, [src]: true }))}
+                            onLoad={(event) => {
+                              if (event.currentTarget.naturalWidth > 0) {
+                                setLoadedRecentThumbs((prev) => ({ ...prev, [src]: true }));
+                              }
+                            }}
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                              setFailedRecentThumbs((prev) => ({ ...prev, [src]: true }));
+                            }}
                           />
                         </span>
                       )
