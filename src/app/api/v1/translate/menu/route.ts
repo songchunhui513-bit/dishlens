@@ -429,6 +429,8 @@ export async function POST(req: NextRequest) {
       if (cached !== memoryCached) translationCache.set(cacheKey, cached);
       const cachedResult = sanitizeTranslationResultImages({
         ...cached.result,
+        task_id: taskId,
+        status: "done",
         metadata: {
           ...(cached.result.metadata as Record<string, unknown>),
           cached: true,
@@ -445,7 +447,7 @@ export async function POST(req: NextRequest) {
         result: cachedResult,
         estimatedRemaining: 0,
       });
-      return NextResponse.json({ task_id: taskId, status: "processing", cached: true }, { status: 202 });
+      return NextResponse.json(cachedResult, { status: 200 });
     }
 
     // Evict expired entries

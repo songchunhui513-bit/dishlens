@@ -43,6 +43,10 @@ async function loadTsModule(file) {
     'from "./dish-image-url.mjs"',
   );
   compiled = compiled.replaceAll(
+    'from "@/lib/safe-image-url"',
+    'from "./safe-image-url.mjs"',
+  );
+  compiled = compiled.replaceAll(
     'from "@/lib/order-state"',
     'from "./order-state.mjs"',
   );
@@ -74,6 +78,7 @@ async function loadTsModule(file) {
     { pattern: 'from "./results-categories.mjs"', file: `${ROOT}/src/lib/results-categories.ts` },
     { pattern: 'from "./dish-presentation.mjs"', file: `${ROOT}/src/lib/dish-presentation.ts` },
     { pattern: 'from "./dish-image-url.mjs"', file: `${ROOT}/src/lib/dish-image-url.ts` },
+    { pattern: 'from "./safe-image-url.mjs"', file: `${ROOT}/src/lib/safe-image-url.ts` },
     { pattern: 'from "./order-state.mjs"', file: `${ROOT}/src/lib/order-state.ts` },
     { pattern: 'from "./restaurant-display.mjs"', file: `${ROOT}/src/lib/restaurant-display.ts` },
     { pattern: 'from "./menu-source-language.mjs"', file: `${ROOT}/src/lib/menu-source-language.ts` },
@@ -1192,6 +1197,10 @@ test("translation cache survives process restarts through a server file cache", 
   const fileCache = await readFile(`${ROOT}/src/lib/cache/translation-file-cache.ts`, "utf8");
 
   assert.match(route, /getCachedTranslationResult\(cacheKey\)/);
+  assert.match(route, /task_id:\s*taskId/);
+  assert.match(route, /status:\s*"done"/);
+  assert.match(route, /NextResponse\.json\(cachedResult,\s*\{\s*status:\s*200\s*\}\)/);
+  assert.doesNotMatch(route, /status:\s*"processing",\s*cached:\s*true/);
   assert.match(route, /rememberTranslation\(cacheKey,\s*resultPayload\)/);
   assert.match(route, /rememberTranslation\(cacheKey,\s*enrichedPayload\)/);
   assert.match(route, /setCachedTranslationResult\(cacheKey,\s*result\)/);
@@ -1312,19 +1321,40 @@ test("home page responds to interface language settings beyond the settings scre
 
 test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   const recentRecords = await readFile(`${ROOT}/src/lib/recent-menu-records.ts`, "utf8");
-
-  assert.match(recentRecords, /function isSafeRecentThumbnail/);
-  assert.match(recentRecords, /normalizedUrl\.startsWith\("\/generated-dishes\/"\)/);
-  assert.match(recentRecords, /function unwrapNextImageUrl/);
-  assert.match(recentRecords, /URLSearchParams/);
-  assert.match(recentRecords, /dashscope-result\.\*aliyuncs/);
-  assert.match(recentRecords, /image\\.pollinations\\.ai/);
-  assert.match(recentRecords, /isSafeRecentThumbnail\(url\)/);
-
   const historyPage = await readFile(`${ROOT}/src/components/history/HistoryPage.tsx`, "utf8");
-  assert.match(historyPage, /function isSafeHistoryThumbnail/);
-  assert.match(historyPage, /unwrapNextImageUrl\(url\)/);
-  assert.match(historyPage, /img:\s*isSafeHistoryThumbnail\(e\.thumbnail\) \? e\.thumbnail : ""/);
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+  const {
+    isSafeStoredThumbnail,
+    unwrapNextImageUrl,
+  } = await loadTsModule(`${ROOT}/src/lib/safe-image-url.ts`);
+  const { pickSafeMenuThumbnail } = await loadTsModule(`${ROOT}/src/lib/recent-menu-records.ts`);
+
+  const nextWrappedTemporary = "/_next/image?url=https%3A%2F%2Fdashscope-result-wlcb-acdr-1.oss-cn-wulanchabu-acdr-1.aliyuncs.com%2Ftemporary.png&w=64&q=75";
+  assert.equal(unwrapNextImageUrl(nextWrappedTemporary).includes("dashscope-result"), true);
+  assert.equal(isSafeStoredThumbnail("/dishes/apple-pie.png"), true);
+  assert.equal(isSafeStoredThumbnail("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120"), true);
+  assert.equal(isSafeStoredThumbnail("/generated-dishes/generated-old-local-only.png"), false);
+  assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/generated-dishes/generated-old-local-only.png"), false);
+  assert.equal(isSafeStoredThumbnail(nextWrappedTemporary), false);
+  assert.equal(isSafeStoredThumbnail("https://image.pollinations.ai/prompt/professional-food"), false);
+
+  const picked = pickSafeMenuThumbnail({
+    thumbnail: "https://dishlens.wukongmkt.com/generated-dishes/generated-old-local-only.png",
+    result_summary: {
+      pages: [{
+        dishes: [
+          { id: "old", name_original: "Old", ai_image_url: "https://image.pollinations.ai/prompt/old" },
+          { id: "safe", name_original: "Apple Pie", ai_image_url: "/dishes/apple-pie.png" },
+        ],
+      }],
+    },
+  });
+  assert.equal(picked, "/dishes/apple-pie.png");
+
+  assert.match(recentRecords, /pickSafeMenuThumbnail/);
+  assert.match(recentRecords, /isSafeStoredThumbnail/);
+  assert.match(historyPage, /pickSafeMenuThumbnail\(e\)/);
+  assert.match(appPage, /thumbnail:\s*pickSafeMenuThumbnail/);
 });
 
 test("location recommendation demo data is gated to local review only", async () => {

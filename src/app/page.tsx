@@ -40,7 +40,7 @@ import { buildShareMenuMeta } from "@/lib/share-menu";
 import { buildOrderedVisit, buildOrderItems, formatOrderPrice, setOrderQuantity, summarizeOrder } from "@/lib/order-state";
 import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 import { resolveMenuSourceLanguage } from "@/lib/menu-source-language";
-import { buildRecentMenuRecords } from "@/lib/recent-menu-records";
+import { buildRecentMenuRecords, pickSafeMenuThumbnail } from "@/lib/recent-menu-records";
 import type { RestaurantSource } from "@/lib/location-recommendation";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -183,7 +183,6 @@ export default function Page() {
   const saveToHistory = useCallback((result: TranslationResult) => {
     const pages = Array.isArray(result.pages) ? result.pages : [];
     if (!pages.length) return;
-    const firstDish = pages.find((page) => page.dishes?.length)?.dishes?.[0];
     const totalDishes = pages.reduce((sum, p) => sum + (p.dishes?.length || 0), 0);
     if (totalDishes === 0) return;
     const sourceLang = resolveMenuSourceLanguage(result) || result.metadata?.source_language || "";
@@ -199,7 +198,7 @@ export default function Page() {
       dish_count: result.metadata?.total_dishes || 0,
       page_count: pages.length,
       date: new Date().toISOString(),
-      thumbnail: firstDish ? getDishImageUrl(firstDish) : "",
+      thumbnail: pickSafeMenuThumbnail({ thumbnail: "", result_summary: result }),
       source_lang: sourceLang,
       target_lang: settings.targetLang,
       result_summary: result,
@@ -516,8 +515,8 @@ export default function Page() {
             // Re-save history with updated thumbnails when new images arrive
             if (changed && imageCount > lastSyncedImages) {
               lastSyncedImages = imageCount;
-              const firstDish = newResult.pages.find((p) => p.dishes?.length)?.dishes?.[0];
-              if (firstDish?.ai_image_url) {
+              const safeThumbnail = pickSafeMenuThumbnail({ thumbnail: "", result_summary: newResult });
+              if (safeThumbnail) {
                 const sourceLang = resolveMenuSourceLanguage(newResult) || newResult.metadata?.source_language || "";
                 const restaurant = getRestaurantDisplayMeta(
                   sourceLang,
@@ -531,7 +530,7 @@ export default function Page() {
                   dish_count: newResult.metadata?.total_dishes || 0,
                   page_count: newResult.pages.length,
                   date: new Date().toISOString(),
-                  thumbnail: getDishImageUrl(firstDish),
+                  thumbnail: safeThumbnail,
                   source_lang: sourceLang,
                   target_lang: settings.targetLang,
                   result_summary: newResult,

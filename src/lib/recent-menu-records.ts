@@ -2,6 +2,7 @@ import type { HistoryEntry } from "@/types";
 import { getDishImageUrl } from "@/lib/dish-presentation";
 import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 import { resolveRegionLandmark, type RegionLandmarkKey } from "@/lib/region-landmarks";
+import { isSafeStoredThumbnail } from "@/lib/safe-image-url";
 
 export interface RecentMenuRecord {
   id: string;
@@ -94,26 +95,22 @@ const DEFAULT_RECORDS: RecentMenuRecord[] = [
   },
 ];
 
-function isSafeRecentThumbnail(url: string): boolean {
-  if (!url) return false;
-  const normalizedUrl = unwrapNextImageUrl(url);
-  if (normalizedUrl.startsWith("/generated-dishes/")) return false;
-  if (/dashscope-result.*aliyuncs\.com|image\.pollinations\.ai/i.test(normalizedUrl)) return false;
-  return true;
-}
-
-function unwrapNextImageUrl(url: string): string {
-  if (!url.startsWith("/_next/image?")) return url;
-  try {
-    const params = new URLSearchParams(url.slice(url.indexOf("?") + 1));
-    return params.get("url") || url;
-  } catch {
-    return url;
-  }
-}
-
 export function getDefaultRecentMenuRecords(): RecentMenuRecord[] {
   return DEFAULT_RECORDS;
+}
+
+function getStoredDishImageUrl(dish: NonNullable<HistoryEntry["result_summary"]>["pages"][number]["dishes"][number]): string {
+  return dish.ai_image_url || (dish as { image_url?: string }).image_url || "";
+}
+
+export function pickSafeMenuThumbnail(entry: Pick<HistoryEntry, "thumbnail" | "result_summary">): string {
+  const pages = entry.result_summary?.pages || [];
+  const dishes = pages.flatMap((page) => page.dishes || []);
+  return [
+    entry.thumbnail,
+    ...dishes.map((dish) => getStoredDishImageUrl(dish)),
+    ...dishes.map((dish) => getDishImageUrl(dish)),
+  ].find((url): url is string => typeof url === "string" && isSafeStoredThumbnail(url)) || "";
 }
 
 export function buildRecentMenuRecords(
@@ -133,9 +130,9 @@ export function buildRecentMenuRecords(
       const restaurantName = resolveRestaurantName(entry.restaurant_name, sourceLang, restaurantMeta.display_name);
       const thumbnails = Array.from(
         new Set([
-          entry.thumbnail,
+          pickSafeMenuThumbnail(entry),
           ...dishes.map((dish) => getDishImageUrl(dish)).filter(Boolean),
-        ].filter((url): url is string => typeof url === "string" && isSafeRecentThumbnail(url))),
+        ].filter((url): url is string => typeof url === "string" && isSafeStoredThumbnail(url))),
       ).slice(0, 3);
       const landmark = resolveRegionLandmark({
         sourceLang,
