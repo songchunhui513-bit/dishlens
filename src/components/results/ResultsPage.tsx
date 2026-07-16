@@ -172,6 +172,9 @@ export default function ResultsPage({
     zh: "中文菜单", pt: "葡语菜单", vi: "越南语菜单",
   };
   const titleText = sourceLangNames[resolvedSourceLang || ""] || pageLabel;
+  const isImageBackfillActive = Boolean(
+    imageGenProgress?.total && imageGenProgress.done < imageGenProgress.total
+  );
 
   return (
     <div className="h-full flex flex-col" style={{ position: "relative", background: "var(--bg)" }}>
@@ -227,6 +230,77 @@ export default function ResultsPage({
             targetLang={resultTargetLang}
           />
         )}
+
+        {isReal && isImageBackfillActive && imageGenProgress ? (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              margin: "10px 16px 8px",
+              padding: "12px 14px",
+              borderRadius: 18,
+              border: "1px solid rgba(231,205,174,0.72)",
+              background: "linear-gradient(135deg, rgba(255,250,242,0.92), rgba(255,238,210,0.72))",
+              boxShadow: "0 10px 24px rgba(69,48,30,0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              aria-hidden="true"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                background: "rgba(76,175,80,0.12)",
+                color: "var(--primary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, stroke: "currentColor", fill: "none", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                <path d="M4 15c2.4-1.4 4.8-1.4 7.2 0s4.8 1.4 7.2 0" />
+                <path d="M5 11c2-1.2 4-1.2 6 0s4 1.2 6 0" />
+                <path d="M8 7c1.3-.7 2.7-.7 4 0s2.7.7 4 0" />
+              </svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  marginBottom: 5,
+                }}
+              >
+                <span style={{ font: "900 12px var(--font-body)", color: "var(--ink)" }}>
+                  图片正在后台补齐
+                </span>
+                <span style={{ font: "800 11px var(--font-ui)", color: "var(--primary)", whiteSpace: "nowrap" }}>
+                  {imageGenProgress.done}/{imageGenProgress.total}
+                </span>
+              </div>
+              <div style={{ font: "600 10px/1.45 var(--font-ui)", color: "var(--muted)" }}>
+                先看翻译和推荐，菜品图会自动换成高清版本。
+              </div>
+              <div style={{ height: 4, marginTop: 8, borderRadius: 999, background: "rgba(45,45,45,0.08)", overflow: "hidden" }}>
+                <div
+                  style={{
+                    width: `${Math.max(8, Math.min(100, Math.round((imageGenProgress.done / imageGenProgress.total) * 100)))}%`,
+                    height: "100%",
+                    borderRadius: 999,
+                    background: "var(--primary)",
+                    transition: "width 0.35s ease",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {isReal && categories.length > 0 && (
           <CategoryTabs

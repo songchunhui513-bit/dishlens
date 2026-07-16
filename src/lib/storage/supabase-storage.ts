@@ -2,17 +2,22 @@ import { getSupabaseAdminClient, getSupabaseClient } from "@/lib/db/supabase";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import sharp from "sharp";
 
 const BUCKET = "dishes";
 const LOCAL_GENERATED_DIR = join(process.cwd(), "public", "generated-dishes");
 const ENABLE_REMOTE_CACHE_HEAD = process.env.ENABLE_REMOTE_IMAGE_CACHE_HEAD === "true";
+const GENERATED_DISH_MAX_DIM = Number.parseInt(process.env.GENERATED_DISH_MAX_DIM || "768", 10) || 768;
+const GENERATED_DISH_WEBP_QUALITY = Number.parseInt(process.env.GENERATED_DISH_WEBP_QUALITY || "82", 10) || 82;
 
-function localDishImagePath(dishId: string): string {
-  return join(LOCAL_GENERATED_DIR, `${dishId}.png`);
+type GeneratedDishFormat = "webp" | "png";
+
+function localDishImagePath(dishId: string, format: GeneratedDishFormat = "webp"): string {
+  return join(LOCAL_GENERATED_DIR, `${dishId}.${format}`);
 }
 
-function localDishImageUrl(dishId: string): string {
-  return `/generated-dishes/${dishId}.png`;
+function localDishImageUrl(dishId: string, format: GeneratedDishFormat = "webp"): string {
+  return `/generated-dishes/${dishId}.${format}`;
 }
 
 async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
@@ -21,11 +26,27 @@ async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
-async function saveLocalDishImage(dishId: string, buffer: Buffer): Promise<string | null> {
+async function optimizeGeneratedDishImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer, { failOn: "none" })
+    .rotate()
+    .resize({
+      width: GENERATED_DISH_MAX_DIM,
+      height: GENERATED_DISH_MAX_DIM,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({
+      quality: GENERATED_DISH_WEBP_QUALITY,
+      effort: 5,
+    })
+    .toBuffer();
+}
+
+async function saveLocalDishImage(dishId: string, buffer: Buffer, format: GeneratedDishFormat = "webp"): Promise<string | null> {
   try {
     await mkdir(LOCAL_GENERATED_DIR, { recursive: true });
-    await writeFile(localDishImagePath(dishId), buffer);
-    return localDishImageUrl(dishId);
+    await writeFile(localDishImagePath(dishId, format), buffer);
+    return localDishImageUrl(dishId, format);
   } catch (err) {
     console.error("saveLocalDishImage error:", err);
     return null;
@@ -39,16 +60,17 @@ export async function uploadDishImage(
   let localUrl: string | null = null;
 
   try {
-    const buffer = await fetchImageBuffer(imageUrl);
-    localUrl = await saveLocalDishImage(dishId, buffer);
+    const sourceBuffer = await fetchImageBuffer(imageUrl);
+    const buffer = await optimizeGeneratedDishImage(sourceBuffer);
+    localUrl = await saveLocalDishImage(dishId, buffer, "webp");
 
     const client = getSupabaseAdminClient();
     if (!client) return localUrl;
 
-    const path = `${dishId}.png`;
+    const path = `${dishId}.webp`;
 
     const { error } = await client.storage.from(BUCKET).upload(path, buffer, {
-      contentType: "image/png",
+      contentType: "image/webp",
       upsert: true,
     });
 
@@ -66,8 +88,11 @@ export async function uploadDishImage(
 }
 
 export async function getCachedDishImageUrl(dishId: string): Promise<string | null> {
-  if (existsSync(localDishImagePath(dishId))) {
-    return localDishImageUrl(dishId);
+  if (existsSync(localDishImagePath(dishId, "webp"))) {
+    return localDishImageUrl(dishId, "webp");
+  }
+  if (existsSync(localDishImagePath(dishId, "png"))) {
+    return localDishImageUrl(dishId, "png");
   }
 
   // Keep the translation result fast: the DB row already carries stable remote URLs.
@@ -78,15 +103,19 @@ export async function getCachedDishImageUrl(dishId: string): Promise<string | nu
   const client = getSupabaseAdminClient() || getSupabaseClient();
   if (!client) return null;
 
-  const path = `${dishId}.png`;
-  const { data } = client.storage.from(BUCKET).getPublicUrl(path);
-  const publicUrl = data.publicUrl;
-  if (!publicUrl) return null;
+  for (const format of ["webp", "png"] as const) {
+    const path = `${dishId}.${format}`;
+    const { data } = client.storage.from(BUCKET).getPublicUrl(path);
+    const publicUrl = data.publicUrl;
+    if (!publicUrl) continue;
 
-  try {
-    const res = await fetch(publicUrl, { method: "HEAD" });
-    return res.ok ? publicUrl : null;
-  } catch {
-    return null;
+    try {
+      const res = await fetch(publicUrl, { method: "HEAD" });
+      if (res.ok) return publicUrl;
+    } catch {
+      continue;
+    }
   }
+
+  return null;
 }

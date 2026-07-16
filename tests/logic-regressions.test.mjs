@@ -605,6 +605,16 @@ test("loading screen uses app-like readable staged progress", async () => {
   assert.match(globals, /\.loading-food-stage \.food-character-stage/);
 });
 
+test("results page explains background image backfill instead of leaving users with isolated placeholders", async () => {
+  const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
+
+  assert.match(resultsPage, /isImageBackfillActive/);
+  assert.match(resultsPage, /图片正在后台补齐/);
+  assert.match(resultsPage, /先看翻译和推荐/);
+  assert.match(resultsPage, /imageGenProgress\.done/);
+  assert.match(resultsPage, /imageGenProgress\.total/);
+});
+
 test("result-page AI fields are requested in fast and enriched menu analysis", async () => {
   const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
 
@@ -1826,8 +1836,16 @@ test("AI generated dish images are cached with deterministic keys before generat
   assert.match(route, /progress:\s*\{\s*current:\s*images\.length,\s*total:\s*images\.length\s*\}/);
   assert.match(route, /localMatch\?\.card \|\| cachedGeneratedImageUrl \|\| existingImageUrl/);
   assert.match(storage, /public", "generated-dishes/);
-  assert.match(storage, /existsSync\(localDishImagePath\(dishId\)\)/);
+  assert.match(storage, /existsSync\(localDishImagePath\(dishId,\s*"webp"\)\)/);
+  assert.match(storage, /existsSync\(localDishImagePath\(dishId,\s*"png"\)\)/);
   assert.match(storage, /return localUrl/);
+  assert.match(storage, /GENERATED_DISH_MAX_DIM/);
+  assert.match(storage, /GENERATED_DISH_WEBP_QUALITY/);
+  assert.match(storage, /sharp\(buffer,\s*\{\s*failOn:\s*"none"\s*\}/);
+  assert.match(storage, /\.resize\(\{\s*width:\s*GENERATED_DISH_MAX_DIM,\s*height:\s*GENERATED_DISH_MAX_DIM,\s*fit:\s*"inside"/);
+  assert.match(storage, /\.webp\(\{\s*quality:\s*GENERATED_DISH_WEBP_QUALITY/);
+  assert.match(storage, /localDishImageUrl\(dishId,\s*"webp"\)/);
+  assert.match(storage, /contentType:\s*"image\/webp"/);
   const uploadDishImageBody = storage.match(/export async function uploadDishImage[\s\S]*?\n}\n\nexport async function getCachedDishImageUrl/)?.[0] || "";
   assert.match(uploadDishImageBody, /const client = getSupabaseAdminClient\(\)/);
   assert.doesNotMatch(uploadDishImageBody, /getSupabaseAdminClient\(\) \|\| getSupabaseClient\(\)/);
@@ -1988,10 +2006,14 @@ test("runtime generated dish images are served outside the build-time public ass
   assert.match(route, /join\(process\.cwd\(\), "public", "generated-dishes"\)/);
   assert.match(route, /params:\s*Promise<\{\s*file:\s*string\s*\}>/);
   assert.match(route, /decodeURIComponent\(params\.file \|\| ""\)/);
-  assert.match(route, /fileName\.endsWith\("\.png"\)/);
+  assert.match(route, /allowedTypes/);
+  assert.match(route, /\.png/);
+  assert.match(route, /\.webp/);
   assert.match(route, /basename\(fileName\) !== fileName/);
   assert.match(route, /readFile\(filePath\)/);
-  assert.match(route, /Content-Type": "image\/png"/);
+  assert.match(route, /contentType/);
+  assert.match(route, /image\/png/);
+  assert.match(route, /image\/webp/);
   assert.match(route, /Cache-Control": "public, max-age=31536000, immutable"/);
 });
 

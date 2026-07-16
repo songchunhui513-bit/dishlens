@@ -3,6 +3,10 @@ import { basename, join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
 const GENERATED_DISH_DIR = join(process.cwd(), "public", "generated-dishes");
+const allowedTypes: Record<string, string> = {
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
 
 export async function GET(
   _request: NextRequest,
@@ -10,8 +14,12 @@ export async function GET(
 ) {
   const params = await context.params;
   const fileName = decodeURIComponent(params.file || "");
+  const extension = fileName.toLowerCase().endsWith(".webp") ? ".webp"
+    : fileName.toLowerCase().endsWith(".png") ? ".png"
+      : "";
 
-  if (!fileName.endsWith(".png") || basename(fileName) !== fileName) {
+  const contentType = allowedTypes[extension];
+  if (!contentType || basename(fileName) !== fileName) {
     return new NextResponse("Not found", { status: 404 });
   }
 
@@ -20,7 +28,7 @@ export async function GET(
     const body = await readFile(filePath);
     return new NextResponse(body, {
       headers: {
-        "Content-Type": "image/png",
+        "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
