@@ -427,10 +427,14 @@ export async function POST(req: NextRequest) {
       : await getCachedTranslationResult(cacheKey);
     if (cached) {
       if (cached !== memoryCached) translationCache.set(cacheKey, cached);
+      const cachedRawStatus = typeof cached.result.status === "string" ? cached.result.status : "";
+      const cachedStatus: "done" | "partial" | "failed" =
+        cachedRawStatus === "partial" || cachedRawStatus === "failed" ? cachedRawStatus : "done";
+      const cachedPageStatus = cachedStatus === "failed" ? "failed" : "done";
       const cachedResult = sanitizeTranslationResultImages({
         ...cached.result,
         task_id: taskId,
-        status: "done",
+        status: cachedStatus,
         metadata: {
           ...(cached.result.metadata as Record<string, unknown>),
           cached: true,
@@ -441,9 +445,9 @@ export async function POST(req: NextRequest) {
         },
       });
       await updateTask(taskId, {
-        status: "done",
+        status: cachedStatus,
         progress: { current: images.length, total: images.length },
-        perPageStatus: images.map((_, i) => ({ page_index: i, status: "done" })),
+        perPageStatus: images.map((_, i) => ({ page_index: i, status: cachedPageStatus })),
         result: cachedResult,
         estimatedRemaining: 0,
       });

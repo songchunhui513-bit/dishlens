@@ -1198,7 +1198,11 @@ test("translation cache survives process restarts through a server file cache", 
 
   assert.match(route, /getCachedTranslationResult\(cacheKey\)/);
   assert.match(route, /task_id:\s*taskId/);
-  assert.match(route, /status:\s*"done"/);
+  assert.match(route, /const cachedRawStatus = typeof cached\.result\.status === "string" \? cached\.result\.status : ""/);
+  assert.match(route, /const cachedStatus: "done" \| "partial" \| "failed"/);
+  assert.match(route, /cachedRawStatus === "partial" \|\| cachedRawStatus === "failed" \? cachedRawStatus : "done"/);
+  assert.match(route, /status:\s*cachedStatus/);
+  assert.match(route, /const cachedPageStatus = cachedStatus === "failed" \? "failed" : "done"/);
   assert.match(route, /NextResponse\.json\(cachedResult,\s*\{\s*status:\s*200\s*\}\)/);
   assert.doesNotMatch(route, /status:\s*"processing",\s*cached:\s*true/);
   assert.match(route, /rememberTranslation\(cacheKey,\s*resultPayload\)/);
@@ -1225,6 +1229,14 @@ test("dietary settings persist locally across page refreshes without an account"
   assert.match(appPage, /setSettings as setStoredSettings/);
   assert.match(appPage, /getStoredSettings\(\)/);
   assert.match(appPage, /setStoredSettings\(next\)/);
+});
+
+test("new uploads clear stale latest results before cached menu completion", async () => {
+  const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
+
+  assert.match(appPage, /latestResultRef\.current = null;\s*setTranslationResult\(null\)/);
+  assert.match(appPage, /const nextResult = preliminary as unknown as TranslationResult;\s*latestResultRef\.current = nextResult;\s*setTranslationResult\(nextResult\)/);
+  assert.match(appPage, /const completedResult = latestResultRef\.current \|\| translationResult/);
 });
 
 test("language settings affect API target language, cache keys, visible settings copy, and result text", async () => {
@@ -1330,11 +1342,14 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   const { pickSafeMenuThumbnail } = await loadTsModule(`${ROOT}/src/lib/recent-menu-records.ts`);
 
   const nextWrappedTemporary = "/_next/image?url=https%3A%2F%2Fdashscope-result-wlcb-acdr-1.oss-cn-wulanchabu-acdr-1.aliyuncs.com%2Ftemporary.png&w=64&q=75";
+  const absoluteNextWrappedGenerated = "https://dishlens.wukongmkt.com/_next/image?url=%2Fgenerated-dishes%2Fmissing.png&w=64&q=75";
   assert.equal(unwrapNextImageUrl(nextWrappedTemporary).includes("dashscope-result"), true);
+  assert.equal(unwrapNextImageUrl(absoluteNextWrappedGenerated), "/generated-dishes/missing.png");
   assert.equal(isSafeStoredThumbnail("/dishes/apple-pie.png"), true);
   assert.equal(isSafeStoredThumbnail("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120"), true);
   assert.equal(isSafeStoredThumbnail("/generated-dishes/generated-old-local-only.png"), false);
   assert.equal(isSafeStoredThumbnail("https://dishlens.wukongmkt.com/generated-dishes/generated-old-local-only.png"), false);
+  assert.equal(isSafeStoredThumbnail(absoluteNextWrappedGenerated), false);
   assert.equal(isSafeStoredThumbnail(nextWrappedTemporary), false);
   assert.equal(isSafeStoredThumbnail("https://image.pollinations.ai/prompt/professional-food"), false);
 

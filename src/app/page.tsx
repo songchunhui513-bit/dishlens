@@ -289,6 +289,7 @@ export default function Page() {
   const handleAnalyze = useCallback(
     async (photos: CapturedPhoto[]) => {
       setCapturedPhotos(photos);
+      latestResultRef.current = null;
       setTranslationResult(null);
       setUseMockFallback(false);
       setErrorMessage("");
@@ -314,7 +315,9 @@ export default function Page() {
 
       try {
         const preliminary = await createTranslation(files, settings.targetLang);
-        setTranslationResult(preliminary as unknown as TranslationResult);
+        const nextResult = preliminary as unknown as TranslationResult;
+        latestResultRef.current = nextResult;
+        setTranslationResult(nextResult);
       } catch (err) {
         const message = err instanceof Error ? err.message : "";
         setErrorMessage(
