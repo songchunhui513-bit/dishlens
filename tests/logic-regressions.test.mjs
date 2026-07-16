@@ -1234,10 +1234,17 @@ test("recent menu thumbnails ignore unsafe generated image URLs", async () => {
   const recentRecords = await readFile(`${ROOT}/src/lib/recent-menu-records.ts`, "utf8");
 
   assert.match(recentRecords, /function isSafeRecentThumbnail/);
-  assert.match(recentRecords, /url\.startsWith\("\/generated-dishes\/"\)/);
+  assert.match(recentRecords, /normalizedUrl\.startsWith\("\/generated-dishes\/"\)/);
+  assert.match(recentRecords, /function unwrapNextImageUrl/);
+  assert.match(recentRecords, /URLSearchParams/);
   assert.match(recentRecords, /dashscope-result\.\*aliyuncs/);
   assert.match(recentRecords, /image\\.pollinations\\.ai/);
   assert.match(recentRecords, /isSafeRecentThumbnail\(url\)/);
+
+  const historyPage = await readFile(`${ROOT}/src/components/history/HistoryPage.tsx`, "utf8");
+  assert.match(historyPage, /function isSafeHistoryThumbnail/);
+  assert.match(historyPage, /unwrapNextImageUrl\(url\)/);
+  assert.match(historyPage, /img:\s*isSafeHistoryThumbnail\(e\.thumbnail\) \? e\.thumbnail : ""/);
 });
 
 test("location recommendation demo data is gated to local review only", async () => {

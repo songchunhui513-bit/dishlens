@@ -8,6 +8,24 @@ import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 
 const fallbackHistoryImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop&auto=format";
 
+function isSafeHistoryThumbnail(url: string): boolean {
+  if (!url) return false;
+  const normalizedUrl = unwrapNextImageUrl(url);
+  if (normalizedUrl.startsWith("/generated-dishes/")) return false;
+  if (/dashscope-result.*aliyuncs\.com|image\.pollinations\.ai/i.test(normalizedUrl)) return false;
+  return true;
+}
+
+function unwrapNextImageUrl(url: string): string {
+  if (!url.startsWith("/_next/image?")) return url;
+  try {
+    const params = new URLSearchParams(url.slice(url.indexOf("?") + 1));
+    return params.get("url") || url;
+  } catch {
+    return url;
+  }
+}
+
 interface HistoryItem {
   id: string;
   restaurant: string;
@@ -39,7 +57,7 @@ function toHistoryItems(entries: HistoryEntry[]): HistoryItem[] {
       dishCount: e.dish_count,
       pageCount: e.page_count,
       date: e.date,
-      img: e.thumbnail,
+      img: isSafeHistoryThumbnail(e.thumbnail) ? e.thumbnail : "",
     };
   });
 }
