@@ -39,6 +39,10 @@ async function loadTsModule(file) {
     'from "./dish-presentation.mjs"',
   );
   compiled = compiled.replaceAll(
+    'from "@/lib/dish-image-url"',
+    'from "./dish-image-url.mjs"',
+  );
+  compiled = compiled.replaceAll(
     'from "@/lib/order-state"',
     'from "./order-state.mjs"',
   );
@@ -69,6 +73,7 @@ async function loadTsModule(file) {
     { pattern: 'from "./dish-name-normalization.mjs"', file: `${ROOT}/src/lib/dish-name-normalization.ts` },
     { pattern: 'from "./results-categories.mjs"', file: `${ROOT}/src/lib/results-categories.ts` },
     { pattern: 'from "./dish-presentation.mjs"', file: `${ROOT}/src/lib/dish-presentation.ts` },
+    { pattern: 'from "./dish-image-url.mjs"', file: `${ROOT}/src/lib/dish-image-url.ts` },
     { pattern: 'from "./order-state.mjs"', file: `${ROOT}/src/lib/order-state.ts` },
     { pattern: 'from "./restaurant-display.mjs"', file: `${ROOT}/src/lib/restaurant-display.ts` },
     { pattern: 'from "./menu-source-language.mjs"', file: `${ROOT}/src/lib/menu-source-language.ts` },

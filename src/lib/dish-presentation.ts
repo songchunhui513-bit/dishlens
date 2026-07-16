@@ -1,5 +1,6 @@
 import type { Dish } from "@/types";
 import { matchDishKnowledgeImage } from "@/lib/dish-image-match";
+import { isReusableExistingImageUrl } from "@/lib/dish-image-url";
 
 type DishText = {
   originalName: string;
@@ -274,13 +275,14 @@ function getDishIdentityText(dish: Dish): string {
 
 export function getDishImageUrl(dish: Dish, size: "card" | "hero" = "card"): string {
   const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;
-  if (dish.image_source === "user" && existingImage) return existingImage;
+  const reusableExistingImage = isReusableExistingImageUrl(existingImage) ? existingImage : "";
+  if (dish.image_source === "user" && reusableExistingImage) return reusableExistingImage;
 
   // Check local pre-built image database
   const localImage = matchLocalImage(dish);
   if (localImage) return size === "hero" ? localImage.hero : localImage.card;
 
-  if (existingImage) return existingImage;
+  if (reusableExistingImage) return reusableExistingImage;
   if (dish.image_source === "ai") return "";
 
   // Fallback to Unsplash keyword rules
@@ -302,6 +304,7 @@ export function isDishImagePending(dish: Dish): boolean {
 
   const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;
   if (!existingImage) return true;
+  if (!isReusableExistingImageUrl(existingImage)) return true;
   if (/images\.unsplash\.com|image\.pollinations\.ai|dashscope-result.*aliyuncs\.com/i.test(existingImage)) return true;
   return false;
 }
