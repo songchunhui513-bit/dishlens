@@ -2119,6 +2119,18 @@ test("translated menus can be shared through a public read-only menu page", asyn
   assert.match(sharedMenu, /分享菜单/);
 });
 
+test("shared menu pages use app-readable food card typography", async () => {
+  const sharedMenu = await readFile(`${ROOT}/src/components/share/SharedMenuPage.tsx`, "utf8");
+
+  assert.match(sharedMenu, /sharedMenuTextStyles/);
+  assert.match(sharedMenu, /cardTitle:[\s\S]*fontSize:\s*18/);
+  assert.match(sharedMenu, /cardBody:[\s\S]*fontSize:\s*12\.5/);
+  assert.match(sharedMenu, /recommendationBox/);
+  assert.match(sharedMenu, /点击菜品查看详情和点单建议/);
+  assert.doesNotMatch(sharedMenu, /fontSize:\s*8(?:\.5)?[,}]/);
+  assert.doesNotMatch(sharedMenu, /text-\[8px\]|text-\[7px\]/);
+});
+
 test("app link icons use the warm DishLens illustration style", async () => {
   const appIcon = await readFile(`${ROOT}/src/app/icon.svg`, "utf8");
   const icon192 = await readFile(`${ROOT}/public/icons/icon-192.svg`, "utf8");
