@@ -57,7 +57,7 @@ const MENU_ENRICHMENT_DELAY_MS = Math.max(
 );
 const IMAGE_GENERATION_CONCURRENCY = Math.max(
   1,
-  Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "1", 10) || 1),
+  Math.min(3, Number.parseInt(process.env.MENU_IMAGE_GENERATION_CONCURRENCY || "2", 10) || 2),
 );
 
 type ImageGenerationFailure = {

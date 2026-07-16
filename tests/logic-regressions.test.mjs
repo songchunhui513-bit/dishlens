@@ -565,7 +565,7 @@ test("fast first-pass returns text results without waiting for remote image cach
   assert.match(route, /imageLookup === "full"[\s\S]*findExistingDishImages/);
   assert.match(route, /imageLookup === "full"[\s\S]*getCachedDishImageUrl/);
   assert.match(route, /processImagesFastFirstPass[\s\S]*buildDishRecords\(raw\.dishes,\s*raw\.page_label,\s*usedImageIds,\s*targetLang,\s*\{\s*imageLookup:\s*"local-only"\s*\}\)/);
-  assert.match(route, /MENU_IMAGE_GENERATION_CONCURRENCY \|\| "1"/);
+  assert.match(route, /MENU_IMAGE_GENERATION_CONCURRENCY \|\| "2"/);
 });
 
 test("loading screen copy does not imply blocking AI image generation", async () => {
