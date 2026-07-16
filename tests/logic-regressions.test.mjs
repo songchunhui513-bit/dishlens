@@ -1981,6 +1981,20 @@ test("task responses strip missing local generated dish image URLs before reachi
   assert.equal(sanitized.metadata.category_sanitized_count, 1);
 });
 
+test("runtime generated dish images are served outside the build-time public asset manifest", async () => {
+  const routePath = `${ROOT}/src/app/generated-dishes/[file]/route.ts`;
+  const route = await readFile(routePath, "utf8");
+
+  assert.match(route, /join\(process\.cwd\(\), "public", "generated-dishes"\)/);
+  assert.match(route, /params:\s*Promise<\{\s*file:\s*string\s*\}>/);
+  assert.match(route, /decodeURIComponent\(params\.file \|\| ""\)/);
+  assert.match(route, /fileName\.endsWith\("\.png"\)/);
+  assert.match(route, /basename\(fileName\) !== fileName/);
+  assert.match(route, /readFile\(filePath\)/);
+  assert.match(route, /Content-Type": "image\/png"/);
+  assert.match(route, /Cache-Control": "public, max-age=31536000, immutable"/);
+});
+
 test("translated menus can be shared through a public read-only menu page", async () => {
   const appPage = await readFile(`${ROOT}/src/app/page.tsx`, "utf8");
   const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
