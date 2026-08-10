@@ -1983,6 +1983,30 @@ test("loading screen copy does not imply blocking AI image generation", async ()
   assert.match(loadingPage, /正在准备结果/);
 });
 
+test("loading does not open an empty results page when every recognition page fails", async () => {
+  const loadingPage = await readFile(`${ROOT}/src/components/results/LoadingPage.tsx`, "utf8");
+  const { classifyLoadingResult, resolveLoadingTaskAction } = await loadTsModule(
+    `${ROOT}/src/lib/loading-result-routing.ts`,
+  );
+
+  assert.equal(classifyLoadingResult({ pages: [] }), "empty");
+  assert.equal(classifyLoadingResult({ pages: [{ page_type: "menu", dishes: [] }] }), "empty");
+  assert.equal(classifyLoadingResult({ pages: [{ page_type: "info", dishes: [] }] }), "displayable");
+  assert.equal(classifyLoadingResult({ pages: [{ page_label: "说明页", dishes: [] }] }), "displayable");
+  assert.equal(classifyLoadingResult({ pages: [{ page_type: "menu", dishes: [{ id: "dish-1" }] }] }), "displayable");
+
+  assert.equal(resolveLoadingTaskAction("failed", { pages: [] }), "timeout");
+  assert.equal(resolveLoadingTaskAction("done", { pages: [{ page_type: "menu", dishes: [] }] }), "timeout");
+  assert.equal(resolveLoadingTaskAction("partial", { pages: [{ page_type: "info", dishes: [] }] }), "complete");
+  assert.equal(resolveLoadingTaskAction("failed", { pages: [{ page_type: "menu", dishes: [{ id: "dish-1" }] }] }), "complete");
+  assert.equal(resolveLoadingTaskAction("processing", { pages: [{ page_type: "menu", dishes: [{ id: "dish-1" }] }] }), "complete");
+  assert.equal(resolveLoadingTaskAction("processing", { pages: [] }), "continue");
+
+  assert.match(loadingPage, /resolveLoadingTaskAction/);
+  assert.match(loadingPage, /initialResult/);
+  assert.match(loadingPage, /onTimeout\?\.\(\)/);
+});
+
 test("loading screen uses app-like readable staged progress", async () => {
   const loadingPage = await readFile(`${ROOT}/src/components/results/LoadingPage.tsx`, "utf8");
   const globals = await readFile(`${ROOT}/src/app/globals.css`, "utf8");
@@ -6068,41 +6092,39 @@ test("results dish cards preserve the production information hierarchy when orde
   assert.match(resultsPage, /getDishPriceDisplay\(dish\)/);
 });
 
-test("results dish cards use app-like readable food card typography", async () => {
+test("results dish cards restore the compact production hierarchy without losing readability", async () => {
   const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
   const dishImage = await readFile(`${ROOT}/src/components/shared/DishImageWithLoading.tsx`, "utf8");
   const globals = await readFile(`${ROOT}/src/app/globals.css`, "utf8");
 
-  assert.match(resultsPage, /background:\s*"linear-gradient\(180deg, rgba\(255,250,242,0\.98\), rgba\(255,244,232,0\.96\)\)"/);
-  assert.match(resultsPage, /borderRadius:\s*24/);
-  assert.match(resultsPage, /padding:\s*14/);
-  assert.match(resultsPage, /fontSize:\s*23/);
-  assert.match(resultsPage, /fontSize:\s*15,\s*color:\s*"var\(--ink-soft\)"/);
-  assert.match(resultsPage, /fontSize:\s*15,\s*color:\s*"var\(--primary\)"/);
-  assert.match(resultsPage, /borderLeft:\s*"4px solid rgba\(76,175,80,0\.72\)"/);
-  assert.match(resultsPage, /fontSize:\s*"13px"/);
-  assert.match(resultsPage, /font:\s*"900 17px\/1\.2 var\(--font-body\)"/);
+  assert.match(resultsPage, /cardSurface:[\s\S]*background:\s*"var\(--card\)"/);
+  assert.match(resultsPage, /borderRadius:\s*28/);
+  assert.match(resultsPage, /padding:\s*18/);
+  assert.match(resultsPage, /fontSize:\s*20/);
+  assert.match(resultsPage, /fontSize:\s*13,\s*color:\s*"var\(--ink-soft\)"/);
+  assert.match(resultsPage, /fontSize:\s*13,\s*color:\s*"var\(--primary\)"/);
+  assert.doesNotMatch(resultsPage, /borderLeft:\s*"4px solid rgba\(76,175,80,0\.72\)"/);
+  assert.match(resultsPage, /fontSize:\s*"11px"/);
+  assert.match(resultsPage, /font:\s*"900 13px\/1\.2 var\(--font-body\)"/);
   assert.match(resultsPage, /width:\s*96,\s*height:\s*96/);
-  assert.doesNotMatch(resultsPage, /fontSize:\s*8,/);
-  assert.match(globals, /body\s*\{[\s\S]*font-size:\s*15px/);
-  assert.match(globals, /\.dish-image-loading\s*\{[\s\S]*font-size:\s*11px/);
+  assert.match(globals, /body\s*\{[\s\S]*font-size:\s*13px/);
+  assert.match(globals, /\.dish-image-loading\s*\{[\s\S]*font-size:\s*10px/);
   assert.doesNotMatch(dishImage, /fontSize:\s*compact \? 7 : 9/);
   assert.match(dishImage, /fontSize:\s*compact \? 11 : 12/);
   assert.match(dishImage, /const width = compact \? 96 : "100%"/);
   assert.match(dishImage, /sizes=\{compact \? "96px"/);
 });
 
-test("results dish cards use polished food-app surfaces and recommendation callouts", async () => {
+test("results dish cards use the previous quiet surface and plain recommendation treatment", async () => {
   const resultsPage = await readFile(`${ROOT}/src/components/results/ResultsPage.tsx`, "utf8");
 
   assert.match(resultsPage, /const resultsDishCardStyles =/);
-  assert.match(resultsPage, /cardSurface:[\s\S]*boxShadow:\s*"0 18px 36px rgba\(69,48,30,0\.10\)"/);
-  assert.match(resultsPage, /cardSurface:[\s\S]*backgroundImage:\s*"radial-gradient\(circle at 18px 18px, rgba\(255,255,255,0\.72\) 0 1px, transparent 1px\)"/);
-  assert.match(resultsPage, /dishNumberBadge:[\s\S]*minWidth:\s*34/);
-  assert.match(resultsPage, /dishNumberBadge:[\s\S]*border:\s*"1px solid rgba\(76,175,80,0\.18\)"/);
-  assert.match(resultsPage, /recommendationCallout:[\s\S]*borderLeft:\s*"4px solid rgba\(76,175,80,0\.72\)"/);
-  assert.match(resultsPage, /recommendationCallout:[\s\S]*boxShadow:\s*"inset 0 1px 0 rgba\(255,255,255,0\.58\)"/);
-  assert.match(resultsPage, /cardImageRail:[\s\S]*background:\s*"linear-gradient\(180deg, rgba\(76,175,80,0\.36\), rgba\(245,165,92,0\.28\)\)"/);
+  assert.match(resultsPage, /cardSurface:[\s\S]*boxShadow:\s*"0 14px 34px rgba\(69,48,30,0\.08\)"/);
+  assert.doesNotMatch(resultsPage, /radial-gradient\(circle at 18px 18px/);
+  assert.doesNotMatch(resultsPage, /dishNumberBadge:\s*\{[^}]*minWidth:\s*34/);
+  assert.doesNotMatch(resultsPage, /dishNumberBadge:\s*\{[^}]*border:/);
+  assert.doesNotMatch(resultsPage, /recommendationCallout:\s*\{[^}]*borderLeft:/);
+  assert.match(resultsPage, /cardImageRail:[\s\S]*display:\s*"none"/);
   assert.match(resultsPage, /\.\.\.resultsDishCardStyles\.cardSurface/);
   assert.match(resultsPage, /\.\.\.resultsDishCardStyles\.recommendationCallout/);
 });
@@ -6124,20 +6146,18 @@ test("share surfaces avoid tiny web-style typography", async () => {
   assert.match(appPage, /minHeight:\s*40/);
 });
 
-test("home screen uses app-readable food product typography", async () => {
+test("home screen restores the compact previous hierarchy while preserving resilient thumbnails", async () => {
   const homePage = await readFile(`${ROOT}/src/components/home/HomePage.tsx`, "utf8");
 
   assert.match(homePage, /FoodThumbnailFallback/);
   assert.doesNotMatch(homePage, /fallbackRecentImage/);
-  assert.doesNotMatch(homePage, /fontSize:\s*(?:7|8|9)(?:[,}]|px|\.5)/);
-  assert.doesNotMatch(homePage, /text-\[(?:7|8|9)px\]/);
   assert.match(homePage, /fontSize:\s*18/);
-  assert.match(homePage, /fontSize:\s*24/);
-  assert.match(homePage, /fontSize:\s*16/);
+  assert.doesNotMatch(homePage, /fontSize:\s*24/);
+  assert.match(homePage, /fontSize:\s*15/);
   assert.match(homePage, /fontSize:\s*13/);
-  assert.match(homePage, /minHeight:\s*52/);
+  assert.doesNotMatch(homePage, /minHeight:\s*52/);
   assert.match(homePage, /RecentPill/);
-  assert.match(homePage, /fontSize:\s*11/);
+  assert.match(homePage, /fontSize:\s*10/);
   assert.match(homePage, /home-content-scroll/);
   assert.match(homePage, /overflow-y-auto/);
   assert.match(homePage, /minHeight:\s*0/);
@@ -6182,18 +6202,16 @@ test("ordered detail screen uses app-readable food card typography", async () =>
   assert.match(orderedDetailPage, /gap-4/);
 });
 
-test("dish detail screen uses app-readable food app typography", async () => {
+test("dish detail restores the previous calm hierarchy while keeping readable body text", async () => {
   const detailPage = await readFile(`${ROOT}/src/components/dish/DishDetailPage.tsx`, "utf8");
 
-  assert.doesNotMatch(detailPage, /fontSize:\s*(?:7|7\.5|8|9|10)(?:[,}]|px|")/);
-  assert.doesNotMatch(detailPage, /text-\[(?:7|8|9|10)px\]/);
-  assert.match(detailPage, /fontSize:\s*30/);
-  assert.match(detailPage, /fontSize:\s*20/);
-  assert.match(detailPage, /fontSize:\s*18/);
+  assert.doesNotMatch(detailPage, /fontSize:\s*30/);
+  assert.match(detailPage, /fontSize:\s*22/);
   assert.match(detailPage, /fontSize:\s*16/);
-  assert.match(detailPage, /fontSize:\s*15/);
-  assert.match(detailPage, /borderLeft:\s*"4px solid rgba\(76,175,80,0\.76\)"/);
-  assert.match(detailPage, /padding:\s*"14px 16px"/);
+  assert.match(detailPage, /fontSize:\s*14/);
+  assert.match(detailPage, /fontSize:\s*13/);
+  assert.doesNotMatch(detailPage, /borderLeft:\s*"4px solid rgba\(76,175,80,0\.76\)"/);
+  assert.match(detailPage, /padding:\s*"0 16px 16px"/);
   assert.match(detailPage, /minHeight:\s*44/);
 });
 

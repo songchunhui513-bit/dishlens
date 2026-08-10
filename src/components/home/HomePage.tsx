@@ -212,10 +212,10 @@ export default function HomePage({
         style={{
           alignSelf: "flex-start",
           fontFamily: "var(--font-ui)",
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: 600,
           color: "var(--ink-soft)",
-          padding: "6px 12px",
+          padding: "5px 10px",
           borderRadius: 20,
           background: "var(--card-alt)",
           margin: "0 20px 4px",
@@ -241,7 +241,7 @@ export default function HomePage({
           background: "var(--card-alt)",
           borderRadius: "var(--radius-sm)",
           fontFamily: "var(--font-body)",
-          fontSize: 13,
+          fontSize: 11,
           color: "var(--ink-soft)",
           lineHeight: 1.5,
         }}
@@ -258,7 +258,7 @@ export default function HomePage({
           style={{
             background: "var(--card)",
             borderRadius: "var(--radius-xl)",
-            padding: "20px 18px 20px 20px",
+            padding: "18px",
             boxShadow: "var(--shadow-lg)",
             display: "grid",
             gridTemplateColumns: "minmax(0,1fr) 112px",
@@ -274,12 +274,12 @@ export default function HomePage({
               className="inline-flex items-center"
               style={{
                 fontFamily: "var(--font-ui)",
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: "0.05em",
                 color: "#FFF",
                 background: "var(--accent)",
-                padding: "4px 10px",
+                padding: "3px 9px",
                 borderRadius: 14,
                 marginBottom: 8,
               }}
@@ -289,7 +289,7 @@ export default function HomePage({
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: 600,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -307,7 +307,7 @@ export default function HomePage({
                   marginBottom: 8,
                   color: "var(--ink-soft)",
                   fontFamily: "var(--font-body)",
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 700,
                   minWidth: 0,
                 }}
@@ -325,7 +325,7 @@ export default function HomePage({
                       background: "rgba(76,175,80,0.10)",
                       color: "var(--primary)",
                       fontFamily: "var(--font-ui)",
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 800,
                     }}
                   >
@@ -337,7 +337,7 @@ export default function HomePage({
             <h2
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: 800,
                 color: "var(--ink)",
                 letterSpacing: "-0.01em",
@@ -350,7 +350,7 @@ export default function HomePage({
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 14,
+                fontSize: 12,
                 color: "var(--muted)",
                 marginBottom: 10,
                 fontStyle: "italic",
@@ -402,14 +402,13 @@ export default function HomePage({
           border: "none",
           borderRadius: "var(--radius)",
           fontFamily: "var(--font-body)",
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: 700,
           letterSpacing: "0.03em",
           cursor: "pointer",
           boxShadow: "0 4px 20px rgba(76,175,80,0.25)",
           width: "calc(100% - 40px)",
           alignSelf: "center",
-          minHeight: 52,
         }}
       >
         <svg viewBox="0 0 24 24" style={{ width: 20, height: 20, stroke: "#FFF", fill: "none", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
@@ -425,7 +424,7 @@ export default function HomePage({
         className="flex items-center justify-center gap-1 mx-auto py-1 transition-opacity hover:opacity-70"
         style={{
           fontFamily: "var(--font-body)",
-          fontSize: 13,
+          fontSize: 11,
           fontWeight: 700,
           color: "var(--muted)",
           background: "none",
@@ -441,7 +440,7 @@ export default function HomePage({
         <h3
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: 16,
+            fontSize: 13,
             fontWeight: 850,
             letterSpacing: "0.02em",
             color: "var(--ink)",
@@ -456,7 +455,7 @@ export default function HomePage({
           }}
           style={{
             fontFamily: "var(--font-ui)",
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: 800,
             color: "var(--primary)",
             cursor: isEmpty ? "default" : "pointer",
@@ -489,10 +488,10 @@ export default function HomePage({
               <path d="M8 12h8" />
             </svg>
           </div>
-          <h4 style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 750, color: "var(--muted)", marginBottom: 2 }}>
+          <h4 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 750, color: "var(--muted)", marginBottom: 2 }}>
             {copy.emptyTitle}
           </h4>
-          <p style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", opacity: 0.7 }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)", opacity: 0.7 }}>
             {copy.emptySubtitle}
           </p>
         </div>
@@ -521,7 +520,7 @@ export default function HomePage({
                 <div
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: i === 0 ? 16 : 14,
+                    fontSize: i === 0 ? 15 : 13,
                     fontWeight: 800,
                     color: "var(--ink)",
                     overflow: "hidden",
@@ -535,7 +534,7 @@ export default function HomePage({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <RecentPill>{item.sourceLabel} → {item.targetLabel}</RecentPill>
-                  <span style={{ font: "750 12px var(--font-ui)", color: "var(--muted)" }}>
+                  <span style={{ font: "750 10px var(--font-ui)", color: "var(--muted)" }}>
                     {item.dishCount} 道菜 · {item.timeLabel}
                   </span>
                 </div>
@@ -574,7 +573,7 @@ export default function HomePage({
                         </span>
                       );
                     })}
-                    <span style={{ font: "700 12px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ font: "700 10px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.summary}
                     </span>
                   </div>
@@ -654,7 +653,7 @@ export default function HomePage({
               minWidth: 56,
               minHeight: 44,
               fontFamily: "var(--font-body)",
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 750,
               color: "var(--muted)",
               background: "none",
@@ -700,9 +699,9 @@ function Pill({ type, children }: { type: "green" | "orange" | "warm"; children:
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "12px",
+        fontSize: "10px",
         fontWeight: 750,
-        padding: "5px 10px",
+        padding: "4px 9px",
         borderRadius: 20,
         letterSpacing: "0.03em",
         background: bgMap[type],
@@ -726,7 +725,7 @@ function RecentPill({ children }: { children: ReactNode }) {
         background: "rgba(76,175,80,0.10)",
         color: "var(--primary)",
         fontFamily: "var(--font-ui)",
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 800,
         lineHeight: 1,
         whiteSpace: "nowrap",

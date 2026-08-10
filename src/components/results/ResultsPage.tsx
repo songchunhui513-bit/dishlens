@@ -65,9 +65,9 @@ function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "13px",
+        fontSize: "11px",
         fontWeight: type === "allergen" || type === "veg" ? 700 : 600,
-        padding: "6px 12px",
+        padding: "5px 10px",
         borderRadius: 20,
         letterSpacing: 0,
         background: bgMap[type],
@@ -83,14 +83,12 @@ const resultsDishCardStyles = {
   cardSurface: {
     position: "relative",
     overflow: "hidden",
-    background: "linear-gradient(180deg, rgba(255,250,242,0.98), rgba(255,244,232,0.96))",
-    backgroundImage: "radial-gradient(circle at 18px 18px, rgba(255,255,255,0.72) 0 1px, transparent 1px)",
-    backgroundSize: "22px 22px",
-    borderRadius: 24,
-    padding: 14,
-    boxShadow: "0 18px 36px rgba(69,48,30,0.10)",
+    background: "var(--card)",
+    borderRadius: 28,
+    padding: 18,
+    boxShadow: "0 14px 34px rgba(69,48,30,0.08)",
     cursor: "pointer",
-    border: "1px solid rgba(231,205,174,0.82)",
+    border: "1px solid rgba(231,205,174,0.42)",
     fontFamily: "inherit",
   },
   imageColumn: {
@@ -99,45 +97,23 @@ const resultsDishCardStyles = {
     display: "flex",
   },
   cardImageRail: {
-    position: "absolute",
-    left: -6,
-    top: 10,
-    bottom: 10,
-    width: 3,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, rgba(76,175,80,0.36), rgba(245,165,92,0.28))",
+    display: "none",
   },
   dishNumberBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 34,
-    minHeight: 24,
-    padding: "0 9px",
-    borderRadius: 999,
-    border: "1px solid rgba(76,175,80,0.18)",
-    background: "rgba(76,175,80,0.08)",
     fontFamily: "var(--font-body)",
-    fontSize: 13,
-    fontWeight: 850,
+    fontSize: 12,
+    fontWeight: 800,
     color: "var(--primary)",
     letterSpacing: 0,
-    marginBottom: 8,
+    marginBottom: 5,
   },
   recommendationCallout: {
     fontFamily: "var(--font-ui)",
-    fontSize: 15,
+    fontSize: 13,
     color: "var(--primary)",
-    marginBottom: 12,
-    lineHeight: 1.62,
-    fontWeight: 800,
-    background: "linear-gradient(90deg, rgba(76,175,80,0.1), rgba(76,175,80,0.035))",
-    border: "1px solid rgba(76,175,80,0.14)",
-    borderLeft: "4px solid rgba(76,175,80,0.72)",
-    borderRadius: 12,
-    padding: "10px 12px",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.58)",
-    textWrap: "pretty",
+    marginBottom: 10,
+    lineHeight: 1.55,
+    fontWeight: 700,
   },
 } satisfies Record<string, CSSProperties>;
 
@@ -542,18 +518,18 @@ export default function ResultsPage({
 
         {/* Section label */}
         {isReal && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "16px 18px 10px" }}>
-            <span style={{ font: "900 17px/1.2 var(--font-body)", color: "var(--ink)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "12px 16px 7px" }}>
+            <span style={{ font: "900 13px/1.2 var(--font-body)", color: "var(--ink)" }}>
               {categories.find((c) => c.key === selectedCategory)?.label || "全部菜品"}
             </span>
-            <span style={{ font: "800 12px/1 var(--font-ui)", color: "var(--muted)" }}>
+            <span style={{ font: "800 11px/1 var(--font-ui)", color: "var(--muted)" }}>
               {hiddenDishCount > 0 ? `${visibleDishes.length}/${displayedDishes.length}` : displayedDishes.length} 道
             </span>
           </div>
         )}
 
         {/* Allergen bar */}
-        <div style={{ margin: "0 14px" }}>
+        <div style={{ margin: "0 16px" }}>
         {showAllergens && (
           <div
             className="flex items-center gap-1.5"
@@ -563,7 +539,7 @@ export default function ResultsPage({
               background: "var(--allergen-bg)",
               borderRadius: "var(--radius-sm)",
               fontFamily: "var(--font-ui)",
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 600,
               color: "var(--accent)",
               animation: "fadeSlideUp 0.3s ease-out",
@@ -611,14 +587,14 @@ export default function ResultsPage({
                 }}
                 data-deferred-dish-id={dish.image_status === "deferred" ? dish.id : undefined}
                 className="relative"
-                style={{ marginBottom: 12, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
+                style={{ marginBottom: 14, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
               >
                 <button
                   onClick={() => onDishDetail(dish)}
-                  className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.985]"
+                  className="flex items-start gap-4 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
                   style={{
                     ...resultsDishCardStyles.cardSurface,
-                    paddingRight: 14 + orderControlOffset,
+                    paddingRight: 18 + orderControlOffset,
                   }}
                 >
                   {/* Image */}
@@ -661,40 +637,40 @@ export default function ResultsPage({
                     <div style={resultsDishCardStyles.dishNumberBadge}>
                       {String(i + 1).padStart(2, "0")}
                       {dish.rating_avg ? (
-                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 13, color: "var(--accent)", fontWeight: 800 }}>
+                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 12, color: "var(--accent)", fontWeight: 800 }}>
                           ★ {dish.rating_avg}
                         </span>
                       ) : null}
                     </div>
                     <div
-                      className="flex items-start gap-1"
+                      className="flex items-start gap-2"
                       style={{
-                        marginBottom: 6,
-                        flexDirection: "column",
+                        marginBottom: 5,
                       }}
                     >
-                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 23, fontWeight: 850, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.18, textWrap: "pretty" }}>
+                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.2, textWrap: "pretty" }}>
                         {dishText.translatedName}
                       </div>
                       {dishPriceLabel ? (
                         <span
                           style={{
                             flexShrink: 0,
+                            paddingTop: 1,
                             fontFamily: "var(--font-body)",
-                            fontSize: 17,
+                            fontSize: 15,
                             fontWeight: 800,
                             color: "var(--ink)",
-                            lineHeight: 1.25,
+                            lineHeight: 1.2,
                           }}
                         >
                           {dishPriceLabel}
                         </span>
                       ) : null}
                     </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--muted)", fontStyle: "italic", marginBottom: 10, lineHeight: 1.45 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--muted)", fontStyle: "italic", marginBottom: 7, lineHeight: 1.3 }}>
                       {originalNameLabel}
                     </div>
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 15, color: "var(--ink-soft)", marginBottom: 10, lineHeight: 1.62, textWrap: "pretty" }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", marginBottom: 7, lineHeight: 1.55, textWrap: "pretty" }}>
                       {insight.summary}
                     </div>
                     <div style={{ ...resultsDishCardStyles.recommendationCallout }}>

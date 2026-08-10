@@ -837,6 +837,7 @@ export default function Page() {
           photoCount={capturedPhotos.length || 1}
           taskId={translationResult?.task_id}
           taskStatus={translationResult?.status}
+          initialResult={translationResult}
           useMock={useMockFallback}
           onComplete={handleLoadingComplete}
           onCancel={handleCancelLoading}

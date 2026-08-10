@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { pollTask } from "@/lib/api-client";
 import type { TranslationClientStage } from "@/lib/api-client";
+import { classifyLoadingResult, resolveLoadingTaskAction } from "@/lib/loading-result-routing";
 import { FoodCharacters, FOOD_CHARACTER_HINTS } from "./FoodCharacters";
 
 interface LoadingPageProps {
@@ -14,6 +15,7 @@ interface LoadingPageProps {
   onCancel: () => void;
   onTimeout?: () => void;
   onResult?: (result: Record<string, unknown>) => void;
+  initialResult?: unknown;
   clientStage?: TranslationClientStage;
 }
 
@@ -63,6 +65,7 @@ export default function LoadingPage({
   onCancel,
   onTimeout,
   onResult,
+  initialResult,
   clientStage,
 }: LoadingPageProps) {
   const [progress, setProgress] = useState(0);
@@ -139,7 +142,7 @@ export default function LoadingPage({
           if (!cancelled && !completedRef.current) {
             // Even on timeout, try to show whatever partial results we have
             const saved = lastResultRef.current as Record<string, unknown> | null;
-            if (saved?.pages && onResult) {
+            if (saved && classifyLoadingResult(saved) === "displayable" && onResult) {
               completedRef.current = true;
               onResult(saved);
               setTimeout(() => onComplete(), 300);
@@ -164,22 +167,15 @@ export default function LoadingPage({
           setPhase(Math.min(doneCount * basePhases.length - 1, basePhases.length * total - 1));
         }
         // Show results as soon as ANY page is available (streaming approach)
-        const hasPartialResult = t.result && (t.result as unknown as Record<string, unknown>).pages
-          && Array.isArray((t.result as unknown as Record<string, unknown>).pages)
-          && ((t.result as unknown as Record<string, unknown>).pages as unknown[]).length > 0;
-        if (t.status === "done" || t.status === "partial" || t.status === "failed") {
+        const taskAction = resolveLoadingTaskAction(t.status, t.result);
+        if (taskAction === "timeout") {
           if (!completedRef.current) {
             completedRef.current = true;
-            if (t.result && onResult) onResult(t.result as unknown as Record<string, unknown>);
-            if (t.status === "failed") {
-              setProgress(0);
-            } else {
-              setProgress(100);
-            }
-            setTimeout(() => onComplete(), 500);
+            setProgress(0);
+            onTimeout?.();
           }
-        } else if (hasPartialResult && !completedRef.current) {
-          // Transition to results immediately with available pages, keep polling
+        } else if (taskAction === "complete" && !completedRef.current) {
+          // Show any useful menu or information page, including partial data retained by a failed task.
           completedRef.current = true;
           setProgress(100);
           if (t.result && onResult) onResult(t.result as unknown as Record<string, unknown>);
@@ -225,22 +221,23 @@ export default function LoadingPage({
     return () => timers.forEach(clearTimeout);
   }, [isMock, phaseList, onComplete]);
 
-  // Done effect — only for success states, not failed
+  // Resolve terminal state received with the initial upload/cache response through the same gate as polling.
   useEffect(() => {
-    if (isDone && !completedRef.current) {
+    if ((!isDone && !isFailed) || completedRef.current) return;
+    const taskAction = resolveLoadingTaskAction(initialTaskStatus, initialResult);
+    if (taskAction === "complete") {
       completedRef.current = true;
+      if (onResult && initialResult && typeof initialResult === "object") {
+        onResult(initialResult as Record<string, unknown>);
+      }
       const t = setTimeout(() => onComplete(), 300);
       return () => clearTimeout(t);
     }
-  }, [isDone, onComplete]);
-
-  // Failed effect — show error state, don't auto-navigate
-  useEffect(() => {
-    if (isFailed && !completedRef.current) {
+    if (taskAction === "timeout") {
       completedRef.current = true;
-      setProgress(0);
+      onTimeout?.();
     }
-  }, [isFailed]);
+  }, [initialResult, initialTaskStatus, isDone, isFailed, onComplete, onResult, onTimeout]);
 
   // Phase-aware status text
   function getStatusText(): string {
