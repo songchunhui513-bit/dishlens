@@ -114,7 +114,7 @@ NEXT_PUBLIC_DISH_IMAGE_CDN_HOST=<OSS 自定义 CDN hostname>
 ## 尚未完成
 
 1. 尚未创建或注入新加坡 Model Studio Workspace ID/API key，因此新链路还不能在目标海外区域正式启用。
-2. 尚未推送和发布到线上；当前文档记录的是已验证的本地发布候选。
+2. 本地发布候选已提交为 `e5c1762`，尚未推送和发布到线上。
 3. 尚未在新加坡 ECS + OSS 上运行 20 道菜冷启动、困难品类准确率和重复缓存命中 benchmark。
 4. `npm test` 仍未在 `package.json` 中定义；当前完整命令是 `node --test tests/logic-regressions.test.mjs`。
 

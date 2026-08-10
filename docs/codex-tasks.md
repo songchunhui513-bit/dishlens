@@ -9,7 +9,7 @@
 
 ## P0：本地版本收口与 Google Cloud 主站发布
 
-- [ ] 将当前图片资产、识别缓存、加载体验、分享和诊断改动纳入可审计提交。
+- [x] 将当前图片资产、识别缓存、加载体验、分享和诊断改动纳入可审计提交 `e5c1762`。
 - [x] 运行 `node scripts/diagnose-dish-images.mjs --summary --fail-on-deploy-risk`。
 - [x] 在无 `.env.local` 的干净目录运行 `npm ci`、176 项逻辑回归、lint、TypeScript 和生产构建。
 - [ ] 推送 GitHub `main`。
