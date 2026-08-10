@@ -1,31 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Source_Serif_4, Poppins } from "next/font/google";
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/source-serif-4/wght.css";
+import "@fontsource-variable/source-serif-4/wght-italic.css";
+import "@fontsource/poppins/400.css";
+import "@fontsource/poppins/500.css";
+import "@fontsource/poppins/600.css";
+import "@fontsource/poppins/700.css";
+import "@fontsource/poppins/800.css";
 import "./globals.css";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://dishlens.wukongmkt.com";
 const sharePreviewImage = "/icons/share-preview-20260527.png";
-
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-  weight: ["400", "600", "700"],
-  style: ["normal", "italic"],
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const interUi = Inter({
-  subsets: ["latin"],
-  variable: "--font-ui",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
@@ -79,10 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="zh-CN"
-      className={`${sourceSerif.variable} ${poppins.variable} ${interUi.variable} antialiased`}
-    >
+    <html lang="zh-CN" className="antialiased">
       <body className="flex flex-col">{children}</body>
     </html>
   );

@@ -247,7 +247,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
             <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--ink)", lineHeight: 1.15 }}>
               分享这份菜单
             </div>
-            <div style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", lineHeight: 1.5, marginTop: 4 }}>
+            <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 5 }}>
               发到群聊或私聊，朋友不用登录，点开就能一起看菜。
             </div>
           </div>
@@ -274,20 +274,20 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
           <ShareIllustrationIcon targetId="menu" featured />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2" style={{ marginBottom: 7 }}>
-              <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, fontWeight: 800, color: "var(--primary)", letterSpacing: "0.04em" }}>
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 800, color: "var(--primary)", letterSpacing: 0 }}>
                 DISHLENS MENU
               </div>
-              <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, fontWeight: 800, color: "var(--accent)", background: "rgba(255,159,28,0.12)", padding: "3px 8px", borderRadius: 20, flexShrink: 0 }}>
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 800, color: "var(--accent)", background: "rgba(255,159,28,0.12)", padding: "4px 9px", borderRadius: 20, flexShrink: 0 }}>
                 {shareMeta.dishCount || "多"} 道菜
               </div>
             </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 800, color: "var(--ink)", marginBottom: 4 }}>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 850, color: "var(--ink)", marginBottom: 5, lineHeight: 1.25 }}>
               {shareMeta.sourceTitle}
             </div>
-            <div style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--ink-soft)", lineHeight: 1.55, marginBottom: 7 }}>
+            <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.55, marginBottom: 8 }}>
               {shareMeta.previewDishes.length ? shareMeta.previewDishes.join("、") : "打开后查看菜品列表和详情"}
             </div>
-            <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {shareMeta.url}
             </div>
           </div>
@@ -306,16 +306,16 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
                   borderRadius: "var(--radius)",
                   background: featured ? "linear-gradient(135deg, var(--primary), var(--primary-soft))" : "rgba(255,240,221,0.82)",
                   color: featured ? "#FFF" : "var(--ink)",
-                  padding: 10,
-                  minHeight: 72,
+                  padding: 12,
+                  minHeight: 82,
                   cursor: "pointer",
                   boxShadow: featured ? "0 10px 22px rgba(76,175,80,0.22)" : "none",
                 }}
               >
                 <ShareIllustrationIcon targetId={target.id} />
                 <span className="min-w-0">
-                  <span style={{ display: "block", fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 800 }}>{target.label}</span>
-                  <span style={{ display: "block", fontFamily: "var(--font-ui)", fontSize: 7.5, lineHeight: 1.35, opacity: 0.82 }}>{target.description}</span>
+                  <span style={{ display: "block", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 800 }}>{target.label}</span>
+                  <span style={{ display: "block", fontFamily: "var(--font-ui)", fontSize: 12, lineHeight: 1.45, opacity: 0.82 }}>{target.description}</span>
                 </span>
               </button>
             );
@@ -323,10 +323,10 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
         </div>
 
         <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-          <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, fontWeight: 800, color: "var(--muted)", letterSpacing: "0.06em" }}>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 800, color: "var(--muted)", letterSpacing: 0 }}>
             常用 App
           </div>
-          <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)" }}>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)" }}>
             国内外都能接住
           </div>
         </div>
@@ -347,12 +347,12 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
               }}
             >
               <ShareIllustrationIcon targetId={target.id} />
-              <span style={{ fontFamily: "var(--font-body)", fontSize: 9, fontWeight: 800, lineHeight: 1.15, textAlign: "center" }}>{target.label}</span>
+              <span style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 800, lineHeight: 1.15, textAlign: "center" }}>{target.label}</span>
             </button>
           ))}
         </div>
 
-        <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", lineHeight: 1.55, marginTop: 12 }}>
+        <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginTop: 12 }}>
           {localStatus || "点发给朋友或微信会打开原生分享页；其他 App 会打开对应分享页，复制链接后可在聊天里粘贴链接。"}
         </div>
         <div className="sr-only">支持微信、WhatsApp、Telegram、LINE、Facebook、X 和复制链接</div>
@@ -373,7 +373,7 @@ export default function ShareSheet({ open, meta, onClose, onStatus }: ShareSheet
             boxShadow: "0 16px 36px rgba(45,45,45,0.24)",
             padding: "12px 15px",
             fontFamily: "var(--font-ui)",
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: 800,
             lineHeight: 1.35,
             textAlign: "left",

@@ -26,6 +26,10 @@ const basePhases = [
 
 const FOOD_CHARACTER_ROTATE_MS = 4000;
 const MAX_POLLING_MS = 180_000;
+const LOADING_TASK_POLL_FAST_MS = 700;
+const LOADING_TASK_POLL_STEADY_MS = 1500;
+const LOADING_TASK_FAST_POLL_WINDOW_MS = 20_000;
+const LOADING_TASK_ERROR_RETRY_MS = 2000;
 const LOADING_STEPS = [
   { label: "整理照片", detail: "压缩并上传菜单" },
   { label: "识别菜品", detail: "读取菜名、价格和描述" },
@@ -42,6 +46,12 @@ function buildPhases(count: number): string[] {
     }
   }
   return expanded;
+}
+
+function getLoadingTaskPollDelay(elapsedMs: number) {
+  return elapsedMs < LOADING_TASK_FAST_POLL_WINDOW_MS
+    ? LOADING_TASK_POLL_FAST_MS
+    : LOADING_TASK_POLL_STEADY_MS;
 }
 
 export default function LoadingPage({
@@ -175,10 +185,10 @@ export default function LoadingPage({
           if (t.result && onResult) onResult(t.result as unknown as Record<string, unknown>);
           setTimeout(() => onComplete(), 300);
         } else {
-          setTimeout(poll, 1500);
+          setTimeout(poll, getLoadingTaskPollDelay(Date.now() - pollStartTime));
         }
       } catch {
-        if (!cancelled) setTimeout(poll, 2000);
+        if (!cancelled) setTimeout(poll, LOADING_TASK_ERROR_RETRY_MS);
       }
     };
     poll();

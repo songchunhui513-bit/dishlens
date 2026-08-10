@@ -5,6 +5,10 @@ export function normalizeDishLookupName(name: string): string {
   return name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[øØ]/g, "o")
+    .replace(/[œŒ]/g, "oe")
+    .replace(/[æÆ]/g, "ae")
+    .replace(/[™®©]/g, " ")
     .replace(/^\s*(?:no\.?|#)?\s*\d{1,3}\s+[\-.)、]?\s*/i, "")
     .replace(/[.·•]{2,}.*$/g, "")
     .replace(/[€$£¥₹]\s*\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?\s*(?:€|eur|euros?|usd|gbp|元|円|₹)/gi, " ")
@@ -22,13 +26,21 @@ export function canonicalDishNameKey(name: string): string {
     .toLowerCase();
 }
 
+function dishNameSplitCandidates(name: string): string[] {
+  return name
+    .split(/\s*(?:\/|\||·{2,}|•{2,})\s*/g)
+    .map((part) => normalizeDishLookupName(part).toLowerCase())
+    .filter((part) => part.length > 2);
+}
+
 export function dishNameLookupCandidates(name: string): string[] {
   const normalized = normalizeDishLookupName(name);
   const canonical = canonicalDishNameKey(name);
   const candidates = [
-    name.trim(),
     normalized,
+    normalized.toLowerCase(),
     canonical,
+    ...dishNameSplitCandidates(name),
     canonical ? `${canonical} pizza` : "",
     canonical ? `pizza ${canonical}` : "",
   ];

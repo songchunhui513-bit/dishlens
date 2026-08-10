@@ -1,8 +1,6 @@
-import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { isStableRemoteGeneratedDishImageUrl } from "@/lib/safe-image-url";
 
 const GENERATED_DISH_PREFIX = "/generated-dishes/";
-const GENERATED_DISH_DIR = join(process.cwd(), "public", "generated-dishes");
 
 type JsonRecord = Record<string, unknown>;
 
@@ -10,15 +8,19 @@ function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function isMissingGeneratedDishUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !value.startsWith(GENERATED_DISH_PREFIX)) return false;
-  const fileName = basename(value.split("?")[0] || "");
-  if (!fileName || fileName.includes("..")) return true;
-  if (existsSync(join(GENERATED_DISH_DIR, fileName))) return false;
-  if (fileName.toLowerCase().endsWith(".png")) {
-    const webpFileName = fileName.replace(/\.png$/i, ".webp");
-    return !existsSync(join(GENERATED_DISH_DIR, webpFileName));
+function isMachineLocalGeneratedDishUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  const url = value.trim();
+  if (isStableRemoteGeneratedDishImageUrl(url)) return false;
+  if (url.startsWith(GENERATED_DISH_PREFIX)) return true;
+  try {
+    if (!new URL(url).pathname.startsWith(GENERATED_DISH_PREFIX)) return false;
+  } catch {
+    return false;
   }
+  // Runtime generated files are machine-local artifacts. Even when they exist
+  // on the current server, they are unsafe to preserve across deploys or share
+  // between local, ECS, and future hosting environments.
   return true;
 }
 
@@ -58,8 +60,8 @@ export function sanitizeTranslationResultImages<T extends JsonRecord | null | un
     const dishes = page.dishes.map((dish) => {
       if (!isRecord(dish)) return dish;
 
-      const staleAiUrl = isMissingGeneratedDishUrl(dish.ai_image_url);
-      const staleImageUrl = isMissingGeneratedDishUrl(dish.image_url);
+      const staleAiUrl = isMachineLocalGeneratedDishUrl(dish.ai_image_url);
+      const staleImageUrl = isMachineLocalGeneratedDishUrl(dish.image_url);
       const nextCategory = correctedCategory(dish);
       if (!staleAiUrl && !staleImageUrl && !nextCategory) return dish;
 

@@ -11,11 +11,13 @@
  * Usage:
  *   node scripts/download-knowledge-images.mjs
  *   node scripts/download-knowledge-images.mjs --existing-only
+ *   node scripts/download-knowledge-images.mjs --ids=mochi,matcha-tiramisu
  *   DOWNLOAD_LIMIT=20 node scripts/download-knowledge-images.mjs
  *   node scripts/download-knowledge-images.mjs --limit=20
+ *   node scripts/download-knowledge-images.mjs --max-consecutive-failures=8
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -28,10 +30,23 @@ const DISHES_DIR = join(PROJECT_ROOT, 'public', 'dishes');
 const args = process.argv.slice(2);
 const EXISTING_ONLY = args.includes('--existing-only');
 const limitArg = args.find((arg) => arg.startsWith('--limit='));
+const idsArg = args.find((arg) => arg.startsWith('--ids='));
+const maxFailuresArg = args.find((arg) => arg.startsWith('--max-consecutive-failures='));
+const TARGET_IDS = (process.env.DOWNLOAD_IDS || (idsArg ? idsArg.split('=')[1] : '') || '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
+const TARGET_ID_SET = new Set(TARGET_IDS);
 const DOWNLOAD_LIMIT = Number.parseInt(
   process.env.DOWNLOAD_LIMIT || (limitArg ? limitArg.split('=')[1] : '') || '0',
   10,
 ) || 0;
+const MAX_CONSECUTIVE_FAILURES = Number.parseInt(
+  process.env.DOWNLOAD_MAX_CONSECUTIVE_FAILURES ||
+    (maxFailuresArg ? maxFailuresArg.split('=')[1] : '') ||
+    '8',
+  10,
+) || 8;
 
 const DELAY_MS = 3000; // 3s between downloads (pollinations needs it)
 const DOWNLOAD_TIMEOUT_MS = 120000; // 120 seconds - pollinations generates on-the-fly
@@ -74,6 +89,9 @@ for (const entry of entries) {
 }
 
 console.log(`Entries with pollinations.ai URLs: ${toDownload.length}`);
+if (TARGET_IDS.length > 0) {
+  console.log(`Target ids: ${TARGET_IDS.join(', ')}`);
+}
 if (EXISTING_ONLY) {
   console.log('Mode: existing-only (no network downloads)');
 }
@@ -86,10 +104,72 @@ if (toDownload.length === 0) {
   process.exit(0);
 }
 
-const workItems = DOWNLOAD_LIMIT > 0 ? toDownload.slice(0, DOWNLOAD_LIMIT) : toDownload;
+const filteredDownloads = TARGET_ID_SET.size > 0
+  ? toDownload.filter(({ id }) => TARGET_ID_SET.has(id))
+  : toDownload;
+const workItems = DOWNLOAD_LIMIT > 0 ? filteredDownloads.slice(0, DOWNLOAD_LIMIT) : filteredDownloads;
+
+if (workItems.length === 0) {
+  console.log('No matching entries need downloading. Exiting.');
+  process.exit(0);
+}
 
 // Helper: delay
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function normalizeLocalDishImageKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[€$£¥₹]\s*\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?\s*(?:€|eur|euros?|usd|gbp|元|円|₹)/gi, ' ')
+    .replace(/\b(?:alt|hero|card|generated|local)\b/g, ' ')
+    .replace(/\b(?:the|la|le|les|l|il|lo|gli|i|el|pizza|pasta|dish|plate|menu|meal)\b/g, ' ')
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildExistingLocalImageIndex() {
+  const index = new Map();
+  for (const file of readdirSync(DISHES_DIR)) {
+    if (!/\.(webp|png|jpe?g)$/i.test(file)) continue;
+    const basename = file.replace(/\.(webp|png|jpe?g)$/i, '');
+    const key = normalizeLocalDishImageKey(basename);
+    if (!key) continue;
+    const publicPath = `/dishes/${file}`;
+    const existing = index.get(key) || [];
+    existing.push(publicPath);
+    existing.sort((a, b) => {
+      const aBase = a.split('/').pop()?.replace(/\.(webp|png|jpe?g)$/i, '') || '';
+      const bBase = b.split('/').pop()?.replace(/\.(webp|png|jpe?g)$/i, '') || '';
+      const aVariant = /-(alt|hero|card)$/i.test(aBase) ? 1 : 0;
+      const bVariant = /-(alt|hero|card)$/i.test(bBase) ? 1 : 0;
+      return aVariant - bVariant || a.localeCompare(b);
+    });
+    index.set(key, existing);
+  }
+  return index;
+}
+
+const existingLocalImageIndex = buildExistingLocalImageIndex();
+
+function findExistingLocalDishImagePath(id, entry) {
+  const idPath = `/dishes/${id}.webp`;
+  if (existsSync(join(DISHES_DIR, `${id}.webp`))) return idPath;
+
+  const keys = Array.from(new Set([
+    id,
+    ...(Array.isArray(entry.names) ? entry.names : []),
+  ].map(normalizeLocalDishImageKey).filter(Boolean)));
+
+  for (const key of keys) {
+    const matches = existingLocalImageIndex.get(key);
+    if (matches?.length) return matches[0];
+  }
+
+  return '';
+}
 
 // Helper: download image with exponential-backoff rate-limit retries
 async function downloadImage(url, destPath) {
@@ -170,6 +250,7 @@ let succeeded = 0;
 let skipped = 0;
 let missingExistingOnly = 0;
 let failed = 0;
+let consecutiveFailures = 0;
 let processedSinceLastSave = 0;
 const errors = [];
 
@@ -177,10 +258,11 @@ const startTime = Date.now();
 
 for (let i = 0; i < workItems.length; i++) {
   const { id, entry, cardNeedsDownload, heroNeedsDownload } = workItems[i];
-  const localPath = `/dishes/${id}.webp`;
+  const existingLocalPath = findExistingLocalDishImagePath(id, entry);
+  const localPath = existingLocalPath || `/dishes/${id}.webp`;
   const destPath = join(DISHES_DIR, `${id}.webp`);
 
-  const fileExists = existsSync(destPath);
+  const fileExists = Boolean(existingLocalPath);
 
   // Show progress with ETA
   const elapsed = (Date.now() - startTime) / 1000;
@@ -190,7 +272,7 @@ for (let i = 0; i < workItems.length; i++) {
 
   console.log(
     `[${i + 1}/${workItems.length}] ${id}` +
-      (fileExists ? ' (exists)' : '') +
+      (fileExists ? ` (exists: ${localPath})` : '') +
       (i > 0 ? ` | ~${etaMin}min remaining` : '')
   );
 
@@ -207,10 +289,18 @@ for (let i = 0; i < workItems.length; i++) {
       try {
         await downloadImage(downloadUrl, destPath);
         succeeded++;
+        consecutiveFailures = 0;
       } catch (err) {
         console.error(`  FAILED: ${err.message}`);
         failed++;
+        consecutiveFailures++;
         errors.push({ id, error: err.message });
+        if (!EXISTING_ONLY && consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          console.error(
+            `  Stopping early after ${consecutiveFailures} consecutive failures; remote image source is likely unhealthy.`
+          );
+          break;
+        }
         // Don't update JSON for failed entries
         await delay(DELAY_MS);
         continue;
@@ -218,6 +308,7 @@ for (let i = 0; i < workItems.length; i++) {
     }
   } else {
     skipped++;
+    consecutiveFailures = 0;
   }
 
   // Update JSON entry

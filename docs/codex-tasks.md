@@ -1,128 +1,120 @@
 # Codex 执行清单
 
+> 更新时间：2026-08-10
 > 仓库：https://github.com/songchunhui513-bit/dishlens
-> 分支：main（最新 commit: 本地待提交，上一线上 commit `6d19234`）
-> 详细交接文档：`docs/handoff-codex-2026-05-25.md`
+> 分支：`main`
 > 线上地址：https://dishlens.wukongmkt.com
-> 部署：`ssh root@8.133.168.91 && cd /opt/dishlens && git pull && npm run build && pm2 restart dishlens`
+> 详细状态：`docs/handoff-codex-2026-08-05-image-speed-state.md`
+> 发布计划：`docs/superpowers/plans/2026-08-10-release-image-speed.md`
 
----
+## P0：本地版本收口与 Google Cloud 主站发布
 
-## P0: AI 生图加载状态（最高优先级）✅ 已完成
+- [ ] 将当前图片资产、识别缓存、加载体验、分享和诊断改动纳入可审计提交。
+- [x] 运行 `node scripts/diagnose-dish-images.mjs --summary --fail-on-deploy-risk`。
+- [x] 在无 `.env.local` 的干净目录运行 `npm ci`、176 项逻辑回归、lint、TypeScript 和生产构建。
+- [ ] 推送 GitHub `main`。
+- [ ] Google Cloud 主站执行 `git pull --ff-only && npm run build && pm2 restart dishlens --update-env`。
+- [ ] 检查 PM2 日志和线上 HTTP 200。
 
-**问题**：没有本地图片也没有缓存图片的菜品，当前显示 Unsplash 真实食物照占位 → 误导用户以为是实际菜品图。
+当前说明：
 
-**需求**：
-1. 初始显示**品牌风格加载动画**（不是真实食物照片）
-2. 动画风格必须与 `src/components/results/FoodCharacters.tsx` 一致：暖奶油底色 `#FFF5E9` + 棕色描边 `#D4A574` + 橙色星星 `#FF9F1C` + 手绘 SVG + 柔和微浮动
-3. **禁止 shimmer/骨架屏**（太 generic）
-4. **禁止真实食物图片占位**（误导）
-5. AI 图片生成完成后 fade out 加载动画 → fade in 真实图片
+- GitHub `main` 基线为 `61c0edd`。
+- 公网 DNS 当前指向 Google Cloud `35.255.147.40`；主站目录为 `/opt/dishlens-global`，部署基线为 `61c0edd`，工作区干净。
+- 主站 `.env.production` 已确认存在 Qwen、Supabase URL 和服务端密钥；禁止输出密钥值。
+- 阿里云 `8.133.168.91` 是备用机，不得先发布到备用机后误判主站已更新。
 
-**涉及两个位置**：
-- 列表卡片 68×68：`src/components/results/ResultsPage.tsx` line 224
-- 详情页 Hero 全宽 200px：`src/components/dish/DishDetailPage.tsx` line 138
+## P0：图片本地化与稳定复用
 
-**已实现**：
-1. 新增 `isDishImagePending(dish)` → `src/lib/dish-presentation.ts`
-2. 新建 `src/components/shared/DishImageWithLoading.tsx`
-3. 已替换 ResultsPage 和 DishDetailPage 图片位
-4. 新增 `.dish-image-loading` / `.dish-image-ready` 动画样式
-5. 按 dessert/soup/drink/pasta/main 展示不同手绘小动画
+- [x] 知识库共 1022 项。
+- [x] 本地知识图片 887 项。
+- [x] 人工审核生成缓存 110 项，其中 99 项提供新增稳定覆盖。
+- [x] 稳定本地覆盖率 97.6%，去重后 96.5%。
+- [x] 被引用本地图片缺失数为 0。
+- [x] 被引用但未进入 Git 的图片数为 0。
+- [x] 套餐、饮品、汤、甜点分类与图片 prompt 完成基础纠偏。
+- [ ] 将剩余 135 个 Pollinations 远程条目转为稳定本地 WebP。
+- [ ] 人工目检 125 张未提升 runtime 生成图，合格则 promote，不合格则 reject。
+- [ ] 优先补齐 34 道菜法国小馆样本中首次结果缺失的 18 张图。
 
-**设计参考**：
-- `src/components/results/FoodCharacters.tsx`
-- `src/app/globals.css` line 111-132（steamA、bowlFloat、sparkleA 等 keyframes）
-- v7 设计 token：`globals.css` :root 变量
+图片优先级：
 
----
+1. `public/dishes` 本地知识图。
+2. `public/dishes/generated-cache` 人工审核生成图。
+3. 阿里 OSS 中已持久化图片。
+4. Supabase Storage 中的兼容缓存。
+5. AI 后台生成并优先同步阿里 OSS。
 
-## P1: 部署上线
+`public/generated-dishes` 仅是机器本地运行时缓存，不得作为跨部署、分享或数据库稳定 URL。
 
-代码已 push 到 main。需要：
-1. `ssh root@8.133.168.91`
-2. `cd /opt/dishlens && git pull && npm run build && pm2 restart dishlens`
-3. `pm2 logs dishlens --lines 50` 确认启动正常
-4. 访问 https://dishlens.wukongmkt.com 验证
+## P0：首次识别与重复上传速度
 
----
+- [x] 首屏 first pass 与完整 enrichment 分离。
+- [x] 前 20 秒 LoadingPage 使用 700ms 快速轮询，随后恢复 1500ms。
+- [x] client hash/cache probe 支持重复上传命中服务端持久缓存，并为每次结果签发有效的新任务 ID。
+- [x] 干净缓存命中可在读取服务端原始图片前直接返回。
+- [x] 大菜单图片队列限流、deferred 语义和 60+40 渐进渲染已实现。
+- [x] 旧浏览器直返路径实测约 53–148ms；为避免任务授权过期，现改为服务端验证缓存，需发布后重新建立重复上传基线。
+- [ ] 用 5–10 张真实菜单建立线上冷启动与重复上传基线。
+- [ ] 比较 fast first-pass 视觉模型、菜单裁切/透视矫正和更轻量首屏字段策略。
 
-## P1: 图片持久化验证 ✅ 已加固，待真实菜单复测
+当前瓶颈：首次识别主要耗在云端视觉模型，真实样本约 6–28 秒；上传、结果构建和重复缓存不是主瓶颈。
 
-当前实现：
-1. 本地有匹配：直接用 `/dishes/*.png`
-2. 本地无匹配：先查确定性缓存 `/generated-dishes/<storageId>.png`
-3. 仍无缓存：AI 生图，写入 ECS 本地 `public/generated-dishes/`
-4. 如配置 `SUPABASE_SERVICE_ROLE_KEY`，同步写 Supabase Storage / dishes 表
-5. 再次遇到同名菜：直接复用确定性本地缓存或 DB 缓存
+## P0：海外快速生图链路
 
-**已知风险**：当前阿里云 `.env.production` 缺 `SUPABASE_SERVICE_ROLE_KEY`，DB 行写入仍可能受 RLS 限制，但 ECS 本地生成图缓存已经能兜底复用。
+- [x] 接入新加坡 Model Studio 同步生图接口。
+- [x] 普通菜品默认使用 `z-image-turbo`，失败时仅回退一次 `wan2.7-image`。
+- [x] 饮品、汤、海鲜、套餐默认使用 `wan2.7-image` 保证结构准确，失败时回退快速模型。
+- [x] 详情页生图前使用稳定 storage id 查询本地/OSS/Supabase 缓存，避免同菜重复付费生图。
+- [x] 新模型临时 URL 必须持久化成功后才返回给页面。
+- [x] 按需付费生图必须携带有效任务 ID，且菜品必须属于该任务结果。
+- [x] 按需生图增加客户端/任务/全局预算与同菜并发合并；当前单 PM2 进程下生效。
+- [x] 生产环境只把 HTTPS OSS/Supabase/CDN 地址视为稳定完成；本地 URL 仅限开发测试。
+- [x] 增加 2 RPS 请求间隔、模型超时、终止错误分类和结果下载域名/大小/超时校验。
+- [x] `NEXT_PUBLIC_DISH_IMAGE_CDN_HOST` 可配置 OSS 自定义 CDN 域名，避免 Next Image 运行时崩溃。
+- [x] 当前中国节点实测：`z-image-turbo` 约 4.0 秒，`wan2.7-image` 约 16.1 秒；仅作模型链路基线。
+- [ ] 创建新加坡 Model Studio Workspace/API Key，并在生产配置 `ALIBABA_MODEL_STUDIO_WORKSPACE_ID`、`ALIBABA_MODEL_STUDIO_API_KEY`。
+- [ ] 在新加坡 ECS/OSS 环境运行 20 道菜冷启动与重复命中 benchmark，再决定困难品类集合和超时值。
+- [ ] 扩展到多 PM2 worker 或多 ECS 前，把生图预算与同菜锁迁移到 Redis。
 
-## P1: 饮品/汤类生图准确性 ✅ 已完成基础修复
+启用原则：Workspace endpoint 与 API key 必须属于同一新加坡区域。未配置新加坡 Workspace 时继续使用旧 `wanx2.1` 链路；不得用北京 `QWEN_API_KEY` 代替新加坡 key。
 
-- `src/lib/ai/image-gen.ts` 新增 `classifyDishImageKind`
-- 饮品：提示词使用 cup/mug/glass，不再要求 plate
-- 汤类：提示词使用 bowl/broth/soup/stew，不再要求 plate
-- 甜点：使用 dessert portion 小盘/碗构图
+## P1：图片持久化
 
----
+- [x] 服务端支持 `SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET_KEY`。
+- [x] 生成图优先同步阿里 OSS，Supabase Storage 作为兼容回退；机器本地 URL 不进入稳定缓存响应。
+- [x] 本地和阿里云均确认配置存在，不在日志中输出密钥。
+- [ ] 从阿里云运行 Storage 诊断，验证 bucket、上传、公开 URL、清理全链路。
+- [ ] 用一份含新菜的真实菜单验证首次生成后写入 Supabase、服务器重启后仍命中。
+- [ ] 为失败上传增加可观测的后台补同步队列或重试机制。
 
-## P1: 知识库图片本地化（724 张）
+## P1：真实产品流程验收
 
-724/1022 道菜只有 Pollinations URL（浏览器加载不稳定），需下载为本地文件：
-1. 读 `public/dish-knowledge-db.json`，筛选 `card` 或 `hero` 字段包含 `pollinations.ai` 的条目
-2. 批量下载为 `/dishes/<slug>.png`
-3. 更新 JSON 中对应条目的 `card`/`hero` 字段为 `/dishes/<slug>.png`
-4. 下载后 `isLocalImageUrl` 就能匹配更多菜
+- [ ] 上传英文、法文、意大利文、弱光、倾斜、密集和快餐菜单。
+- [ ] 验证首次识别、重复上传、图片渐进补齐、菜品详情。
+- [ ] 验证分享面板、微信/系统分享、WhatsApp、Telegram 和复制链接。
+- [ ] 在新会话打开 `/share/[id]`，确认列表、详情和图片不依赖原设备缓存。
+- [ ] 验证 100–200 道菜的渐进渲染与 deferred 图片体验。
 
----
+## P2：后续产品建设
 
-## P1: dishes 表脏数据清理
+- [ ] 用户认证 UI。
+- [ ] localStorage 历史记录上限与迁移策略。
+- [ ] PWA manifest 与安装体验。
+- [ ] 错误监控与性能观测。
+- [ ] 图片系统诊断页，将本地、审核缓存、Supabase、AI pending 分层展示。
 
-之前错误缓存的 AI 图片仍在表中（如牛排配给了博洛尼亚香肠）：
-```sql
-DELETE FROM dishes WHERE image_source = 'ai' AND ai_image_url LIKE '%unsplash%';
+## 发布命令
+
+```bash
+git push origin main
+CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.11 gcloud compute ssh dishlens-global --zone us-central1-a --project gen-lang-client-0436209359 --command "cd /opt/dishlens-global && git pull --ff-only && npm run build && pm2 restart dishlens --update-env"
+CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.11 gcloud compute ssh dishlens-global --zone us-central1-a --project gen-lang-client-0436209359 --command "pm2 logs dishlens --lines 100 --nostream"
 ```
 
----
+## 发布禁区
 
-## P1: Supabase RLS for dishes 表
-
-匿名用户 INSERT 被 RLS 阻止。解决方案：
-- 用 service_role client（`SUPABASE_SERVICE_ROLE_KEY`）
-- 或调整 RLS 策略允许匿名 INSERT
-- 检查：`supabase/schema.sql` line 263
-
----
-
-## P2: 其他
-
-| 事项 | 说明 |
-|------|------|
-| 用户认证 UI | AuthModal.tsx 未创建 |
-| localStorage 历史上限 | 无上限，建议 50 条 |
-| PWA manifest | 缺 manifest.json |
-| 错误监控 | 无 Sentry |
-
----
-
-## 关键文件速查
-
-| 文件 | 职责 |
-|------|------|
-| `src/app/api/v1/translate/menu/route.ts` | 翻译 API 主流程 + 图片分配 + 缓存 + 后台生图 |
-| `src/lib/dish-image-match.ts` | 知识库图片匹配（DIRECT_ALIASES + token 模糊匹配） |
-| `src/lib/dish-presentation.ts` | 前端图片 URL 解析 + 菜品洞察文案 + imageRules |
-| `src/lib/ai/image-gen.ts` | AI 图片生成（Wan API + Pollinations fallback） |
-| `src/components/results/FoodCharacters.tsx` | 食物角色动画（加载动画设计参考） |
-| `src/components/results/ResultsPage.tsx` | 翻译结果列表（卡片图片） |
-| `src/components/dish/DishDetailPage.tsx` | 菜品详情页（Hero 图片） |
-
----
-
-## 绝对不能做
-
-1. **不要改 UI 组件的视觉设计**（颜色、字体、间距、圆角、动画参数）
-2. **不要删 Nginx default 配置**
-3. **不要修改 globals.css 设计 token**
-4. **isLocalImageUrl 只接受 `/dishes/` 路径**
+1. 不提交 `.env*`、密钥或 Supabase service role 片段。
+2. 不提交 `.cache/` 或 `public/generated-dishes/`。
+3. 不把 DashScope signed URL、Pollinations URL、Unsplash URL 或机器本地生成图写入稳定分享数据。
+4. 不删除 Nginx default 配置，不执行破坏性 Git 命令。
+5. 未通过图片部署 gate、回归、lint 和 build 时不得发布。

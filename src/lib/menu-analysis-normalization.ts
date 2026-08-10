@@ -93,6 +93,10 @@ function inferFoodCategory(dish: DishLike): string | undefined {
     .join(" ")
     .toLowerCase();
 
+  const comboMeal = /\b(?:meal|combo|set|value meal|box meal|with fries|with drink|fries and drink|chips and drink)\b|套餐|组合餐|套饭|配薯条|配饮料|含饮品|含薯条/.test(text);
+  const stapleMain = /披萨|意面|米饭|面包|卷餐|卷饼|汉堡|鱼柳|麦香鸡|麦辣|pizza|pasta|rice|noodle|burger|sandwich|wrap|paneer|filet[-\s]?o[-\s]?fish|mcchicken|maharaja/.test(text);
+  if (comboMeal && stapleMain) return "staple";
+
   const drink = /饮品|饮料|鸡尾酒|果汁|咖啡|茶|wine|beer|cocktail|mocktail|juice|coffee|tea|lemonade|cider/.test(text);
   const food =
     /鹅肝|鸭肝|扇贝|鱼|虾|蟹|贝|蘑菇|芦笋|南瓜|鱼子|面包|肉|鸡|鸭|牛|羊|猪|foie gras|scallop|oyster|mushroom|asparagus|pumpkin|roe|brioche|fish|shrimp|crab|duck|beef|lamb|pork|chicken/.test(
@@ -103,7 +107,7 @@ function inferFoodCategory(dish: DishLike): string | undefined {
   if (/鹅肝|鸭肝|扇贝|生蚝|沙拉|前菜|foie gras|scallop|oyster|salad|starter|appetizer/.test(text)) {
     return "appetizer";
   }
-  if (/披萨|意面|米饭|面包|pizza|pasta|rice|noodle|burger|sandwich/.test(text)) return "staple";
+  if (stapleMain) return "staple";
   if (food) return "main";
   return undefined;
 }

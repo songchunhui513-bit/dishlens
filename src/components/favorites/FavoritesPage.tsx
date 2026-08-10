@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
+import FoodThumbnailFallback from "@/components/shared/FoodThumbnailFallback";
+import { isSafeStoredThumbnail } from "@/lib/safe-image-url";
 
 interface FavoriteDish {
   id: string;
@@ -18,6 +21,7 @@ interface FavoritesPageProps {
 }
 
 export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemoveFavorite }: FavoritesPageProps) {
+  const [failedFavoriteImages, setFailedFavoriteImages] = useState<Record<string, true>>({});
   const items = favorites?.length ? favorites : [];
   const isEmpty = items.length === 0;
 
@@ -32,7 +36,7 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
         >
           ←
         </button>
-        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
+        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>
           我的收藏
         </h2>
         {!isEmpty && (
@@ -40,14 +44,14 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
             className="ml-auto font-semibold"
             style={{
               fontFamily: "var(--font-ui)",
-              fontSize: 9,
+              fontSize: 12,
               color: "var(--muted)",
             }}
           >
             {items.length} 道
           </span>
         )}
-        <span style={{ fontFamily: "var(--font-ui)", fontSize: 7, fontWeight: 600, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "2px 8px", borderRadius: 10 }}>
+        <span style={{ fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 750, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "4px 10px", borderRadius: 999 }}>
           本地
         </span>
       </div>
@@ -69,10 +73,10 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
               <path d="M24 36C14 28 8 22 8 14C8 8 14 4 19 4C22 4 26 6 28 9C30 6 34 4 37 4C42 4 48 8 48 14C48 22 38 28 24 36Z" />
             </svg>
           </div>
-          <h3 style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 }}>
+          <h3 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 800, color: "var(--muted)", marginBottom: 6 }}>
             还没有收藏
           </h3>
-          <p style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", opacity: 0.7, marginBottom: 20, maxWidth: 200, lineHeight: 1.5 }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", opacity: 0.76, marginBottom: 22, maxWidth: 250, lineHeight: 1.55 }}>
             浏览翻译结果时，点击心形图标即可收藏喜欢的菜品
           </p>
           <button
@@ -80,13 +84,13 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
             className="transition-all duration-150 active:scale-[0.96]"
             style={{
               fontFamily: "var(--font-body)",
-              fontSize: 10,
+              fontSize: 14,
               fontWeight: 700,
               color: "#FFF",
               background: "var(--primary)",
               border: "none",
               borderRadius: "var(--radius)",
-              padding: "10px 28px",
+              padding: "13px 30px",
               cursor: "pointer",
               boxShadow: "0 4px 16px rgba(76,175,80,0.2)",
             }}
@@ -97,50 +101,62 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
       ) : (
         /* Filled state */
         <div className="flex-1 overflow-auto" style={{ padding: "0 20px" }}>
-          {items.map((dish, i) => (
-            <button
-              key={dish.id}
-              onClick={() => onDishDetail?.(dish.id)}
-              className="flex items-center gap-2.5 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
-              style={{
-                padding: "10px 0",
-                borderBottom: i < items.length - 1 ? "1px solid var(--rule)" : "none",
-                cursor: "pointer",
-                background: "none",
-                fontFamily: "inherit",
-                borderTop: "none",
-                borderLeft: "none",
-                borderRight: "none",
-              }}
-            >
-              <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 56, height: 56, borderRadius: "var(--radius-sm)" }}>
-                {dish.image_url ? (
-                  <Image src={dish.image_url} alt={dish.name_zh} fill sizes="56px" style={{ objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: "100%", height: "100%", background: "var(--card)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)" }}>
-                    {dish.name_zh[0]}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>
-                  {dish.name_zh}
-                </div>
-                <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", fontWeight: 500 }}>
-                  <span>{dish.name_original}</span>
-                  <span>· {dish.cuisine}</span>
-                </div>
-              </div>
+          {items.map((dish, i) => {
+            const imageUrl = isSafeStoredThumbnail(dish.image_url) ? dish.image_url : "";
+            const showImage = imageUrl && !failedFavoriteImages[imageUrl];
+
+            return (
               <button
-                onClick={(e) => { e.stopPropagation(); onRemoveFavorite?.(dish.id); }}
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex" }}
+                key={dish.id}
+                onClick={() => onDishDetail?.(dish.id)}
+                className="flex items-center gap-3 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
+                style={{
+                  padding: "13px 0",
+                  borderBottom: i < items.length - 1 ? "1px solid var(--rule)" : "none",
+                  cursor: "pointer",
+                  background: "none",
+                  fontFamily: "inherit",
+                  borderTop: "none",
+                  borderLeft: "none",
+                  borderRight: "none",
+                }}
               >
-                <svg viewBox="0 0 20 18" style={{ width: 18, height: 16, fill: "var(--accent)", stroke: "var(--accent)", strokeWidth: 0.8 }}>
-                  <path d="M10 16C4 12 2 10 2 7 2 4 4 2 6.5 2 8 2 9 3 10 5 11 3 12 2 13.5 2 16 2 18 4 18 7 18 10 16 12 10 16Z" />
-                </svg>
+                <div className="relative flex-shrink-0 overflow-hidden" style={{ width: 56, height: 56, borderRadius: "var(--radius-sm)" }}>
+                  {showImage ? (
+                    <Image
+                      src={imageUrl}
+                      alt={dish.name_zh}
+                      fill
+                      sizes="56px"
+                      style={{ objectFit: "cover" }}
+                      onError={() => {
+                        setFailedFavoriteImages((prev) => ({ ...prev, [imageUrl]: true }));
+                      }}
+                    />
+                  ) : (
+                    <FoodThumbnailFallback label={`${dish.name_zh} 暂无图片`} size={56} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 750, color: "var(--ink)", marginBottom: 4, lineHeight: 1.25 }}>
+                    {dish.name_zh}
+                  </div>
+                  <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", fontWeight: 650, lineHeight: 1.35 }}>
+                    <span>{dish.name_original}</span>
+                    <span>· {dish.cuisine}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemoveFavorite?.(dish.id); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex" }}
+                >
+                  <svg viewBox="0 0 20 18" style={{ width: 18, height: 16, fill: "var(--accent)", stroke: "var(--accent)", strokeWidth: 0.8 }}>
+                    <path d="M10 16C4 12 2 10 2 7 2 4 4 2 6.5 2 8 2 9 3 10 5 11 3 12 2 13.5 2 16 2 18 4 18 7 18 10 16 12 10 16Z" />
+                  </svg>
+                </button>
               </button>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

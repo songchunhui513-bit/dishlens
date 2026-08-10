@@ -17,7 +17,7 @@ function getClient(): SupabaseClient | undefined {
 function getAdminClient(): SupabaseClient | undefined {
   if (_adminClient) return _adminClient;
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) return undefined;
 
   _adminClient = createClient(url, key, {

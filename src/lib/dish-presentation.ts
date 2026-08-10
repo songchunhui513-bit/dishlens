@@ -8,12 +8,6 @@ type DishText = {
   searchText: string;
 };
 
-type DishImageRule = {
-  patterns: string[];
-  card: string;
-  hero: string;
-};
-
 type DishInsight = {
   summary: string;
   recommendation: string;
@@ -21,148 +15,6 @@ type DishInsight = {
   caution: string;
   confidenceLabel: string;
 };
-
-const imageRules: DishImageRule[] = [
-  {
-    patterns: ["caesar salad", "凯撒", "caesar"],
-    card: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["garden salad", "田园", "green salad"],
-    card: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["salad", "沙拉"],
-    card: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["fried calamari", "calamari", "鱿鱼", "炸鱿"],
-    card: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["cheese", "fromage", "formaggi", "fromaggio", "queso", "奶酪", "芝士", "干酪", "burrata", "mozzarella", "gorgonzola", "parmigiano", "pecorino", "ricotta", "taleggio", "brie", "camembert", "charcuterie", "冷切", "火腿拼盘", "奶酪拼盘", "芝士拼盘"],
-    card: "https://images.unsplash.com/photo-1452195100486-aece4e191ee1?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1452195100486-aece4e191ee1?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["mozzarella", "奶酪棒", "芝士棒", "cheese stick"],
-    card: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["chicken", "roast chicken", "鸡肉", "鸡"],
-    card: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["beef", "steak", "bourguignon", "牛排", "牛肉"],
-    card: "https://images.unsplash.com/photo-1544025162-d76694265947?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["fish", "sole", "salmon", "鱼", "三文鱼"],
-    card: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["shellfish", "clam", "oyster", "conch", "whelk", "sea snail", "snail", "escargot", "贝", "蚝", "蛤", "蛏", "扇贝", "螺", "花螺", "海螺", "响螺", "田螺"],
-    card: "/dishes/escargots-de-bourgogne.webp",
-    hero: "/dishes/escargots-de-bourgogne.webp",
-  },
-  {
-    patterns: ["pasta", "spaghetti", "carbonara", "意面", "面"],
-    card: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["dessert", "cake", "tatin", "甜点", "蛋糕", "挞"],
-    card: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1616953882462-8a583e0afbb4?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["starter", "appetizer", "前菜", "开胃"],
-    card: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["coffee", "espresso", "expresso", "cappuccino", "latte", "americano", "咖啡", "浓缩", "卡布奇诺", "拿铁"],
-    card: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["tea", "matcha", "chai", "茶", "抹茶"],
-    card: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["beer", "draft beer", "lager", "ale", "stout", "pilsner", "asahi", "heineken", "budweiser", "corona", "啤酒", "生啤酒", "生啤", "精酿"],
-    card: "https://images.unsplash.com/photo-1566632776289-2a5f5b9b6e4e?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1566632776289-2a5f5b9b6e4e?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["wine", "red wine", "white wine", "rosé", "vin", "vino", "红酒", "白酒", "葡萄酒", "杯装酒"],
-    card: "https://images.unsplash.com/photo-1474722883777-792e7990302f?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1474722883777-792e7990302f?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["whiskey", "whisky", "scotch", "bourbon", "威士忌"],
-    card: "https://images.unsplash.com/photo-1572715376701-579e0b0e88a5?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1572715376701-579e0b0e88a5?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["shochu", "soju", "烧酒", "烧酎", "韩国烧酒", "日本烧酒", "芋", "麦烧酒", "薯烧酒"],
-    card: "https://images.unsplash.com/photo-1599300298645-398187537a19?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1599300298645-398187537a19?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["plum wine", "ume", "umeshu", "梅酒", "梅子酒"],
-    card: "https://images.unsplash.com/photo-1584319302131-3c5fce30c0b4?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1584319302131-3c5fce30c0b4?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["sake", "nihonshu", "清酒", "日本酒", "daiginjo", "junmai"],
-    card: "https://images.unsplash.com/photo-1576800651266-77a58ce2f10b?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1576800651266-77a58ce2f10b?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["cocktail", "martini", "margarita", "mojito", "鸡尾酒"],
-    card: "https://images.unsplash.com/photo-1551024709-8f5b2d99e352?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1551024709-8f5b2d99e352?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["champagne", "sparkling", "prosecco", "香槟", "起泡酒", "气泡酒"],
-    card: "https://images.unsplash.com/photo-1594144355189-40b46e72efd8?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1594144355189-40b46e72efd8?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["威士忌", "白兰地", "伏特加", "金酒", "朗姆酒", "龙舌兰", "alcohol", "liquor", "spirit", "spirits", "bartender"],
-    card: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["juice", "smoothie", "lemonade", "果汁", "冰沙", "柠檬水"],
-    card: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=600&h=400&fit=crop&auto=format",
-  },
-  {
-    patterns: ["ham", "jambon", "prosciutto", "parma", "cold cut", "charcuterie", "salami", "sausage", "saucisson", "火腿", "香肠", "冷切", "肉肠", "萨拉米"],
-    card: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=136&h=136&fit=crop&auto=format",
-    hero: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=600&h=400&fit=crop&auto=format",
-  },
-];
-
-const diverseFallbacks = [
-  "https://images.unsplash.com/photo-1414235077428-338989a2e8c0",
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-  "https://images.unsplash.com/photo-1544025162-d76694265947",
-  "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327",
-  "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd",
-  "https://images.unsplash.com/photo-1467003909585-2f8a72700288",
-];
 
 export function localizedValue(
   value: Dish["name_translated"] | Dish["description"] | string | undefined,
@@ -259,19 +111,6 @@ export function getDishIncludedItems(dish: Dish, preferredLang = "zh"): string[]
   return items.slice(0, 6);
 }
 
-function getDishIdentityText(dish: Dish): string {
-  return [
-    dish.name_original || "",
-    localizedValue(dish.name_translated),
-    dish.category || "",
-    dish.cuisine_region || "",
-    ...(dish.included_items || []),
-    ...(dish.ingredients || []),
-  ]
-    .join(" ")
-    .toLowerCase();
-}
-
 function isDisplayableDishImageUrl(url: string | null | undefined): url is string {
   if (!url) return false;
   if (/image\.pollinations\.ai|dashscope-result.*aliyuncs\.com/i.test(url)) return false;
@@ -288,23 +127,16 @@ export function getDishImageUrl(dish: Dish, size: "card" | "hero" = "card"): str
   if (localImage) return size === "hero" ? localImage.hero : localImage.card;
 
   if (displayableExistingImage) return displayableExistingImage;
+  if (dish.image_status === "deferred" || dish.image_status === "failed" || dish.image_status === "generating" || dish.image_status === "pending") return "";
   if (dish.image_source === "ai") return "";
 
-  // Fallback to Unsplash keyword rules
-  const text = getDishIdentityText(dish);
-  const matched = imageRules.find((rule) =>
-    rule.patterns.some((pattern) => text.includes(pattern.toLowerCase()))
-  );
-  if (matched) return matched[size];
-
-  const base = diverseFallbacks[hashStr(text || dish.id) % diverseFallbacks.length];
-  const dimensions = size === "card" ? "w=136&h=136" : "w=600&h=400";
-  return `${base}?${dimensions}&fit=crop&auto=format`;
+  return "";
 }
 
 export function isDishImagePending(dish: Dish): boolean {
   const localImage = matchLocalImage(dish);
   if (localImage) return false;
+  if (dish.image_status === "deferred") return false;
   if (dish.image_status === "failed") return false;
 
   const existingImage = dish.ai_image_url || (dish as { image_url?: string }).image_url;

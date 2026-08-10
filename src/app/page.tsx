@@ -19,7 +19,7 @@ import OrderConfirmPage from "@/components/order/OrderConfirmPage";
 import OrderedPage from "@/components/order/OrderedPage";
 import OrderedDetailPage from "@/components/order/OrderedDetailPage";
 import type { CapturedPhoto, Dish, TranslationResult, HistoryEntry, FavoriteDish, OrderedVisit, OrderNote, OrderQuantityMap, UserSettings } from "@/types";
-import { createTranslation, type TranslationClientStage } from "@/lib/api-client";
+import { createTranslation, generateDishImageForDish, type TranslationClientStage } from "@/lib/api-client";
 import {
   getHistory as getStoredHistory,
   addHistory,
@@ -61,6 +61,11 @@ type Screen =
   | "settings"
   | "error";
 
+const RESULT_IMAGE_POLL_FAST_MS = 1500;
+const RESULT_IMAGE_POLL_STEADY_MS = 4000;
+const RESULT_IMAGE_POLL_SLOW_MS = 8000;
+const RESULT_IMAGE_FAST_POLL_WINDOW_MS = 30_000;
+
 const ORDER_NOTES: Record<string, OrderNote[]> = {
   ja: [
     { id: "no-peanuts", zh: "不要花生", original: "ピーナッツ抜きでお願いします。" },
@@ -93,6 +98,93 @@ function getOrderNotes(sourceLang?: string): OrderNote[] {
   return ORDER_NOTES._default;
 }
 
+function buildDishSyncSignature(dish: Dish) {
+  return {
+    id: dish.id,
+    name_original: dish.name_original,
+    name_translated: dish.name_translated,
+    description: dish.description,
+    recommendation: dish.recommendation || "",
+    good_for: dish.good_for || "",
+    caution: dish.caution || "",
+    category: dish.category || "",
+    ingredients: dish.ingredients || [],
+    included_items: dish.included_items || [],
+    allergens: dish.allergens || [],
+    taste_profile: dish.taste_profile || [],
+    ai_image_url: dish.ai_image_url || "",
+    image_url: dish.image_url || "",
+    image_status: dish.image_status || "",
+    image_error: dish.image_error || "",
+  };
+}
+
+function buildResultSyncSignature(result: TranslationResult) {
+  return JSON.stringify({
+    status: result.status,
+    failed_pages: result.failed_pages || [],
+    metadata: {
+      source_language: result.metadata?.source_language || "",
+      target_language: result.metadata?.target_language || "",
+      total_dishes: result.metadata?.total_dishes || 0,
+      enrichment_status: result.metadata?.enrichment_status || "",
+      image_generation_status: result.metadata?.image_generation_status || "",
+      image_generation_progress: result.metadata?.image_generation_progress || null,
+      image_generation_queue_total: result.metadata?.image_generation_queue_total || 0,
+      image_generation_active_total: result.metadata?.image_generation_active_total || 0,
+      image_generation_queued_total: result.metadata?.image_generation_queued_total || 0,
+      image_generation_batch_limit: result.metadata?.image_generation_batch_limit || 0,
+      image_generation_deferred_total: result.metadata?.image_generation_deferred_total || 0,
+      restaurant: result.metadata?.restaurant || null,
+      insight: result.metadata?.insight || null,
+      signature: result.metadata?.signature || null,
+    },
+    pages: (result.pages || []).map((page) => ({
+      page_index: page.page_index,
+      page_label: page.page_label,
+      dishes: (page.dishes || []).map(buildDishSyncSignature),
+    })),
+  });
+}
+
+function mergeClientDishImageState(
+  previous: TranslationResult,
+  incoming: TranslationResult,
+): TranslationResult {
+  const previousByKey = new Map<string, Dish>();
+  for (const page of previous.pages || []) {
+    for (const dish of page.dishes || []) {
+      if (dish.id) previousByKey.set(`id:${dish.id}`, dish);
+      if (dish.name_original) previousByKey.set(`name:${dish.name_original}`, dish);
+    }
+  }
+
+  let changed = false;
+  const pages = (incoming.pages || []).map((page) => ({
+    ...page,
+    dishes: (page.dishes || []).map((dish): Dish => {
+      const previousById = dish.id ? previousByKey.get(`id:${dish.id}`) : undefined;
+      const previousDish = previousById ?? (
+        dish.name_original ? previousByKey.get(`name:${dish.name_original}`) : undefined
+      );
+      const previousUrl = previousDish?.ai_image_url || previousDish?.image_url;
+      const incomingUrl = dish.ai_image_url || dish.image_url;
+      if (!previousDish || !previousUrl || previousDish.image_status !== "done" || incomingUrl) return dish;
+      changed = true;
+      return {
+        ...dish,
+        ai_image_url: previousDish.ai_image_url || previousUrl,
+        image_url: previousDish.image_url || previousUrl,
+        image_status: "done",
+        image_source: previousDish.image_source || "ai",
+        image_error: undefined,
+      };
+    }),
+  }));
+
+  return changed ? { ...incoming, pages } : incoming;
+}
+
 // ── AppPhone State Manager ─────────────────────────────────────────
 
 export default function Page() {
@@ -102,6 +194,9 @@ export default function Page() {
   const [translationResult, setTranslationResult] = useState<TranslationResult | null>(null);
   const latestResultRef = useRef<TranslationResult | null>(null);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [selectedDishImageGenerating, setSelectedDishImageGenerating] = useState(false);
+  const generatingDishIdsRef = useRef(new Set<string>());
+  const [generatingDishIds, setGeneratingDishIds] = useState<Set<string>>(() => new Set());
   const [selectedDishRestaurantSource, setSelectedDishRestaurantSource] = useState<RestaurantSource | null>(null);
   const [orderQuantities, setOrderQuantities] = useState<OrderQuantityMap>({});
   const [selectedOrderNoteIds, setSelectedOrderNoteIds] = useState<string[]>([]);
@@ -166,9 +261,12 @@ export default function Page() {
   // Compute AI image generation progress
   const imageGenProgress = useMemo(() => {
     if (!translationResult?.pages) return undefined;
+    const activeTotal = translationResult.metadata?.image_generation_active_total || 0;
+    const queuedTotal = translationResult.metadata?.image_generation_queued_total || 0;
+    const batchLimit = translationResult.metadata?.image_generation_batch_limit || 0;
     const metadataProgress = translationResult.metadata?.image_generation_progress;
     if (metadataProgress?.total) {
-      return { done: metadataProgress.current, total: metadataProgress.total };
+      return { done: metadataProgress.current, total: metadataProgress.total, activeTotal, queuedTotal, batchLimit };
     }
     const allDishes = translationResult.pages.flatMap((p) => p.dishes || []);
     const total = allDishes.length;
@@ -177,8 +275,43 @@ export default function Page() {
       const url = d.ai_image_url || (d as { image_url?: string }).image_url;
       return url && !/images\.unsplash\.com|image\.pollinations\.ai|dashscope-result.*aliyuncs\.com/i.test(url);
     }).length;
-    return { done, total };
+    return { done, total, activeTotal, queuedTotal };
   }, [translationResult]);
+
+  const setDishImageGenerating = useCallback((dishId: string, generating: boolean) => {
+    const next = new Set(generatingDishIdsRef.current);
+    if (generating) next.add(dishId);
+    else next.delete(dishId);
+    generatingDishIdsRef.current = next;
+    setGeneratingDishIds(next);
+  }, []);
+
+  const updateTranslationResultDishImage = useCallback((dishId: string, updates: Partial<Dish>) => {
+    setTranslationResult((prev) => {
+      if (!prev) return prev;
+      let changed = false;
+      let resolvedDeferred = false;
+      const next: TranslationResult = {
+        ...prev,
+        metadata: { ...prev.metadata },
+        pages: prev.pages.map((page) => ({
+          ...page,
+          dishes: (page.dishes || []).map((dish) => {
+            if (dish.id !== dishId) return dish;
+            changed = true;
+            resolvedDeferred = resolvedDeferred || (dish.image_status === "deferred" && updates.image_status === "done");
+            return { ...dish, ...updates };
+          }),
+        })),
+      };
+      if (!changed) return prev;
+      if (resolvedDeferred && next.metadata.image_generation_deferred_total) {
+        next.metadata.image_generation_deferred_total = Math.max(0, next.metadata.image_generation_deferred_total - 1);
+      }
+      latestResultRef.current = next;
+      return next;
+    });
+  }, []);
 
   // Save translation to history when result comes in
   const saveToHistory = useCallback((result: TranslationResult) => {
@@ -366,11 +499,106 @@ export default function Page() {
   const handleDishDetail = useCallback(
     (dish: Dish) => {
       setSelectedDish(dish);
+      setSelectedDishImageGenerating(generatingDishIdsRef.current.has(dish.id));
       setSelectedDishRestaurantSource(null);
       navigate("detail");
     },
     [navigate]
   );
+
+  const handleGenerateDishImage = useCallback(async (dish: Dish) => {
+    if (!dish?.id || generatingDishIdsRef.current.has(dish.id)) return;
+
+    setDishImageGenerating(dish.id, true);
+    updateTranslationResultDishImage(dish.id, {
+      image_status: "generating",
+      image_error: undefined,
+    });
+    setSelectedDish((prev) => prev && prev.id === dish.id ? {
+      ...prev,
+      image_status: "generating",
+      image_error: undefined,
+    } : prev);
+
+    try {
+      const generated = await generateDishImageForDish(dish, translationResult?.task_id);
+      updateTranslationResultDishImage(dish.id, {
+        ai_image_url: generated.url,
+        image_url: generated.url,
+        image_status: "done",
+        image_source: "ai",
+        image_error: undefined,
+      });
+      setSelectedDish((prev) => prev && prev.id === dish.id ? {
+        ...prev,
+        ai_image_url: generated.url,
+        image_url: generated.url,
+        image_status: "done",
+        image_source: "ai",
+        image_error: undefined,
+      } : prev);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "图片生成失败";
+      updateTranslationResultDishImage(dish.id, {
+        image_status: "failed",
+        image_error: message,
+      });
+      setSelectedDish((prev) => prev && prev.id === dish.id ? {
+        ...prev,
+        image_status: "failed",
+        image_error: message,
+      } : prev);
+    } finally {
+      setDishImageGenerating(dish.id, false);
+    }
+  }, [setDishImageGenerating, translationResult, updateTranslationResultDishImage]);
+
+  const handleGenerateSelectedDishImage = useCallback(async (dish: Dish) => {
+    if (!selectedDish?.id || selectedDish.id !== dish.id || selectedDishImageGenerating) return;
+
+    setSelectedDishImageGenerating(true);
+    setSelectedDish((prev) => prev && prev.id === selectedDish.id ? {
+      ...prev,
+      image_status: "generating",
+      image_error: undefined,
+    } : prev);
+    updateTranslationResultDishImage(selectedDish.id, {
+      image_status: "generating",
+      image_error: undefined,
+    });
+
+    try {
+      const generated = await generateDishImageForDish(selectedDish, translationResult?.task_id);
+      setSelectedDish((prev) => prev && prev.id === selectedDish.id ? {
+        ...prev,
+        ai_image_url: generated.url,
+        image_url: generated.url,
+        image_status: "done",
+        image_source: "ai",
+        image_error: undefined,
+      } : prev);
+      updateTranslationResultDishImage(selectedDish.id, {
+        ai_image_url: generated.url,
+        image_url: generated.url,
+        image_status: "done",
+        image_source: "ai",
+        image_error: undefined,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "图片生成失败";
+      setSelectedDish((prev) => prev && prev.id === selectedDish.id ? {
+        ...prev,
+        image_status: "failed",
+        image_error: message,
+      } : prev);
+      updateTranslationResultDishImage(selectedDish.id, {
+        image_status: "failed",
+        image_error: message,
+      });
+    } finally {
+      setSelectedDishImageGenerating(false);
+    }
+  }, [selectedDish, selectedDishImageGenerating, translationResult, updateTranslationResultDishImage]);
 
   const handleDailyDishDetail = useCallback(() => {
     if (!dailyDish) return;
@@ -476,10 +704,6 @@ export default function Page() {
     if ((screen !== "results" && screen !== "detail") || !translationResult?.task_id) return;
 
     const taskId = translationResult.task_id;
-    let active = true;
-    let idlePolls = 0;
-    const MAX_IDLE_POLLS = 24;
-    let lastSyncedImages = 0;
     const imageDoneStatus = new Set(["done", "partial", "failed"]);
     const hasPendingImages = (result: TranslationResult) => {
       const imageStatus = result.metadata?.image_generation_status;
@@ -488,11 +712,18 @@ export default function Page() {
       return result.pages
         .flatMap((page) => page.dishes || [])
         .some((dish) => {
+          if (dish.image_status === "deferred") return false;
           if (dish.image_status === "done" || dish.image_status === "failed") return false;
           const url = dish.ai_image_url || (dish as { image_url?: string }).image_url;
           return !url;
         });
     };
+    let active = true;
+    let idlePolls = 0;
+    const MAX_IDLE_POLLS = 24;
+    let lastSyncedImages = 0;
+    let latestHasPendingImages = hasPendingImages(translationResult);
+    const pollStartedAt = Date.now();
 
     const poll = async () => {
       if (!active || idlePolls >= MAX_IDLE_POLLS) return;
@@ -503,62 +734,61 @@ export default function Page() {
         const data = await res.json();
         if (data?.result?.pages) {
           const newResult = data.result as TranslationResult;
+          latestHasPendingImages = hasPendingImages(newResult);
           setTranslationResult((prev) => {
             if (!prev) return newResult;
-            let changed = false;
+            const reconciledResult = mergeClientDishImageState(prev, newResult);
+            latestHasPendingImages = hasPendingImages(reconciledResult);
+            let changed = buildResultSyncSignature(reconciledResult) !== buildResultSyncSignature(prev);
             let imageCount = 0;
-            for (let p = 0; p < newResult.pages.length; p++) {
-              for (let d = 0; d < (newResult.pages[p].dishes?.length || 0); d++) {
-                const newDish = newResult.pages[p].dishes[d];
+            for (let p = 0; p < reconciledResult.pages.length; p++) {
+              for (let d = 0; d < (reconciledResult.pages[p].dishes?.length || 0); d++) {
+                const newDish = reconciledResult.pages[p].dishes[d];
                 const oldDish = prev.pages[p]?.dishes?.[d];
                 if (newDish?.ai_image_url) imageCount++;
-                if (
+                if (!changed && (
                   (newDish?.ai_image_url && newDish.ai_image_url !== oldDish?.ai_image_url) ||
                   newDish?.image_status !== oldDish?.image_status
-                ) {
-                  changed = true;
-                }
+                )) changed = true;
               }
             }
             if (changed || hasPendingImages(newResult)) idlePolls = 0;
             else idlePolls++;
             // Re-save history with updated thumbnails when new images arrive
-            if (changed && imageCount > lastSyncedImages) {
+            if (changed && (imageCount > lastSyncedImages || reconciledResult.metadata?.enrichment_status === "done")) {
               lastSyncedImages = imageCount;
-              const safeThumbnail = pickSafeMenuThumbnail({ thumbnail: "", result_summary: newResult });
+              const safeThumbnail = pickSafeMenuThumbnail({ thumbnail: "", result_summary: reconciledResult });
               if (safeThumbnail) {
-                const sourceLang = resolveMenuSourceLanguage(newResult) || newResult.metadata?.source_language || "";
+                const sourceLang = resolveMenuSourceLanguage(reconciledResult) || reconciledResult.metadata?.source_language || "";
                 const restaurant = getRestaurantDisplayMeta(
                   sourceLang,
                   settings.targetLang,
                   newResult.metadata?.restaurant,
                 );
                 const entry: HistoryEntry = {
-                  id: newResult.task_id,
+                  id: reconciledResult.task_id,
                   restaurant_name: restaurant.display_name,
                   city: restaurant.city,
-                  dish_count: newResult.metadata?.total_dishes || 0,
-                  page_count: newResult.pages.length,
+                  dish_count: reconciledResult.metadata?.total_dishes || 0,
+                  page_count: reconciledResult.pages.length,
                   date: new Date().toISOString(),
                   thumbnail: safeThumbnail,
                   source_lang: sourceLang,
                   target_lang: settings.targetLang,
-                  result_summary: newResult,
+                  result_summary: reconciledResult,
                 };
                 addHistory(entry);
                 setHistoryEntries(getStoredHistory());
               }
             }
-            return changed ? newResult : prev;
+            if (changed) latestResultRef.current = reconciledResult;
+            return changed ? reconciledResult : prev;
           });
           setSelectedDish((prevDish) => {
             if (!prevDish) return prevDish;
             for (const page of newResult.pages || []) {
               const matched = (page.dishes || []).find((dish) => dish.id === prevDish.id || dish.name_original === prevDish.name_original);
-              if (
-                (matched?.ai_image_url && matched.ai_image_url !== prevDish.ai_image_url) ||
-                (matched && matched.image_status !== prevDish.image_status)
-              ) return matched;
+              if (matched && buildDishSyncSignature(matched) !== buildDishSyncSignature(prevDish)) return matched;
             }
             return prevDish;
           });
@@ -570,7 +800,13 @@ export default function Page() {
       }
 
       if (active && idlePolls < MAX_IDLE_POLLS) {
-        setTimeout(poll, 4000);
+        const elapsed = Date.now() - pollStartedAt;
+        const nextPollDelay = latestHasPendingImages
+          ? elapsed < RESULT_IMAGE_FAST_POLL_WINDOW_MS
+            ? RESULT_IMAGE_POLL_FAST_MS
+            : RESULT_IMAGE_POLL_STEADY_MS
+          : RESULT_IMAGE_POLL_SLOW_MS;
+        setTimeout(poll, nextPollDelay);
       }
     };
 
@@ -579,7 +815,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [screen, settings.targetLang, translationResult?.task_id]);
+  }, [screen, settings.targetLang, translationResult]);
 
   // ── Render by screen ──────────────────────────────────────────
 
@@ -625,6 +861,8 @@ export default function Page() {
           targetLang={settings.targetLang}
           uiLang={settings.uiLang}
           imageGenProgress={imageGenProgress}
+          onGenerateImage={handleGenerateDishImage}
+          generatingDishIds={generatingDishIds}
           orderQuantities={orderQuantities}
           onOrderQuantityChange={handleOrderQuantityChange}
           orderTotalQuantity={currentOrderSummary.totalQuantity}
@@ -647,6 +885,8 @@ export default function Page() {
           onToggleFavorite={handleToggleFavorite}
           onShare={handleShareMenu}
           imageGenProgress={imageGenProgress}
+          imageGenerating={selectedDishImageGenerating}
+          onGenerateImage={handleGenerateSelectedDishImage}
           smartTags={selectedDishSmartTags}
           orderQuantity={selectedDish ? orderQuantities[selectedDish.id] || 0 : 0}
           orderTotalQuantity={currentOrderSummary.totalQuantity}
@@ -864,13 +1104,15 @@ export default function Page() {
               left: "50%",
               bottom: 18,
               transform: "translateX(-50%)",
-              padding: "8px 12px",
-              borderRadius: 18,
+              minHeight: 40,
+              padding: "10px 14px",
+              borderRadius: 20,
               background: "rgba(45,45,45,0.86)",
               color: "#FFF",
               fontFamily: "var(--font-ui)",
-              fontSize: 9,
-              fontWeight: 700,
+              fontSize: 13,
+              fontWeight: 800,
+              lineHeight: 1.35,
               boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
               pointerEvents: "none",
               zIndex: 20,

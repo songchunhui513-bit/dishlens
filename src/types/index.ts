@@ -16,7 +16,7 @@ export interface Dish {
   caution?: string;
   ai_image_url?: string;
   image_url?: string;
-  image_status?: "pending" | "generating" | "done" | "failed";
+  image_status?: "pending" | "generating" | "deferred" | "done" | "failed";
   image_error?: string;
   image_source: "ai" | "user" | "mixed";
   rating_avg?: number;
@@ -63,6 +63,11 @@ export interface TranslationResult {
     enrichment_time_ms?: number;
     image_generation_status?: "pending" | "processing" | "done" | "partial" | "failed";
     image_generation_progress?: { current: number; total: number };
+    image_generation_queue_total?: number;
+    image_generation_active_total?: number;
+    image_generation_queued_total?: number;
+    image_generation_batch_limit?: number;
+    image_generation_deferred_total?: number;
     image_generation_failed?: Array<{ dish_id: string; name_original: string; error: string }>;
     restaurant?: RestaurantMeta;
     insight?: MenuInsight;

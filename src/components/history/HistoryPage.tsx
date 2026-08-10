@@ -7,8 +7,7 @@ import { sourceLanguageName } from "@/lib/order-state";
 import { getRestaurantDisplayMeta } from "@/lib/restaurant-display";
 import { isSafeStoredThumbnail } from "@/lib/safe-image-url";
 import { pickSafeMenuThumbnail } from "@/lib/recent-menu-records";
-
-const fallbackHistoryImage = "/dishes/pizza-margherita.webp";
+import FoodThumbnailFallback from "@/components/shared/FoodThumbnailFallback";
 
 interface HistoryItem {
   id: string;
@@ -76,7 +75,7 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
       <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
         <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
           <button onClick={onBack} className="text-[11px] cursor-pointer" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
-          <h2 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>历史记录</h2>
+          <h2 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 750, color: "var(--ink)" }}>历史记录</h2>
         </div>
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           {[1, 2, 3].map((i) => (
@@ -102,10 +101,10 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
         >
           ←
         </button>
-        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
+        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>
           翻译历史
         </h2>
-        <span style={{ fontFamily: "var(--font-ui)", fontSize: 7, fontWeight: 600, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "2px 8px", borderRadius: 10 }}>
+        <span style={{ fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 750, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "4px 10px", borderRadius: 999 }}>
           本地存储
         </span>
       </div>
@@ -131,10 +130,10 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
                 <circle cx="24" cy="34" r="1.5" fill="var(--muted)" stroke="none" />
               </svg>
             </div>
-            <h3 style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 }}>
+            <h3 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 800, color: "var(--muted)", marginBottom: 6 }}>
               还没有翻译记录
             </h3>
-            <p style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", opacity: 0.7, marginBottom: 20, maxWidth: 200, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", opacity: 0.76, marginBottom: 22, maxWidth: 240, lineHeight: 1.55 }}>
               拍摄第一份菜单，AI 即刻为你翻译
             </p>
             <button
@@ -142,13 +141,13 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
               className="transition-all duration-150 active:scale-[0.96]"
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 10,
+                fontSize: 14,
                 fontWeight: 700,
                 color: "#FFF",
                 background: "var(--primary)",
                 border: "none",
                 borderRadius: "var(--radius)",
-                padding: "10px 28px",
+                padding: "13px 30px",
                 cursor: "pointer",
                 boxShadow: "0 4px 16px rgba(76,175,80,0.2)",
               }}
@@ -167,7 +166,7 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
             background: "var(--card)",
             borderRadius: "var(--radius)",
             fontFamily: "var(--font-ui)",
-            fontSize: 9,
+            fontSize: 13,
             color: "var(--muted)",
           }}
         >
@@ -183,7 +182,7 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
             <div
               style={{
                 fontFamily: "var(--font-body)",
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: 700,
             color: "var(--muted)",
             letterSpacing: "0.06em",
@@ -199,9 +198,9 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
               <button
                 key={item.id}
                 onClick={() => onSelect?.(item.id)}
-                className="flex items-center gap-2.5 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
+                className="flex items-center gap-3 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
                 style={{
-                  padding: "10px 0",
+                  padding: "13px 0",
                   borderBottom: "1px solid var(--rule)",
                   cursor: "pointer",
                   background: "none",
@@ -213,30 +212,32 @@ export default function HistoryPage({ onBack, onSelect, loading, history }: Hist
               >
                 <div
                   className="relative flex-shrink-0 flex items-center justify-center overflow-hidden"
-                  style={{ width: 44, height: 44, borderRadius: "var(--radius-sm)", background: "var(--card)" }}
+                  style={{ width: 52, height: 52, borderRadius: "var(--radius-sm)", background: "var(--card)" }}
                 >
-                  <Image
-                    src={failedThumbs[item.img] ? fallbackHistoryImage : item.img || fallbackHistoryImage}
-                    alt={item.restaurant}
-                    fill
-                    sizes="44px"
-                    style={{ objectFit: "cover" }}
-                    onError={() => {
-                      if (item.img) setFailedThumbs((prev) => ({ ...prev, [item.img]: true }));
-                    }}
-                  />
+                  {item.img && !failedThumbs[item.img] ? (
+                    <Image
+                      src={item.img}
+                      alt={item.restaurant}
+                      fill
+                      sizes="52px"
+                      style={{ objectFit: "cover" }}
+                      onError={() => setFailedThumbs((prev) => ({ ...prev, [item.img]: true }))}
+                    />
+                  ) : (
+                    <FoodThumbnailFallback label={`${item.restaurant} 菜单暂无缩略图`} size={52} />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600, color: "var(--ink)", marginBottom: 2 }}>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 750, color: "var(--ink)", marginBottom: 4, lineHeight: 1.25 }}>
                     {item.restaurant}
                   </div>
-                  <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", fontWeight: 500 }}>
+                  <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", fontWeight: 650, lineHeight: 1.35 }}>
                     <span>{item.city} · {item.lang}</span>
                     <span>{item.dishCount} 道菜</span>
                     <span>{item.pageCount} 页</span>
                   </div>
                 </div>
-                <span className="flex-shrink-0" style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", fontWeight: 500 }}>
+                <span className="flex-shrink-0" style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", fontWeight: 650 }}>
                   {parseInt(item.date.slice(5, 7))}月{parseInt(item.date.slice(8, 10))}日
                 </span>
               </button>

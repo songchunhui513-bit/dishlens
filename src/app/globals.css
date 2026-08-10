@@ -20,9 +20,9 @@
   --overlay: rgba(0, 0, 0, 0.5);
 
   /* Typography */
-  --font-display: 'Source Serif 4', Georgia, serif;
+  --font-display: 'Source Serif 4 Variable', Georgia, serif;
   --font-body: 'Poppins', -apple-system, sans-serif;
-  --font-ui: 'Inter', -apple-system, sans-serif;
+  --font-ui: 'Inter Variable', -apple-system, sans-serif;
 
   /* Border radius */
   --radius-sm: 12px;
@@ -67,7 +67,7 @@ body {
   background: #F0EBE3;
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -103,7 +103,7 @@ body {
   border: 1px solid rgba(212, 165, 116, 0.34);
   color: var(--muted);
   font-family: var(--font-ui);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0;
   animation: fadeIn var(--dur-normal) ease-out both;

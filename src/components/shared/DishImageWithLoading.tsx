@@ -15,6 +15,8 @@ type DishImageWithLoadingProps = {
   children?: ReactNode;
   pendingDone?: number;
   pendingTotal?: number;
+  pendingActiveTotal?: number;
+  pendingQueuedTotal?: number;
   onRetry?: () => void;
   retrying?: boolean;
   priority?: boolean;
@@ -240,7 +242,19 @@ function LoadingIcon({ kind, compact }: { kind: LoadingKind; compact: boolean })
   return <MainIcon compact={compact} />;
 }
 
-export default function DishImageWithLoading({ dish, size, alt, children, pendingDone, pendingTotal, onRetry, retrying, priority = false }: DishImageWithLoadingProps) {
+export default function DishImageWithLoading({
+  dish,
+  size,
+  alt,
+  children,
+  pendingDone,
+  pendingTotal,
+  pendingActiveTotal,
+  pendingQueuedTotal,
+  onRetry,
+  retrying,
+  priority = false,
+}: DishImageWithLoadingProps) {
   const compact = size === "card";
   const kind = selectLoadingCharacter(dish);
   const imageUrl = getDishImageUrl(dish, size);
@@ -248,20 +262,32 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
   const pendingKey = `${dish.id || dish.name_original || ""}:${imageUrl || "pending"}`;
   const [stalePending, setStalePending] = useState<{ key: string; stale: boolean } | null>(null);
   const imageFailed = failedUrl === imageUrl;
+  const deferred = dish.image_status === "deferred";
   const imageUnavailable = !imageUrl || imageFailed || dish.image_status === "failed";
   const pending = isDishImagePending(dish) || imageFailed;
   const showIllustration = pending || imageUnavailable;
   const hasWaitedLong = stalePending?.key === pendingKey && stalePending.stale;
-  const width = compact ? 128 : "100%";
-  const height = compact ? 128 : 220;
+  const width = compact ? 96 : "100%";
+  const height = compact ? 96 : 220;
   const radius = compact ? "var(--radius)" : "var(--radius-lg)";
   const pendingPercent =
     !hasWaitedLong && pendingDone !== undefined && pendingTotal !== undefined && pendingTotal > 0
       ? ` · ${Math.min(99, Math.round((pendingDone / pendingTotal) * 100))}%`
       : "";
+  const pendingQueueLabel = deferred
+    ? "稍后补图"
+    : hasWaitedLong
+    ? ""
+    : pendingQueuedTotal && pendingQueuedTotal > 0
+      ? `排队中 · ${pendingQueuedTotal} 张`
+      : pendingActiveTotal && pendingActiveTotal > 0
+        ? `生成中 · ${pendingActiveTotal} 张`
+        : "";
   const pendingLabel = hasWaitedLong
     ? "图片生成较慢，先用示意图"
-    : `AI 正在生成图片${pendingPercent}`;
+    : deferred
+      ? "图片稍后补图，先看翻译和推荐"
+    : `AI 正在生成图片${pendingPercent}${pendingQueueLabel ? ` · ${pendingQueueLabel}` : ""}`;
   const unavailableLabel = dish.image_status === "failed" || imageFailed
     ? "图片暂未生成，先用示意图"
     : pendingLabel;
@@ -283,10 +309,36 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
           style={{ position: "relative" }}
         >
           <LoadingIcon kind={kind} compact={compact} />
+          {compact && pendingQueueLabel ? (
+            <span
+              style={{
+                position: "absolute",
+                left: 8,
+                right: 8,
+                bottom: 7,
+                padding: "3px 6px",
+                borderRadius: 999,
+                background: "rgba(255,250,242,0.78)",
+                border: "1px solid rgba(212,165,116,0.28)",
+                color: "var(--muted)",
+                fontFamily: "var(--font-ui)",
+                fontSize: 10,
+                fontWeight: 800,
+                lineHeight: 1.1,
+                textAlign: "center",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              {pendingQueueLabel}
+            </span>
+          ) : null}
           {!compact ? (
               <span>{unavailableLabel}</span>
             ) : null}
-          {onRetry && (dish.image_status === "failed" || imageFailed) && (
+          {onRetry && (dish.image_status === "failed" || dish.image_status === "deferred" || imageFailed) && (
             <button
               type="button"
               disabled={retrying}
@@ -305,13 +357,13 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
                 background: "rgba(255,159,28,0.12)",
                 color: "var(--accent)",
                 fontFamily: "var(--font-ui)",
-                fontSize: compact ? 7 : 9,
+                fontSize: compact ? 11 : 12,
                 fontWeight: 700,
                 cursor: "pointer",
                 opacity: retrying ? 0.5 : 1,
               }}
             >
-              {retrying ? "···" : "重试"}
+              {retrying ? "···" : dish.image_status === "deferred" ? "现在生成" : "重试"}
             </button>
           )}
         </div>
@@ -323,7 +375,7 @@ export default function DishImageWithLoading({ dish, size, alt, children, pendin
           fill
           priority={priority}
           loading={priority ? "eager" : "lazy"}
-          sizes={compact ? "128px" : "(max-width: 430px) 100vw, 430px"}
+          sizes={compact ? "96px" : "(max-width: 430px) 100vw, 430px"}
           style={{ objectFit: "cover" }}
           onError={() => setFailedUrl(imageUrl)}
         />

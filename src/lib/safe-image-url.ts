@@ -62,23 +62,45 @@ function isKnownLocalDishPath(pathname: string): boolean {
 }
 
 function isSupabaseStorageDishUrl(url: URL): boolean {
-  return url.hostname.endsWith(".supabase.co")
+  return url.protocol === "https:"
+    && url.hostname.endsWith(".supabase.co")
     && url.pathname.startsWith("/storage/v1/object/public/dishes/");
+}
+
+function isAliyunOssDishUrl(url: URL): boolean {
+  const officialOssHost = url.hostname.endsWith(".aliyuncs.com") && url.hostname.includes(".oss-");
+  const configuredCdnHost = process.env.NEXT_PUBLIC_DISH_IMAGE_CDN_HOST?.trim().toLowerCase();
+  const trustedHost = officialOssHost || (configuredCdnHost && url.hostname === configuredCdnHost);
+  return url.protocol === "https:"
+    && Boolean(trustedHost)
+    && url.pathname.startsWith("/generated-dishes/");
+}
+
+export function isStableRemoteGeneratedDishImageUrl(
+  value: string | URL | null | undefined,
+): boolean {
+  if (!value) return false;
+  try {
+    const parsed = value instanceof URL ? value : new URL(value);
+    return isSupabaseStorageDishUrl(parsed) || isAliyunOssDishUrl(parsed);
+  } catch {
+    return false;
+  }
 }
 
 export function isSafeStoredThumbnail(url: string | null | undefined): url is string {
   if (!url) return false;
-  if (isGeneratedDishPath(url)) return false;
   if (isUnsafeTemporaryRemoteImage(url)) return false;
 
   const normalizedUrl = unwrapNextImageUrl(url.trim());
   if (normalizedUrl.startsWith("/")) {
+    if (isGeneratedDishPath(normalizedUrl)) return false;
     return isKnownLocalDishPath(normalizedUrl);
   }
 
   try {
     const parsed = new URL(normalizedUrl);
-    if (isSupabaseStorageDishUrl(parsed)) return true;
+    if (isStableRemoteGeneratedDishImageUrl(parsed)) return true;
     if (APP_IMAGE_HOSTS.has(parsed.hostname)) {
       return isKnownLocalDishPath(parsed.pathname);
     }

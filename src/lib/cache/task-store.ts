@@ -29,6 +29,10 @@ let _db: SupabaseClient | null = null;
 const memoryTasks = new Map<string, TaskState>();
 const memoryOnlyTasks = new Set<string>();
 const ENABLE_MEMORY_FALLBACK = process.env.MENU_TASK_MEMORY_FALLBACK !== "false";
+const TASK_STORE_WRITE_TIMEOUT_MS = Math.max(
+  200,
+  Math.min(3_000, Number.parseInt(process.env.MENU_TASK_STORE_WRITE_TIMEOUT_MS || "800", 10) || 800),
+);
 
 function db(): SupabaseClient {
   if (_db) return _db;
@@ -37,6 +41,17 @@ function db(): SupabaseClient {
     process.env.SUPABASE_ANON_KEY!
   );
   return _db;
+}
+
+function withTaskStoreTimeout<T>(operation: PromiseLike<T>, timeoutMs = TASK_STORE_WRITE_TIMEOUT_MS): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error("Task store write timed out")), timeoutMs);
+  });
+  return Promise.race([Promise.resolve(operation), timeoutPromise])
+    .finally(() => {
+      if (timeout) clearTimeout(timeout);
+    });
 }
 
 export async function createTask(
@@ -66,13 +81,13 @@ export async function createTask(
   }
 
   try {
-    const { error } = await db().from("tasks").insert({
+    const { error } = await withTaskStoreTimeout(db().from("tasks").insert({
       id,
       status: task.status,
       progress: task.progress,
       per_page_status: task.perPageStatus,
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-    });
+    }));
 
     if (error) {
       if (options.allowMemoryFallback || ENABLE_MEMORY_FALLBACK) {

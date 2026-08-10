@@ -1,0 +1,1241 @@
+[
+  {
+    "id": "local-generated-ai-funghi",
+    "names": [
+      "Ai Funghi",
+      "Pizza Ai Funghi",
+      "Funghi Pizza",
+      "蘑菇披萨"
+    ],
+    "context_terms": [
+      "pizza",
+      "pizzas",
+      "pizzeria",
+      "披萨"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-ai-funghi.webp",
+    "hero": "/dishes/generated-cache/generated-ai-funghi.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-albacore-tuna-l-df",
+    "names": [
+      "ALBACORE TUNA L DF",
+      "알바코어 토너 L DF"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-albacore-tuna-l-df.webp",
+    "hero": "/dishes/generated-cache/generated-albacore-tuna-l-df.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-angelachu-anchovy",
+    "names": [
+      "ANGELACHU ANCHOVY",
+      "ANGELOCHU ANCHOVY",
+      "앵젤라추 앵초비"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-angelachu-anchovy.webp",
+    "hero": "/dishes/generated-cache/generated-angelachu-anchovy.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-artichoke-dip",
+    "names": [
+      "Artichoke Dip",
+      "Spinach Artichoke Dip",
+      "洋蓟蘸酱"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-artichoke-dip.webp",
+    "hero": "/dishes/generated-cache/generated-artichoke-dip.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-banana-fritter",
+    "names": [
+      "BANANA FRITTER",
+      "바나나 프리터"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-banana-fritter.webp",
+    "hero": "/dishes/generated-cache/generated-banana-fritter.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-banksia-l-gfo",
+    "names": [
+      "BANKSIA L GFO",
+      "뱅크시아 L GFO"
+    ],
+    "category": "cheese",
+    "card": "/dishes/generated-cache/generated-banksia-l-gfo.webp",
+    "hero": "/dishes/generated-cache/generated-banksia-l-gfo.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-battered-onion-rings",
+    "names": [
+      "Battered Onion Rings",
+      "Onion Rings",
+      "炸洋葱圈",
+      "洋葱圈"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-battered-onion-rings.webp",
+    "hero": "/dishes/generated-cache/generated-battered-onion-rings.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-battered-whiting",
+    "names": [
+      "Battered Whiting",
+      "Fried Whiting",
+      "炸鳕鱼",
+      "炸鱼柳"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-battered-whiting.webp",
+    "hero": "/dishes/generated-cache/generated-battered-whiting.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-benedict",
+    "names": [
+      "BENEDICT",
+      "베네딕트"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-benedict.webp",
+    "hero": "/dishes/generated-cache/generated-benedict.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-bigspicy-chicken-wrap",
+    "names": [
+      "Bigspicy Chicken Wrap",
+      "Big Spicy Chicken Wrap",
+      "Spicy Chicken Wrap",
+      "辣鸡肉卷"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-bigspicy-chicken-wrap.webp",
+    "hero": "/dishes/generated-cache/generated-bigspicy-chicken-wrap.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-bigspicy-paneer-wrap",
+    "names": [
+      "BigSpicy Paneer Wrap Meal"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-bigspicy-paneer-wrap.webp",
+    "hero": "/dishes/generated-cache/generated-bigspicy-paneer-wrap.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-blette-a-la-ligure",
+    "names": [
+      "Blette A La Ligure",
+      "Blette à la Ligure",
+      "Swiss Chard Ligurian Style",
+      "利古里亚风味甜菜叶"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-blette-a-la-ligure.webp",
+    "hero": "/dishes/generated-cache/generated-blette-a-la-ligure.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-braised-pork-belly",
+    "names": [
+      "Braised Pork Belly",
+      "红烧五花肉",
+      "炖五花肉"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-braised-pork-belly.webp",
+    "hero": "/dishes/generated-cache/generated-braised-pork-belly.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-burrata-du-moment-l-inspiration-du-chef-mauro",
+    "names": [
+      "LA BURRATA DU MOMENT « L'INSPIRATION DU CHEF MAURO »",
+      "当季布里亚塔奶酪「主厨马乌罗灵感」"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-burrata-du-moment-l-inspiration-du-chef-mauro.webp",
+    "hero": "/dishes/generated-cache/generated-burrata-du-moment-l-inspiration-du-chef-mauro.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-cafe-gourmand",
+    "names": [
+      "Cafe Gourmand",
+      "Café Gourmand",
+      "咖啡甜点拼盘"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-cafe-gourmand.webp",
+    "hero": "/dishes/generated-cache/generated-cafe-gourmand.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-cappuccino",
+    "names": [
+      "CAPPUCCINO",
+      "卡布奇诺"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-cappuccino.webp",
+    "hero": "/dishes/generated-cache/generated-cappuccino.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-cauliflower-aged-cheddar-croquettes",
+    "names": [
+      "Cauliflower Aged Cheddar Croquettes",
+      "Cauliflower Cheddar Croquettes",
+      "花椰菜切达奶酪可乐饼"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-cauliflower-aged-cheddar-croquettes.webp",
+    "hero": "/dishes/generated-cache/generated-cauliflower-aged-cheddar-croquettes.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-cheese-bombs",
+    "names": [
+      "Cheese Bombs",
+      "Fried Cheese Bombs",
+      "芝士球",
+      "炸芝士球"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-cheese-bombs.webp",
+    "hero": "/dishes/generated-cache/generated-cheese-bombs.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-chef-salad",
+    "names": [
+      "Chef Salad",
+      "Chef's Salad",
+      "主厨沙拉"
+    ],
+    "category": "salad",
+    "card": "/dishes/generated-cache/generated-chef-salad.webp",
+    "hero": "/dishes/generated-cache/generated-chef-salad.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-chia-pudding",
+    "names": [
+      "CHIA PUDDING",
+      "치아 푸딩"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-chia-pudding.webp",
+    "hero": "/dishes/generated-cache/generated-chia-pudding.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-chia-pudding-v",
+    "names": [
+      "CHIA PUDDING (V)",
+      "奇亚籽布丁（素食）"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-chia-pudding-v.webp",
+    "hero": "/dishes/generated-cache/generated-chia-pudding-v.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-chicken-maharaja-mac",
+    "names": [
+      "Chicken Maharaja Mac",
+      "Chicken Maharaja Mac Meal",
+      "Maharaja Mac Chicken",
+      "鸡肉玛哈拉加麦堡"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-chicken-maharaja-mac.webp",
+    "hero": "/dishes/generated-cache/generated-chicken-maharaja-mac.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-chicken-wings",
+    "names": [
+      "Chicken Wings",
+      "Fried Chicken Wings",
+      "Buffalo Wings",
+      "鸡翅",
+      "炸鸡翅"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-chicken-wings.webp",
+    "hero": "/dishes/generated-cache/generated-chicken-wings.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-cioccolato",
+    "names": [
+      "LA PIZZA « CIoccoLATO »",
+      "巧克力披萨"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-cioccolato.webp",
+    "hero": "/dishes/generated-cache/generated-cioccolato.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-classica",
+    "names": [
+      "LA CLASSICA",
+      "经典款布里亚塔"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-classica.webp",
+    "hero": "/dishes/generated-cache/generated-classica.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-coffee-tea",
+    "names": [
+      "Coffee Tea",
+      "Coffee and Tea",
+      "咖啡和茶"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-coffee-tea.webp",
+    "hero": "/dishes/generated-cache/generated-coffee-tea.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-colonel",
+    "names": [
+      "COLONEL",
+      "皇家鸡尾酒"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-colonel.webp",
+    "hero": "/dishes/generated-cache/generated-colonel.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-crispy-fried-calamari",
+    "names": [
+      "Crispy Fried Calamari",
+      "Fried Calamari",
+      "Calamari",
+      "炸鱿鱼",
+      "炸鱿鱼圈"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-crispy-fried-calamari.webp",
+    "hero": "/dishes/generated-cache/generated-crispy-fried-calamari.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-croquettes-vg",
+    "names": [
+      "CROQUETTES VG",
+      "크로켓"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-croquettes-vg.webp",
+    "hero": "/dishes/generated-cache/generated-croquettes-vg.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-crumbed-lamb-loin-chops",
+    "names": [
+      "Crumbed Lamb Loin Chops",
+      "Breaded Lamb Loin Chops",
+      "炸羊里脊排"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-crumbed-lamb-loin-chops.webp",
+    "hero": "/dishes/generated-cache/generated-crumbed-lamb-loin-chops.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-decafeine",
+    "names": [
+      "DÉCAFÉINÉ",
+      "去咖啡因咖啡"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-decafeine.webp",
+    "hero": "/dishes/generated-cache/generated-decafeine.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-decafine",
+    "names": [
+      "DÉCAFINÉ",
+      "无咖啡因咖啡"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-decafine.webp",
+    "hero": "/dishes/generated-cache/generated-decafine.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-double-expresso",
+    "names": [
+      "DOUBLE EXPRESSO",
+      "双份浓缩咖啡"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-double-expresso.webp",
+    "hero": "/dishes/generated-cache/generated-double-expresso.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-egyptian-falafels",
+    "names": [
+      "Egyptian Falafels",
+      "Falafels",
+      "炸鹰嘴豆丸",
+      "鹰嘴豆丸"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-egyptian-falafels.webp",
+    "hero": "/dishes/generated-cache/generated-egyptian-falafels.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-espresso",
+    "names": [
+      "Espresso",
+      "意式浓缩咖啡"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-espresso.webp",
+    "hero": "/dishes/generated-cache/generated-espresso.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-expresso",
+    "names": [
+      "EXPRESSO",
+      "意式浓缩咖啡"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-expresso.webp",
+    "hero": "/dishes/generated-cache/generated-expresso.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-eye-fillet",
+    "names": [
+      "Eye Fillet",
+      "Eye Fillet Steak",
+      "Beef Eye Fillet",
+      "菲力牛排"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-eye-fillet.webp",
+    "hero": "/dishes/generated-cache/generated-eye-fillet.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-farfalle",
+    "names": [
+      "Farfalle",
+      "Farfalle Pasta",
+      "蝴蝶面"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-farfalle.webp",
+    "hero": "/dishes/generated-cache/generated-farfalle.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-field-greens-with-balsamic-vinaigrette",
+    "names": [
+      "Field Greens With Balsamic Vinaigrette",
+      "Field Greens",
+      "Balsamic Field Greens",
+      "田园绿叶沙拉"
+    ],
+    "category": "salad",
+    "card": "/dishes/generated-cache/generated-field-greens-with-balsamic-vinaigrette.webp",
+    "hero": "/dishes/generated-cache/generated-field-greens-with-balsamic-vinaigrette.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-filet-o-fish",
+    "names": [
+      "Filet O Fish",
+      "Filet-O-Fish",
+      "Filet O Fish Meal",
+      "麦香鱼"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-filet-o-fish.webp",
+    "hero": "/dishes/generated-cache/generated-filet-o-fish.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-fisherman-s-basket",
+    "names": [
+      "Fisherman S Basket",
+      "Fisherman's Basket",
+      "Seafood Basket",
+      "炸海鲜篮"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-fisherman-s-basket.webp",
+    "hero": "/dishes/generated-cache/generated-fisherman-s-basket.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-florentine",
+    "names": [
+      "FLORENTINE",
+      "플로렌틴"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-florentine.webp",
+    "hero": "/dishes/generated-cache/generated-florentine.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-funghetto",
+    "names": [
+      "Funghetto"
+    ],
+    "category": "pasta",
+    "card": "/dishes/generated-cache/generated-funghetto.webp",
+    "hero": "/dishes/generated-cache/generated-funghetto.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-garlic-bread",
+    "names": [
+      "Garlic Bread",
+      "蒜香面包"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-garlic-bread.webp",
+    "hero": "/dishes/generated-cache/generated-garlic-bread.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-garlic-prawns",
+    "names": [
+      "Garlic Prawns",
+      "Garlic Shrimp",
+      "蒜香虾",
+      "蒜蓉虾"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-garlic-prawns.webp",
+    "hero": "/dishes/generated-cache/generated-garlic-prawns.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-glaces-artisanales-et-croquant-d-amandes",
+    "names": [
+      "GLACES ARTISANALES ET CROQUANT D'AMANDES",
+      "手工冰淇淋与脆杏仁"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-glaces-artisanales-et-croquant-d-amandes.webp",
+    "hero": "/dishes/generated-cache/generated-glaces-artisanales-et-croquant-d-amandes.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-grand-cafe",
+    "names": [
+      "GRAND CAFÉ",
+      "大杯咖啡"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-grand-cafe.webp",
+    "hero": "/dishes/generated-cache/generated-grand-cafe.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-green-tea",
+    "names": [
+      "Green Tea",
+      "绿茶"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-green-tea.webp",
+    "hero": "/dishes/generated-cache/generated-green-tea.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-grilled-chicken-breast",
+    "names": [
+      "Grilled Chicken Breast",
+      "Grilled Chicken",
+      "烤鸡胸"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-grilled-chicken-breast.webp",
+    "hero": "/dishes/generated-cache/generated-grilled-chicken-breast.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-grilled-salmon",
+    "names": [
+      "Grilled Salmon",
+      "Pan Seared Salmon",
+      "Salmon Fillet",
+      "烤三文鱼",
+      "香煎三文鱼"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-grilled-salmon.webp",
+    "hero": "/dishes/generated-cache/generated-grilled-salmon.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-heirloom-tomato-l-vg",
+    "names": [
+      "HEIRLOOM TOMATO L VG",
+      "히어로옴 토마토 L VG"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-heirloom-tomato-l-vg.webp",
+    "hero": "/dishes/generated-cache/generated-heirloom-tomato-l-vg.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-house-salad",
+    "names": [
+      "House Salad",
+      "招牌沙拉",
+      "家常沙拉"
+    ],
+    "category": "salad",
+    "card": "/dishes/generated-cache/generated-house-salad.webp",
+    "hero": "/dishes/generated-cache/generated-house-salad.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-iceburg-salad",
+    "names": [
+      "Iceburg Salad",
+      "Iceberg Salad",
+      "Iceberg Lettuce Salad",
+      "冰山生菜沙拉"
+    ],
+    "category": "salad",
+    "card": "/dishes/generated-cache/generated-iceburg-salad.webp",
+    "hero": "/dishes/generated-cache/generated-iceburg-salad.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-infusion",
+    "names": [
+      "THÉ / INFUSION",
+      "茶/花草茶"
+    ],
+    "category": "drink",
+    "card": "/dishes/generated-cache/generated-infusion.webp",
+    "hero": "/dishes/generated-cache/generated-infusion.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-italian-ice",
+    "names": [
+      "Italian Ice",
+      "Lemon Italian Ice",
+      "意式冰点",
+      "意式刨冰"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-italian-ice.webp",
+    "hero": "/dishes/generated-cache/generated-italian-ice.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-jambon-de-parme-24-mois",
+    "names": [
+      "JAMBON DE PARME 24 MOIS",
+      "帕尔玛24月火腿"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-jambon-de-parme-24-mois.webp",
+    "hero": "/dishes/generated-cache/generated-jambon-de-parme-24-mois.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-kanelone",
+    "names": [
+      "Kanelone",
+      "Cannelloni",
+      "Canelone",
+      "意式烤管面"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-kanelone.webp",
+    "hero": "/dishes/generated-cache/generated-kanelone.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-latte-macchiato",
+    "names": [
+      "LATTE MACCHIATO",
+      "玛奇朵"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-latte-macchiato.webp",
+    "hero": "/dishes/generated-cache/generated-latte-macchiato.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-linguine-pesto",
+    "names": [
+      "Linguine Pesto",
+      "Pesto Linguine",
+      "青酱扁面"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-linguine-pesto.webp",
+    "hero": "/dishes/generated-cache/generated-linguine-pesto.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-long-paddock-driftwood-l-gfo",
+    "names": [
+      "LONG PADDOCK DRIFTWOOD L GFO",
+      "롱 패드록 드리프트우드 L GFO"
+    ],
+    "category": "cheese",
+    "card": "/dishes/generated-cache/generated-long-paddock-driftwood-l-gfo.webp",
+    "hero": "/dishes/generated-cache/generated-long-paddock-driftwood-l-gfo.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-matcha-roll",
+    "names": [
+      "MATCHA ROLL",
+      "매치아 롤"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-matcha-roll.webp",
+    "hero": "/dishes/generated-cache/generated-matcha-roll.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-mcchicken",
+    "names": [
+      "Mcchicken",
+      "McChicken",
+      "McChicken Burger",
+      "麦香鸡"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-mcchicken.webp",
+    "hero": "/dishes/generated-cache/generated-mcchicken.webp",
+    "source": "manual_visual_generated"
+  },
+  {
+    "id": "local-generated-mcspicy-paneer",
+    "names": [
+      "McSpicy™ Paneer Meal"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-mcspicy-paneer.webp",
+    "hero": "/dishes/generated-cache/generated-mcspicy-paneer.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-miso-chickpea-vl",
+    "names": [
+      "MISO CHICKPEA VL",
+      "MISO CHICKPEA V.L",
+      "미소 치킨피아"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-miso-chickpea-vl.webp",
+    "hero": "/dishes/generated-cache/generated-miso-chickpea-vl.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-mochi",
+    "names": [
+      "MOCHI",
+      "모치"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-mochi.webp",
+    "hero": "/dishes/generated-cache/generated-mochi.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-mungindi-rib-eye",
+    "names": [
+      "Mungindi Rib Eye"
+    ],
+    "category": "meat",
+    "card": "/dishes/generated-cache/generated-mungindi-rib-eye.webp",
+    "hero": "/dishes/generated-cache/generated-mungindi-rib-eye.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-neapolitan",
+    "names": [
+      "Neapolitan"
+    ],
+    "category": "pizza",
+    "card": "/dishes/generated-cache/generated-neapolitan.webp",
+    "hero": "/dishes/generated-cache/generated-neapolitan.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-omelette-alla-vignarola",
+    "names": [
+      "OMELETTE ALLA VIGNAROLA",
+      "비냐롤라 오믈렛"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-omelette-alla-vignarola.webp",
+    "hero": "/dishes/generated-cache/generated-omelette-alla-vignarola.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pan-fried-japanese-hokkaido-sea-scallops",
+    "names": [
+      "Pan Fried Japanese Hokkaido Sea Scallops"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-pan-fried-japanese-hokkaido-sea-scallops.webp",
+    "hero": "/dishes/generated-cache/generated-pan-fried-japanese-hokkaido-sea-scallops.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pan-frutto-ricotta-miele-noci",
+    "names": [
+      "PAN FRUTTO, RICOTTA, MIELE, NOCI",
+      "드라이 곡물 빵"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-pan-frutto-ricotta-miele-noci.webp",
+    "hero": "/dishes/generated-cache/generated-pan-frutto-ricotta-miele-noci.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pan-seared-salmon",
+    "names": [
+      "Pan Seared Salmon"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-pan-seared-salmon.webp",
+    "hero": "/dishes/generated-cache/generated-pan-seared-salmon.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-panko-crumbed-calamari",
+    "names": [
+      "Panko Crumbed Calamari"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-panko-crumbed-calamari.webp",
+    "hero": "/dishes/generated-cache/generated-panko-crumbed-calamari.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-papalina",
+    "names": [
+      "Papalina"
+    ],
+    "category": "pasta",
+    "card": "/dishes/generated-cache/generated-papalina.webp",
+    "hero": "/dishes/generated-cache/generated-papalina.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pappardelle",
+    "names": [
+      "Pappardelle"
+    ],
+    "category": "pasta",
+    "card": "/dishes/generated-cache/generated-pappardelle.webp",
+    "hero": "/dishes/generated-cache/generated-pappardelle.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pappardelle-boscaiola",
+    "names": [
+      "Pappardelle Boscaiola"
+    ],
+    "category": "pasta",
+    "card": "/dishes/generated-cache/generated-pappardelle-boscaiola.webp",
+    "hero": "/dishes/generated-cache/generated-pappardelle-boscaiola.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pepperoni",
+    "names": [
+      "Pepperoni"
+    ],
+    "category": "pizza",
+    "card": "/dishes/generated-cache/generated-pepperoni.webp",
+    "hero": "/dishes/generated-cache/generated-pepperoni.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pesto",
+    "names": [
+      "LA PESTO",
+      "青酱布里亚塔"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-pesto.webp",
+    "hero": "/dishes/generated-cache/generated-pesto.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-poire-pochee-a-la-creme-de-mascarpone",
+    "names": [
+      "POIRE POCHÉE À LA CRÈME DE MASCARPONE",
+      "马斯卡彭奶酪炖梨"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-poire-pochee-a-la-creme-de-mascarpone.webp",
+    "hero": "/dishes/generated-cache/generated-poire-pochee-a-la-creme-de-mascarpone.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pomme-rotie-au-four",
+    "names": [
+      "POMME RÔTIE AU FOUR",
+      "烤苹果"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-pomme-rotie-au-four.webp",
+    "hero": "/dishes/generated-cache/generated-pomme-rotie-au-four.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-porridge-v",
+    "names": [
+      "Porridge V"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-porridge-v.webp",
+    "hero": "/dishes/generated-cache/generated-porridge-v.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-portuguese-chicken-breast",
+    "names": [
+      "Portuguese Chicken Breast"
+    ],
+    "category": "meat",
+    "card": "/dishes/generated-cache/generated-portuguese-chicken-breast.webp",
+    "hero": "/dishes/generated-cache/generated-portuguese-chicken-breast.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-prawn-soup",
+    "names": [
+      "Prawn Soup"
+    ],
+    "category": "soup",
+    "card": "/dishes/generated-cache/generated-prawn-soup.webp",
+    "hero": "/dishes/generated-cache/generated-prawn-soup.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-pugliese",
+    "names": [
+      "Pugliese"
+    ],
+    "category": "pizza",
+    "card": "/dishes/generated-cache/generated-pugliese.webp",
+    "hero": "/dishes/generated-cache/generated-pugliese.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-rice-balls",
+    "names": [
+      "Rice Balls"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-rice-balls.webp",
+    "hero": "/dishes/generated-cache/generated-rice-balls.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-roasted-baby-vegetables",
+    "names": [
+      "Roasted Baby Vegetables"
+    ],
+    "category": "vegetable",
+    "card": "/dishes/generated-cache/generated-roasted-baby-vegetables.webp",
+    "hero": "/dishes/generated-cache/generated-roasted-baby-vegetables.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-roasted-lamb-rack",
+    "names": [
+      "Roasted Lamb Rack"
+    ],
+    "category": "meat",
+    "card": "/dishes/generated-cache/generated-roasted-lamb-rack.webp",
+    "hero": "/dishes/generated-cache/generated-roasted-lamb-rack.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-rossa",
+    "names": [
+      "LA ROSSA",
+      "红酱布里亚塔"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-rossa.webp",
+    "hero": "/dishes/generated-cache/generated-rossa.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-royale",
+    "names": [
+      "ROYALE",
+      "로얄"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-royale.webp",
+    "hero": "/dishes/generated-cache/generated-royale.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-sandwich-piselli-fava-melissa-uovo-poche",
+    "names": [
+      "SANDWICH, PISELLI, FAVA, MELISSA, UOVO POCHÉ",
+      "샌드위치, 녹두, 패랭이, 레몬 밤, 삶은 계란"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-sandwich-piselli-fava-melissa-uovo-poche.webp",
+    "hero": "/dishes/generated-cache/generated-sandwich-piselli-fava-melissa-uovo-poche.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-seared-kangaroo",
+    "names": [
+      "Seared Kangaroo"
+    ],
+    "category": "meat",
+    "card": "/dishes/generated-cache/generated-seared-kangaroo.webp",
+    "hero": "/dishes/generated-cache/generated-seared-kangaroo.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-selection-of-french-cheese",
+    "names": [
+      "Selection Of French Cheese"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-selection-of-french-cheese.webp",
+    "hero": "/dishes/generated-cache/generated-selection-of-french-cheese.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-semi-di-chia-latte-di-riso-sciroppio-d-acero-frutti-di-bosco",
+    "names": [
+      "SEMI DI CHIA, LATTE DI RISO, SCIROPPIO D'ACERO, FRUTTI DI BOSCO",
+      "키아 씨앗"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-semi-di-chia-latte-di-riso-sciroppio-d-acero-frutti-di-bosco.webp",
+    "hero": "/dishes/generated-cache/generated-semi-di-chia-latte-di-riso-sciroppio-d-acero-frutti-di-bosco.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-semi-di-chia-latte-di-riso-sciropppo-d-acero-frutti-di-bosco",
+    "names": [
+      "SEMI DI CHIA, LATTE DI RISO, SCIROPPPO D'ACERO, FRUTTI DI BOSCO",
+      "치아 씨앗"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-semi-di-chia-latte-di-riso-sciropppo-d-acero-frutti-di-bosco.webp",
+    "hero": "/dishes/generated-cache/generated-semi-di-chia-latte-di-riso-sciropppo-d-acero-frutti-di-bosco.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-sicilian",
+    "names": [
+      "Sicilian"
+    ],
+    "category": "pizza",
+    "card": "/dishes/generated-cache/generated-sicilian.webp",
+    "hero": "/dishes/generated-cache/generated-sicilian.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-smoked-chicken",
+    "names": [
+      "Smoked Chicken"
+    ],
+    "category": "meat",
+    "card": "/dishes/generated-cache/generated-smoked-chicken.webp",
+    "hero": "/dishes/generated-cache/generated-smoked-chicken.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-smoked-mushroom",
+    "names": [
+      "Smoked Mushroom"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-smoked-mushroom.webp",
+    "hero": "/dishes/generated-cache/generated-smoked-mushroom.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-soup-of-the-day",
+    "names": [
+      "Soup Of The Day"
+    ],
+    "category": "soup",
+    "card": "/dishes/generated-cache/generated-soup-of-the-day.webp",
+    "hero": "/dishes/generated-cache/generated-soup-of-the-day.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-soupe-de-saison",
+    "names": [
+      "Soupe De Saison"
+    ],
+    "category": "soup",
+    "card": "/dishes/generated-cache/generated-soupe-de-saison.webp",
+    "hero": "/dishes/generated-cache/generated-soupe-de-saison.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-spaghetti",
+    "names": [
+      "Spaghetti"
+    ],
+    "category": "pasta",
+    "card": "/dishes/generated-cache/generated-spaghetti.webp",
+    "hero": "/dishes/generated-cache/generated-spaghetti.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-spinach-salad",
+    "names": [
+      "Spinach Salad"
+    ],
+    "category": "vegetable",
+    "card": "/dishes/generated-cache/generated-spinach-salad.webp",
+    "hero": "/dishes/generated-cache/generated-spinach-salad.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-sydney-rock-oysters-mignonette-l-gf-df",
+    "names": [
+      "SYDNEY ROCK OYSTERS, MIGNONETTE L GF DF",
+      "시드니 록 오스터, 미뇽넷"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-sydney-rock-oysters-mignonette-l-gf-df.webp",
+    "hero": "/dishes/generated-cache/generated-sydney-rock-oysters-mignonette-l-gf-df.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-sydney-rock-oysters-mignonette-lg-of",
+    "names": [
+      "SYDNEY ROCK OYSTERS, MIGNONETTE LG OF $32/$64",
+      "シドニー・ロックオイスター ミニョンネット"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-sydney-rock-oysters-mignonette-lg-of.webp",
+    "hero": "/dishes/generated-cache/generated-sydney-rock-oysters-mignonette-lg-of.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-tassie-salmon",
+    "names": [
+      "Tassie Salmon"
+    ],
+    "category": "seafood",
+    "card": "/dishes/generated-cache/generated-tassie-salmon.webp",
+    "hero": "/dishes/generated-cache/generated-tassie-salmon.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-tatin-tart",
+    "names": [
+      "Tatin Tart"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-tatin-tart.webp",
+    "hero": "/dishes/generated-cache/generated-tatin-tart.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-teriyaki-rare-beef-salad",
+    "names": [
+      "Teriyaki Rare Beef Salad"
+    ],
+    "category": "vegetable",
+    "card": "/dishes/generated-cache/generated-teriyaki-rare-beef-salad.webp",
+    "hero": "/dishes/generated-cache/generated-teriyaki-rare-beef-salad.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-truffle-pecorino-fries-vg-dfo",
+    "names": [
+      "TRUFFLE PECORINO FRIES VG DFO",
+      "트러플 페코리노 프라이"
+    ],
+    "category": "appetizer",
+    "card": "/dishes/generated-cache/generated-truffle-pecorino-fries-vg-dfo.webp",
+    "hero": "/dishes/generated-cache/generated-truffle-pecorino-fries-vg-dfo.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-vanilla-ice-cream",
+    "names": [
+      "Vanilla Ice Cream"
+    ],
+    "category": "dessert",
+    "card": "/dishes/generated-cache/generated-vanilla-ice-cream.webp",
+    "hero": "/dishes/generated-cache/generated-vanilla-ice-cream.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-vegetable-curry",
+    "names": [
+      "Vegetable Curry"
+    ],
+    "category": "vegetable",
+    "card": "/dishes/generated-cache/generated-vegetable-curry.webp",
+    "hero": "/dishes/generated-cache/generated-vegetable-curry.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-wagyu-skewers-l-df-gf",
+    "names": [
+      "WAGYU SKEWERS L DF GF",
+      "와규 스커워"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-wagyu-skewers-l-df-gf.webp",
+    "hero": "/dishes/generated-cache/generated-wagyu-skewers-l-df-gf.webp",
+    "source": "task_cache_generated"
+  },
+  {
+    "id": "local-generated-yarra-sandwich-l",
+    "names": [
+      "YARRA SANDWICH L",
+      "야라 샌드위치"
+    ],
+    "category": "main",
+    "card": "/dishes/generated-cache/generated-yarra-sandwich-l.webp",
+    "hero": "/dishes/generated-cache/generated-yarra-sandwich-l.webp",
+    "source": "task_cache_generated"
+  }
+]

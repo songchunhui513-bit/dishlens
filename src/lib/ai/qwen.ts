@@ -5,19 +5,40 @@ import { TARGET_LANGUAGE_LABELS, normalizeTargetLang } from "@/lib/languages";
 
 const API_TIMEOUT = 120_000;
 
-const qwen = new OpenAI({
-  baseURL: process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  apiKey: process.env.QWEN_API_KEY || "",
-  timeout: API_TIMEOUT,
-});
+let qwenClient: OpenAI | null = null;
+
+function getQwenClient(): OpenAI {
+  if (qwenClient) return qwenClient;
+
+  const apiKey = process.env.QWEN_API_KEY?.trim();
+  if (!apiKey) throw new Error("QWEN_API_KEY is required");
+
+  qwenClient = new OpenAI({
+    baseURL: process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiKey,
+    timeout: API_TIMEOUT,
+  });
+  return qwenClient;
+}
 
 const VL_MODEL = process.env.QWEN_VL_MODEL || "qwen-vl-max";
 const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || "qwen-vl-plus";
 const TEXT_MODEL = process.env.QWEN_TEXT_MODEL || "qwen-plus";
-const fastFirstPassModels = Array.from(new Set([FAST_VL_MODEL, VL_MODEL]));
+function parseFastFirstPassModels(): string[] {
+  const configuredModels = (process.env.QWEN_FAST_FIRST_PASS_MODELS || "")
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+  return Array.from(new Set([...configuredModels, FAST_VL_MODEL, VL_MODEL]));
+}
+const fastFirstPassModels = parseFastFirstPassModels();
 const FAST_FIRST_PASS_MAX_TOKENS = Math.max(
-  2048,
-  Math.min(8192, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_MAX_TOKENS || "4096", 10) || 4096),
+  1536,
+  Math.min(4096, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_MAX_TOKENS || "4096", 10) || 4096),
+);
+const FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS = Math.max(
+  5_000,
+  Math.min(API_TIMEOUT, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS || "30000", 10) || 30000),
 );
 
 interface MenuDishAnalysis {
@@ -60,6 +81,7 @@ interface MenuImageAnalysis {
   page_description?: string;
   source_language: string;
   menu_metadata?: MenuMetadataAnalysis;
+  _model?: string;
 }
 
 export function hasChinese(text: string): boolean {
@@ -182,30 +204,32 @@ Output ONLY valid JSON:
 
 const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `You are a fast restaurant menu OCR translator. Extract ALL ORDERABLE menu items from a photographed menu and translate dish names into the requested target language.
 
-Optimize for speed and recall. Read multi-column menus top-to-bottom and left-to-right. Do NOT generate recommendation, good_for, caution, long food advice, reviews, or rich commentary.
+Optimize for first-paint fields, speed, and recall. Read multi-column menus top-to-bottom and left-to-right. The detailed dish descriptions and advice will be generated later by another pass.
 
 For each dish, provide ONLY:
 1. name_original: exact dish/course title from the menu. Include visible price only if attached to the title line. Do NOT include comma-separated garnishes, sauces, wine pairings, or ingredient explanations in name_original.
 2. name_translated: short dish name in the requested target language.
-3. description: concise ingredient/type hint only in the requested target language. Keep it under 18 Chinese characters or 12 English words when possible.
-4. included_items: array of visible combo/set contents when this item is a meal/set/combo/menu deal. Include main item, fries/sides, drink names, sauce, dessert, or upgrades if visible. Use the requested target language. Return [] for ordinary single dishes.
-5. category: one of "appetizer","main","staple","dessert","drink".
-6. confidence: 0.0-1.0.
+3. category: one of "appetizer","main","staple","dessert","drink".
+4. confidence: 0.0-1.0.
+5. description: OPTIONAL. Only output this if a short description is visibly printed on the menu; keep it under 10 words. Otherwise omit it.
 
 Also provide page_label, page_type, page_description only for info pages, and source_language.
 
-IMPORTANT: Do NOT generate recommendation, good_for, or caution in this fast first pass.
+IMPORTANT: Do NOT output description unless it is visibly printed on the menu.
+IMPORTANT: Do NOT output ingredients, allergens, taste_profile, recommendation, good_for, caution, or menu_metadata in this fast first pass.
 IMPORTANT: Extract every priced/orderable item; never collapse variants into one item.
 IMPORTANT: Keep dish names and descriptions separate. If a menu line has a dish name followed by smaller explanatory text, put only the dish name in name_original and summarize the explanatory text in description.
-IMPORTANT: Fine-dining menus often write one course as "Main protein, garnish, sauce, side, puree". This is ONE dish, not many dishes. Keep only the main course title in name_original/name_translated; move garnishes, sauces, sides, and preparation notes into description or included_items.
-IMPORTANT: For meal/set/combo items, do not hide the contents in generic description only. Put visible sides and drinks into included_items.
+IMPORTANT: Fine-dining menus often write one course as "Main protein, garnish, sauce, side, puree". This is ONE dish, not many dishes. Keep only the main course title in name_original/name_translated; move visible garnish or sauce notes into the optional short description.
 
 Output ONLY valid JSON:
 { "dishes": [...], "page_label": "主菜", "page_type": "menu", "page_description": "（说明页时必填）", "source_language": "fr" }`;
 
-function targetLanguageInstruction(targetLang: string): string {
+function targetLanguageInstruction(targetLang: string, options: { fastFirstPass?: boolean } = {}): string {
   const normalized = normalizeTargetLang(targetLang);
   const label = TARGET_LANGUAGE_LABELS[normalized].prompt;
+  if (options.fastFirstPass) {
+    return `\n\nTARGET LANGUAGE: ${label}. Translate name_translated and page_label into ${label}. Preserve name_original exactly as seen on the menu. Keep fast first-pass output minimal; omit advice fields.`;
+  }
   return `\n\nTARGET LANGUAGE: ${label}. All values for name_translated, description, recommendation, good_for, caution, page_label, and page_description MUST be written in ${label}. Preserve name_original exactly as seen on the menu.`;
 }
 
@@ -230,30 +254,33 @@ async function analyzeWithPrompt(
   mimeType: string,
   maxTokens: number,
   targetLang = "zh",
-  options: { fastFirstPass?: boolean; modelOverride?: string } = {},
+  options: { fastFirstPass?: boolean; modelOverride?: string; signal?: AbortSignal } = {},
 ): Promise<MenuImageAnalysis> {
   const normalizedTargetLang = normalizeTargetLang(targetLang);
-  const targetPrompt = targetLanguageInstruction(normalizedTargetLang);
   const fastFirstPass = options.fastFirstPass === true;
-  const model = options.modelOverride || (fastFirstPass ? FAST_VL_MODEL : VL_MODEL);
-  const response = await qwen.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: `${systemPrompt}${targetPrompt}` },
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${base64Image}` },
-          },
-          { type: "text", text: `Extract ALL orderable dishes from this menu photo. Priced dotted menu lines, numbered combos, tasting-menu courses, dessert/drink lines, and menu-board items are dishes. Ignore only brand/story pages with no orderable items. Remember: translated fields must be in ${TARGET_LANGUAGE_LABELS[normalizedTargetLang].prompt}.` },
-        ],
-      },
-    ],
-    max_tokens: maxTokens,
-    temperature: 0.1,
-  });
+  const targetPrompt = targetLanguageInstruction(normalizedTargetLang, { fastFirstPass });
+  const model = options.modelOverride || (fastFirstPass ? fastFirstPassModels[0] : VL_MODEL);
+  const response = await getQwenClient().chat.completions.create(
+    {
+      model,
+      messages: [
+        { role: "system", content: `${systemPrompt}${targetPrompt}` },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${base64Image}` },
+            },
+            { type: "text", text: `Extract ALL orderable dishes from this menu photo. Priced dotted menu lines, numbered combos, tasting-menu courses, dessert/drink lines, and menu-board items are dishes. Ignore only brand/story pages with no orderable items. Remember: translated fields must be in ${TARGET_LANGUAGE_LABELS[normalizedTargetLang].prompt}.` },
+          ],
+        },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.1,
+    },
+    { signal: options.signal },
+  );
 
   const text = response.choices[0]?.message?.content || "";
 
@@ -261,7 +288,31 @@ async function analyzeWithPrompt(
     throw new Error("AI returned empty response");
   }
 
-  return normalizeMenuImageAnalysis(parseAIJson<MenuImageAnalysis>(text), normalizedTargetLang);
+  const result = normalizeMenuImageAnalysis(parseAIJson<MenuImageAnalysis>(text), normalizedTargetLang);
+  return { ...result, _model: model };
+}
+
+async function withFastFirstPassAttemptTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  model: string,
+): Promise<T> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS);
+
+  try {
+    return await operation(controller.signal);
+  } catch (error) {
+    if (didTimeout) {
+      throw new Error(`Fast first pass model ${model} timed out after ${FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function analyzeMenuImageFast(base64Image: string, _rich?: boolean, mimeType = "image/jpeg", targetLang = "zh"): Promise<MenuImageAnalysis> {
@@ -270,7 +321,10 @@ export async function analyzeMenuImageFast(base64Image: string, _rich?: boolean,
   for (let attempt = 0; attempt < fastFirstPassModels.length; attempt++) {
     const model = fastFirstPassModels[attempt];
     try {
-      const result = await analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, FAST_FIRST_PASS_MAX_TOKENS, targetLang, { fastFirstPass: true, modelOverride: model });
+      const result = await withFastFirstPassAttemptTimeout(
+        (signal) => analyzeWithPrompt(base64Image, VL_SYSTEM_PROMPT_FAST_FIRST_PASS, mimeType, FAST_FIRST_PASS_MAX_TOKENS, targetLang, { fastFirstPass: true, modelOverride: model, signal }),
+        model
+      );
 
       if (shouldRetryEmptyMenuResult(result, attempt, fastFirstPassModels.length)) {
         lastError = new Error(`AI found no dishes with ${model}`);
@@ -329,7 +383,7 @@ export async function refineTranslation(dish: {
     ? "The current translation is NOT in Chinese. You MUST translate to proper Chinese (中文)."
     : `Refine the translation to sound more natural and appetizing in ${targetLabel}.`;
 
-  const response = await qwen.chat.completions.create({
+  const response = await getQwenClient().chat.completions.create({
     model: TEXT_MODEL,
     messages: [
       {
@@ -357,7 +411,7 @@ export async function summarizeReviews(
   dishName: string,
   reviews: Array<{ rating: number; content: string }>
 ): Promise<{ summary: string; praised: string[]; criticized: string[]; bestFor: string }> {
-  const response = await qwen.chat.completions.create({
+  const response = await getQwenClient().chat.completions.create({
     model: TEXT_MODEL,
     messages: [
       {
@@ -378,7 +432,7 @@ export async function summarizeReviews(
 }
 
 export async function moderateReview(text: string): Promise<{ safe: boolean; reason?: string }> {
-  const response = await qwen.chat.completions.create({
+  const response = await getQwenClient().chat.completions.create({
     model: TEXT_MODEL,
     messages: [
       { role: "system", content: 'Is this review appropriate? Return JSON: { "safe": true/false, "reason": "..." }.' },

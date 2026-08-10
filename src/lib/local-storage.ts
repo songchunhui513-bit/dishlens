@@ -183,8 +183,23 @@ export function addHistory(entry: HistoryEntry): void {
 
 // ── Favorites ────────────────────────────────────────────────────
 
+function sanitizeFavoriteDish(dish: FavoriteDish): FavoriteDish {
+  if (!isUnsafePersistedImageUrl(dish.image_url) && (!dish.image_url || isSafeStoredThumbnail(dish.image_url))) {
+    return dish;
+  }
+
+  const next = { ...dish };
+  delete next.image_url;
+  return next;
+}
+
 export function getFavorites(): FavoriteDish[] {
-  return read<FavoriteDish[]>(KEYS.favorites, []);
+  const favorites = read<FavoriteDish[]>(KEYS.favorites, []);
+  const sanitized = favorites.map(sanitizeFavoriteDish);
+  if (sanitized.some((favorite, index) => favorite !== favorites[index])) {
+    write(KEYS.favorites, sanitized);
+  }
+  return sanitized;
 }
 
 export function addFavorite(dish: FavoriteDish): void {
