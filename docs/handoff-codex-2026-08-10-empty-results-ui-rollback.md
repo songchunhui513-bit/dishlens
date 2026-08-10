@@ -34,10 +34,22 @@
 - 保留 `FoodThumbnailFallback`、图片加载动画、图片重试、按需预热、长菜单分批渲染和点单功能。
 - 保留 44px 主要触控热区，避免机械回退到不可用的小按钮。
 
+### 线上冷菜单识别失败
+
+部署后从生产日志确认，原阿里云 Qwen 账号返回 `400 Access denied`，原因是账户欠费/状态异常。缓存菜单仍可秒开，但首次上传的新菜单会失败。
+
+应急恢复方案：
+
+- 复用本机已有且验证有效的 Gemini API key，线上识别顺序切为 `gemini,qwen`。
+- 原 Gemini 适配器只有 4096 token 输出预算，密集菜单会截断 JSON；新增轻量 `analyzeMenuImageFast`，首轮只返回菜名、翻译、分类和置信度。
+- 首轮预算提升到 8192 token，完整识别提升到 16384 token，并补齐 `page_type/page_description`，确保说明页仍能正确分类。
+- 冷缓存实测同一张法语菜单：30.259 秒返回 34 道菜，页面 1/1，17 张本地图立即命中。
+
 ## 变更文件
 
 - `src/components/results/LoadingPage.tsx`
 - `src/lib/loading-result-routing.ts`
+- `src/lib/ai/gemini.ts`
 - `src/app/page.tsx`
 - `src/components/results/ResultsPage.tsx`
 - `src/components/home/HomePage.tsx`
@@ -47,7 +59,7 @@
 
 ## 验证结果
 
-- `node --test tests/*.test.mjs`：177/177 通过。
+- `node --test tests/*.test.mjs`：178/178 通过。
 - `npm run lint`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过，Next.js 16.3.0 生产构建成功。

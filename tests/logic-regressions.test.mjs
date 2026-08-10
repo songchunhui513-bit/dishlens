@@ -4913,6 +4913,17 @@ test("AI provider modules defer secret validation until the first real request",
   assert.match(qwen, /getQwenClient\(\)\.chat\.completions\.create/);
 });
 
+test("Gemini vision fallback has a compact first pass and enough output budget for dense menus", async () => {
+  const gemini = await readFile(`${ROOT}/src/lib/ai/gemini.ts`, "utf8");
+
+  assert.match(gemini, /export async function analyzeMenuImageFast/);
+  assert.match(gemini, /GEMINI_FAST_MENU_MAX_TOKENS = 8192/);
+  assert.match(gemini, /GEMINI_FULL_MENU_MAX_TOKENS = 16384/);
+  assert.match(gemini, /Do NOT output ingredients, allergens, taste_profile, recommendation, good_for, caution, or menu_metadata/);
+  assert.match(gemini, /page_type/);
+  assert.match(gemini, /page_description/);
+});
+
 test("generated image persistence keeps stable remote URLs and rejects production-local fallbacks", async () => {
   const translateRoute = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
   const hydration = await readFile(`${ROOT}/src/lib/server/runtime-generated-image-hydration.ts`, "utf8");
