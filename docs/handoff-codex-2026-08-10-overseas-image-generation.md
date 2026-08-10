@@ -106,15 +106,15 @@ NEXT_PUBLIC_DISH_IMAGE_CDN_HOST=<OSS 自定义 CDN hostname>
 ## 生产预检
 
 - 公网 Google DNS 与 Cloudflare DNS 均返回 `35.255.147.40`，当前主入口是 Google Cloud，而非阿里云备用机。
-- 主站代码目录：`/opt/dishlens-global`；分支 `main`；基线 `61c0edd`；工作区干净。
+- 主站代码目录：`/opt/dishlens-global`；分支 `main`；已发布 `651d366`；工作区干净。
 - PM2：`dishlens`，单进程 `fork`，在线；Nginx 反代到 `127.0.0.1:3000` 并覆盖 `X-Real-IP`。
-- 当前生产已具备 `QWEN_API_KEY`、`SUPABASE_URL` 和 `SUPABASE_SERVICE_ROLE_KEY`，因此可按旧 Wan + Supabase 兼容链路部署。
+- 当前生产已具备 `QWEN_API_KEY`、`SUPABASE_URL` 和 `SUPABASE_SERVICE_ROLE_KEY`；但 Supabase 域名现为 DNS `ENOTFOUND`，任务与翻译文件缓存可兜底，AI 新图远端持久化不可用。
 - 当前生产尚缺新加坡 Model Studio、阿里 OSS、图片 CDN 和 Upstash Redis 配置；不影响单进程兼容模式，但不能宣称新海外目标架构已启用。
 
 ## 尚未完成
 
 1. 尚未创建或注入新加坡 Model Studio Workspace ID/API key，因此新链路还不能在目标海外区域正式启用。
-2. 本地发布候选已提交为 `e5c1762`，尚未推送和发布到线上。
+2. 发布候选与大菜单稳定性修复已发布到线上，详细结果见 `docs/handoff-codex-2026-08-10-production-deployment.md`。
 3. 尚未在新加坡 ECS + OSS 上运行 20 道菜冷启动、困难品类准确率和重复缓存命中 benchmark。
 4. `npm test` 仍未在 `package.json` 中定义；当前完整命令是 `node --test tests/logic-regressions.test.mjs`。
 
