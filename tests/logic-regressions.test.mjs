@@ -1808,7 +1808,7 @@ test("multi-page menu OCR uses higher fast first-pass concurrency without changi
   assert.match(route, /MENU_OCR_CONCURRENCY \|\| "2"/);
   assert.match(route, /Math\.min\(3,\s*Number\.parseInt\(process\.env\.MENU_OCR_CONCURRENCY/);
   assert.match(route, /const FAST_FIRST_PASS_OCR_CONCURRENCY = Math\.max\(/);
-  assert.match(route, /MENU_FAST_FIRST_PASS_OCR_CONCURRENCY \|\| "4"/);
+  assert.match(route, /MENU_FAST_FIRST_PASS_OCR_CONCURRENCY \|\| "3"/);
   assert.match(route, /Math\.min\(4,\s*Number\.parseInt\(process\.env\.MENU_FAST_FIRST_PASS_OCR_CONCURRENCY/);
   assert.match(route, /for \(let batch = 0; batch < imageBuffers\.length; batch \+= FAST_FIRST_PASS_OCR_CONCURRENCY\)/);
   assert.match(route, /const batchItems = firstPassImageBuffers\.slice\(batch,\s*batch \+ FAST_FIRST_PASS_OCR_CONCURRENCY\)/);
@@ -2661,6 +2661,7 @@ test("global menu recognition is resilient to slow overseas uploads and provider
   assert.match(route, /provider/);
   assert.match(route, /isCacheableTranslationResult/);
   assert.match(route, /result\.status === "failed"/);
+  assert.match(route, /result\.status === "partial"/);
   assert.match(route, /translationCache\.delete\(cachedKey\)/);
   assert.match(loadingPage, /MAX_POLLING_MS/);
   assert.match(loadingPage, /onTimeout/);

@@ -31,6 +31,7 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 function isCacheableTranslationResult(result: Record<string, unknown>): boolean {
   if (result.status === "failed") return false;
+  if (result.status === "partial") return false;
   const pages = Array.isArray(result.pages) ? result.pages : [];
   const metadata = result.metadata as { total_dishes?: unknown } | undefined;
   const totalDishes = typeof metadata?.total_dishes === "number"
@@ -330,7 +331,7 @@ const OCR_CONCURRENCY = Math.max(
 );
 const FAST_FIRST_PASS_OCR_CONCURRENCY = Math.max(
   1,
-  Math.min(4, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_OCR_CONCURRENCY || "4", 10) || 4),
+  Math.min(4, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_OCR_CONCURRENCY || "3", 10) || 3),
 );
 const FAST_OCR_MODE = process.env.MENU_FAST_OCR_MODE !== "false";
 const FULL_PROMPT_PAGE_LIMIT = FAST_OCR_MODE
