@@ -907,6 +907,7 @@ export async function POST(req: NextRequest) {
           },
         },
       }));
+      const shouldRefreshCache = shouldRefreshCachedResultInBackground(cachedResult);
       markCachedResultRefreshPending(cachedResult);
       await updateTask(taskId, {
         status: cachedStatus,
@@ -915,7 +916,7 @@ export async function POST(req: NextRequest) {
         result: cachedResult,
         estimatedRemaining: 0,
       });
-      if (shouldRefreshCachedResultInBackground(cachedResult)) {
+      if (shouldRefreshCache) {
         refreshCachedResultInBackground({ taskId, rawImageBuffers, cachedResult, targetLang, clientHashSets, startTime, meta, timings });
       }
       return NextResponse.json(cachedResult, { status: 200 });

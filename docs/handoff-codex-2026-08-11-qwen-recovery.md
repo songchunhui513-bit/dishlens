@@ -84,7 +84,7 @@ Qwen3 热切换备份：生产 `.env.production.bak-<UTC>-qwen3-vl-flash`。
 - 初始快照 51 道，后台富化去重后稳定为 49 道。
 - 后台完成后 49/49 有图，49 个 URL 均唯一。
 
-原始菜单的旧缓存仍有 15 张失败图。根因是 `resultNeedsImageRefresh` 排除了 `image_status=failed`，导致旧失败永久固化。已修复为：缓存元数据为 `image_generation_status=failed` 且仍有缺图时重新入队，只处理缺图，不覆盖成功图片。
+原始菜单的旧缓存仍有 15 张失败图。根因有两层：`resultNeedsImageRefresh` 排除了 `image_status=failed`；并且代码先把状态改成 `processing` 后才重新判断是否刷新，导致刷新资格被自身状态变更抹掉。现已在状态变更前冻结刷新决策；缓存失败且仍有缺图时重新入队，只处理缺图，不覆盖成功图片。
 
 ## 已解决
 

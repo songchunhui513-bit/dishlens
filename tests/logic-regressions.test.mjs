@@ -1812,6 +1812,18 @@ test("cached image-generation failures are retried without replacing successful 
   assert.match(refreshBody, /metadata\.image_generation_status === "failed"/);
   assert.match(refreshBody, /if \(!hasMissingImage\) return false/);
   assert.match(refreshBody, /!dish\.ai_image_url && !dish\.image_url/);
+
+  const cachedBranch = route.slice(
+    route.indexOf("const cachedHit = await findCachedTranslationByClientKeys"),
+    route.indexOf("// Evict expired entries"),
+  );
+  assert.match(cachedBranch, /const shouldRefreshCache = shouldRefreshCachedResultInBackground\(cachedResult\)/);
+  assert.match(cachedBranch, /markCachedResultRefreshPending\(cachedResult\)/);
+  assert.match(cachedBranch, /if \(shouldRefreshCache\)/);
+  assert.ok(
+    cachedBranch.indexOf("const shouldRefreshCache") < cachedBranch.indexOf("markCachedResultRefreshPending"),
+    "refresh eligibility must be captured before failed state becomes processing",
+  );
 });
 
 test("multi-page menu OCR uses higher fast first-pass concurrency without changing full pass concurrency", async () => {
