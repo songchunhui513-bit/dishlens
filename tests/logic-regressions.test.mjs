@@ -1805,7 +1805,7 @@ test("cached image-generation failures are retried without replacing successful 
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
   const refreshBody = route.slice(
     route.indexOf("function resultNeedsImageRefresh"),
-    route.indexOf("function shouldRefreshCachedResultInBackground"),
+    route.indexOf("type CachedResultRefreshPlan"),
   );
 
   assert.match(refreshBody, /const hasMissingImage/);
@@ -1817,11 +1817,13 @@ test("cached image-generation failures are retried without replacing successful 
     route.indexOf("const cachedHit = await findCachedTranslationByClientKeys"),
     route.indexOf("// Evict expired entries"),
   );
-  assert.match(cachedBranch, /const shouldRefreshCache = shouldRefreshCachedResultInBackground\(cachedResult\)/);
-  assert.match(cachedBranch, /markCachedResultRefreshPending\(cachedResult\)/);
+  assert.match(cachedBranch, /const refreshPlan = buildCachedResultRefreshPlan\(cachedResult\)/);
+  assert.match(cachedBranch, /const shouldRefreshCache = refreshPlan\.images \|\| refreshPlan\.advice/);
+  assert.match(cachedBranch, /markCachedResultRefreshPending\(cachedResult, refreshPlan\)/);
   assert.match(cachedBranch, /if \(shouldRefreshCache\)/);
+  assert.match(cachedBranch, /refreshCachedResultInBackground\(\{[\s\S]*refreshPlan[\s\S]*\}\)/);
   assert.ok(
-    cachedBranch.indexOf("const shouldRefreshCache") < cachedBranch.indexOf("markCachedResultRefreshPending"),
+    cachedBranch.indexOf("const refreshPlan") < cachedBranch.indexOf("markCachedResultRefreshPending"),
     "refresh eligibility must be captured before failed state becomes processing",
   );
 });
@@ -2988,7 +2990,7 @@ test("public cache probe cannot return menu data or trigger paid image generatio
 test("cached menu results refresh stale generated images and missing dish advice in the background", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
 
-  assert.match(route, /function shouldRefreshCachedResultInBackground/);
+  assert.match(route, /function buildCachedResultRefreshPlan/);
   assert.match(route, /function resultNeedsImageRefresh/);
   assert.match(route, /image_sanitized_count/);
   assert.match(route, /local_generated_images_stripped_count/);
@@ -2998,8 +3000,10 @@ test("cached menu results refresh stale generated images and missing dish advice
   assert.match(route, /generateImagesInBackground\(taskId,\s*cachedResult,\s*clientCacheKeys\)/);
   assert.match(route, /normalizeMenuImagesForProcessing\(rawImageBuffers,\s*targetLang,\s*timings\)/);
   assert.match(route, /enrichResultInBackground\(taskId,\s*imageBuffers,\s*cachedResult,\s*targetLang,\s*cacheKeys/);
-  assert.match(route, /shouldRefreshCachedResultInBackground\(cachedResult\)/);
-  assert.match(route, /refreshCachedResultInBackground\(\{\s*taskId,\s*rawImageBuffers,\s*cachedResult,\s*targetLang,\s*clientHashSets,\s*startTime,\s*meta,\s*timings\s*\}/);
+  assert.match(route, /buildCachedResultRefreshPlan\(cachedResult\)/);
+  assert.match(route, /const needsImageRefresh = refreshPlan\.images/);
+  assert.match(route, /const needsAdviceRefresh = refreshPlan\.advice/);
+  assert.match(route, /refreshCachedResultInBackground\(\{\s*taskId,\s*rawImageBuffers,\s*cachedResult,\s*targetLang,\s*clientHashSets,\s*startTime,\s*meta,\s*timings,\s*refreshPlan\s*\}/);
   assert.match(route, /metadata\.image_generation_status = "processing"/);
   assert.match(route, /metadata\.enrichment_status = "pending"/);
 });

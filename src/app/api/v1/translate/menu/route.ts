@@ -315,17 +315,28 @@ function resultNeedsImageRefresh(result: Record<string, unknown>): boolean {
     .some((dish) => !dish.ai_image_url && !dish.image_url && dish.image_status !== "failed" && dish.image_status !== "deferred");
 }
 
-function shouldRefreshCachedResultInBackground(result: Record<string, unknown>): boolean {
-  return resultNeedsImageRefresh(result) || resultNeedsDishAdviceRefresh(result);
+type CachedResultRefreshPlan = {
+  images: boolean;
+  advice: boolean;
+};
+
+function buildCachedResultRefreshPlan(result: Record<string, unknown>): CachedResultRefreshPlan {
+  return {
+    images: resultNeedsImageRefresh(result),
+    advice: resultNeedsDishAdviceRefresh(result),
+  };
 }
 
-function markCachedResultRefreshPending(cachedResult: Record<string, unknown>): void {
-  if (!shouldRefreshCachedResultInBackground(cachedResult)) return;
+function markCachedResultRefreshPending(
+  cachedResult: Record<string, unknown>,
+  refreshPlan = buildCachedResultRefreshPlan(cachedResult),
+): void {
+  if (!refreshPlan.images && !refreshPlan.advice) return;
   const metadata = ((cachedResult.metadata as Record<string, unknown>) || {});
-  if (resultNeedsImageRefresh(cachedResult)) {
+  if (refreshPlan.images) {
     metadata.image_generation_status = "processing";
   }
-  if (resultNeedsDishAdviceRefresh(cachedResult)) {
+  if (refreshPlan.advice) {
     metadata.enrichment_status = "pending";
   }
   cachedResult.metadata = metadata;
@@ -907,8 +918,9 @@ export async function POST(req: NextRequest) {
           },
         },
       }));
-      const shouldRefreshCache = shouldRefreshCachedResultInBackground(cachedResult);
-      markCachedResultRefreshPending(cachedResult);
+      const refreshPlan = buildCachedResultRefreshPlan(cachedResult);
+      const shouldRefreshCache = refreshPlan.images || refreshPlan.advice;
+      markCachedResultRefreshPending(cachedResult, refreshPlan);
       await updateTask(taskId, {
         status: cachedStatus,
         progress: { current: images.length, total: images.length },
@@ -917,7 +929,7 @@ export async function POST(req: NextRequest) {
         estimatedRemaining: 0,
       });
       if (shouldRefreshCache) {
-        refreshCachedResultInBackground({ taskId, rawImageBuffers, cachedResult, targetLang, clientHashSets, startTime, meta, timings });
+        refreshCachedResultInBackground({ taskId, rawImageBuffers, cachedResult, targetLang, clientHashSets, startTime, meta, timings, refreshPlan });
       }
       return NextResponse.json(cachedResult, { status: 200 });
     }
@@ -1550,6 +1562,7 @@ function refreshCachedResultInBackground({
   startTime,
   meta,
   timings,
+  refreshPlan,
 }: {
   taskId: string;
   rawImageBuffers: RawMenuImageInput[];
@@ -1559,10 +1572,11 @@ function refreshCachedResultInBackground({
   startTime: number;
   meta: Record<string, string>;
   timings: TranslationTimings;
+  refreshPlan: CachedResultRefreshPlan;
 }) {
   const metadata = ((cachedResult.metadata as Record<string, unknown>) || {});
-  const needsImageRefresh = resultNeedsImageRefresh(cachedResult);
-  const needsAdviceRefresh = resultNeedsDishAdviceRefresh(cachedResult);
+  const needsImageRefresh = refreshPlan.images;
+  const needsAdviceRefresh = refreshPlan.advice;
 
   if (needsImageRefresh) {
     metadata.image_generation_status = "processing";
