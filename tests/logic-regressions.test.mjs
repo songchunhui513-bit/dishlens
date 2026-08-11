@@ -1911,6 +1911,15 @@ test("background enrichment promotes recovered task state and exposes recovered 
   assert.match(enrichment, /pages,[\s\S]*total_dishes:\s*pages\.reduce/);
 });
 
+test("translation cache never lets a lower-quality concurrent result replace a richer menu", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  assert.match(route, /function translationQualityScore\(result: Record<string, unknown>\)/);
+  assert.match(route, /const existingMemoryEntry = translationCache\.get\(cacheKey\)/);
+  assert.match(route, /translationQualityScore\(existingMemoryEntry\.result\) > translationQualityScore\(result\)/);
+  assert.match(route, /getCachedTranslationResult\(cacheKey\)/);
+  assert.match(route, /translationQualityScore\(persistentEntry\.result\) > translationQualityScore\(result\)/);
+});
+
 test("fast first-pass timing separates model latency from result-building work", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
 

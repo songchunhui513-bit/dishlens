@@ -40,6 +40,17 @@ function isCacheableTranslationResult(result: Record<string, unknown>): boolean 
   return pages.length > 0 && totalDishes > 0;
 }
 
+function translationQualityScore(result: Record<string, unknown>): number {
+  const pages = Array.isArray(result.pages) ? result.pages : [];
+  const totalDishes = pages.reduce((sum, page) => {
+    const dishes = (page as { dishes?: unknown[] }).dishes;
+    return sum + (Array.isArray(dishes) ? dishes.length : 0);
+  }, 0);
+  const metadata = result.metadata as { enrichment_status?: unknown } | undefined;
+  const enrichmentBonus = metadata?.enrichment_status === "done" ? 10 : 0;
+  return pages.length * 100_000 + totalDishes * 100 + enrichmentBonus;
+}
+
 function cacheKeyList(cacheKeys: TranslationCacheKeys): string[] {
   if (!cacheKeys) return [];
   return (Array.isArray(cacheKeys) ? cacheKeys : [cacheKeys])
@@ -52,10 +63,18 @@ async function rememberTranslation(cacheKeys: TranslationCacheKeys, result: Reco
   if (keys.length === 0) return;
   if (!isCacheableTranslationResult(result)) return;
   for (const cacheKey of keys) {
+    const existingMemoryEntry = translationCache.get(cacheKey);
+    if (existingMemoryEntry && translationQualityScore(existingMemoryEntry.result) > translationQualityScore(result)) {
+      continue;
+    }
+    const persistentEntry = await getCachedTranslationResult(cacheKey);
+    if (persistentEntry && translationQualityScore(persistentEntry.result) > translationQualityScore(result)) {
+      continue;
+    }
     translationCache.set(cacheKey, { result, createdAt: Date.now() });
+    const persistentResult = stripMachineLocalGeneratedImagesForPersistentCache(result);
+    await setCachedTranslationResult(cacheKey, persistentResult);
   }
-  const persistentResult = stripMachineLocalGeneratedImagesForPersistentCache(result);
-  await Promise.all(keys.map((cacheKey) => setCachedTranslationResult(cacheKey, persistentResult)));
 }
 
 function isMachineLocalGeneratedDishImageUrl(url: unknown): url is string {
