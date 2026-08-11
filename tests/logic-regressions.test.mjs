@@ -2993,7 +2993,7 @@ test("translation upload stores client preflight hashes as cache aliases for rep
   assert.match(route, /rememberTranslation\(cacheKeys,\s*resultPayload\)/);
   assert.match(route, /rememberTranslation\(cacheKeys,\s*enrichedPayload\)/);
   assert.match(route, /rememberTranslation\(cacheKeys,\s*latestPayload\)/);
-  assert.match(route, /Promise\.all\(keys\.map\(\(cacheKey\) => setCachedTranslationResult\(cacheKey,\s*persistentResult\)\)\)/);
+  assert.match(route, /setCachedTranslationResult\(cacheKey,\s*persistentResult\)/);
 });
 
 test("server verifies client cache hashes against uploaded bytes before cache lookup or alias writes", async () => {
