@@ -72,6 +72,21 @@
 
 - `/tmp/dishlens-ui-restore-loading.png`
 - `/tmp/dishlens-ui-restore-results.png`
+- `/tmp/dishlens-production-ui-restore-loading.png`
+- `/tmp/dishlens-production-ui-restore-results.png`
+
+## 生产发布
+
+- 代码提交：`e56f162 Restore historical compact UI`
+- GitHub `main`：已推送。
+- Google Cloud：`dishlens-global` / `us-central1-a`
+- 生产目录：`/opt/dishlens-global`
+- PM2 进程：`dishlens`，状态 `online`
+- 生产构建：Next.js 16.3.0 构建通过。
+- 线上地址：`https://dishlens.wukongmkt.com/`，HTTP 200。
+- 线上 Sonnet `agent-browser` 再次上传同一真实菜单：约 15 秒返回 34 道菜；中央动画版加载 UI、结果页、无错误和无横向溢出均通过。
+
+日志中仍能看到发布前已有的 Supabase DNS/超时和 DashScope 生图失败记录，但新进程已正常 Ready，菜单识别通过 Gemini 备用链路成功；这些不是本轮 UI 还原引入的错误。
 
 ## 后续注意
 
