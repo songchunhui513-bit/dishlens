@@ -67,13 +67,6 @@ const LOCAL_IMAGE_OVERRIDES: Array<{
     names: ["Pizza Quattro Stagioni", "La Jardin", "花园披萨"],
   },
   {
-    patterns: ["la pizza cioccolato", "pizza cioccolato", "pizza chocolate", "chocolate pizza", "巧克力披萨", "甜味披萨"],
-    id: "pizza-margherita",
-    card: "/dishes/pizza-margherita.webp",
-    hero: "/dishes/pizza-margherita.webp",
-    names: ["Pizza al Cioccolato", "La Pizza Cioccolato", "巧克力披萨"],
-  },
-  {
     patterns: ["croquettes vg", "manchego corn chilli croquettes", "croquettes manchego", "炸奶酪丸", "炸丸子"],
     id: "bistro-croquettes",
     card: "/dishes/bistro-croquettes.webp",
@@ -457,4 +450,12 @@ export function matchDishKnowledgeImage(dish: DishLike): DishImageMatch | null {
   }
 
   return best && best.score >= 0.58 ? best : null;
+}
+
+export function isDishKnowledgeImageUrlCompatible(dish: unknown, imageUrl: unknown): boolean {
+  if (typeof imageUrl !== "string" || !imageUrl.startsWith("/dishes/")) return true;
+  if (!dish || typeof dish !== "object" || Array.isArray(dish)) return false;
+
+  const match = matchDishKnowledgeImage(dish as DishLike);
+  return Boolean(match && (match.card === imageUrl || match.hero === imageUrl));
 }

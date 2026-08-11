@@ -29,9 +29,11 @@ async function loadTsModule(file) {
     'import generatedDishLocalIndex from "../../public/generated-dish-local-index.json";',
     'const generatedDishLocalIndex = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("../../public/generated-dish-local-index.json", import.meta.url), "utf8"));',
   );
-  compiled = compiled.replace(
-    'import { matchDishKnowledgeImage } from "@/lib/dish-image-match";',
-    'import { matchDishKnowledgeImage } from "./dish-image-match.mjs";',
+  compiled = compiled.replaceAll(
+    'from "@/lib/dish-image-match"',
+    file.includes("/src/lib/server/")
+      ? 'from "../dish-image-match.mjs"'
+      : 'from "./dish-image-match.mjs"',
   );
   compiled = compiled.replaceAll(
     'from "@/lib/dish-name-normalization"',
@@ -84,6 +86,7 @@ async function loadTsModule(file) {
   await writeFile(outFile, compiled);
   const dependencyMap = [
     { pattern: 'from "./dish-image-match.mjs"', file: `${ROOT}/src/lib/dish-image-match.ts` },
+    { pattern: 'from "../dish-image-match.mjs"', file: `${ROOT}/src/lib/dish-image-match.ts` },
     { pattern: 'from "./dish-name-normalization.mjs"', file: `${ROOT}/src/lib/dish-name-normalization.ts` },
     { pattern: 'from "./results-categories.mjs"', file: `${ROOT}/src/lib/results-categories.ts` },
     { pattern: 'from "./dish-presentation.mjs"', file: `${ROOT}/src/lib/dish-presentation.ts` },
@@ -4320,6 +4323,7 @@ test("stale local generated image URLs from the database are not reused as valid
 });
 
 test("task responses strip machine-local generated dish image URLs before reaching the UI", async () => {
+  await loadTsModule(`${ROOT}/src/lib/dish-image-match.ts`);
   const { sanitizeTranslationResultImages } = await loadTsModule(
     `${ROOT}/src/lib/server/sanitize-translation-result.ts`,
   );
@@ -4369,6 +4373,17 @@ test("task responses strip machine-local generated dish image URLs before reachi
             image_status: "done",
             image_source: "mixed",
           },
+          {
+            id: "chocolate-pizza",
+            name_original: "LA PIZZA CIOCCOLATO",
+            name_translated: { zh: "巧克力披萨" },
+            description: { zh: "榛子奶油、焦糖和榛子碎制成的甜味披萨" },
+            category: "dessert",
+            ai_image_url: "/dishes/pizza-margherita.webp",
+            image_url: "/dishes/pizza-margherita.webp",
+            image_status: "done",
+            image_source: "mixed",
+          },
         ],
       },
     ],
@@ -4383,7 +4398,12 @@ test("task responses strip machine-local generated dish image URLs before reachi
   assert.equal(dishes[2].image_status, "failed");
   assert.match(dishes[3].ai_image_url, /oss-ap-southeast-1\.aliyuncs\.com/);
   assert.equal(dishes[4].category, "dessert");
-  assert.equal(sanitized.metadata.image_sanitized_count, 3);
+  assert.equal(dishes[4].ai_image_url, undefined);
+  assert.equal(dishes[4].image_status, "failed");
+  assert.equal(dishes[5].ai_image_url, undefined);
+  assert.equal(dishes[5].image_url, undefined);
+  assert.equal(dishes[5].image_status, "failed");
+  assert.equal(sanitized.metadata.image_sanitized_count, 6);
   assert.equal(sanitized.metadata.category_sanitized_count, 1);
 });
 

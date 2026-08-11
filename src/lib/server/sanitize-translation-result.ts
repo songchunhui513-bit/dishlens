@@ -1,4 +1,5 @@
 import { isStableRemoteGeneratedDishImageUrl } from "@/lib/safe-image-url";
+import { isDishKnowledgeImageUrlCompatible } from "@/lib/dish-image-match";
 
 const GENERATED_DISH_PREFIX = "/generated-dishes/";
 
@@ -62,16 +63,20 @@ export function sanitizeTranslationResultImages<T extends JsonRecord | null | un
 
       const staleAiUrl = isMachineLocalGeneratedDishUrl(dish.ai_image_url);
       const staleImageUrl = isMachineLocalGeneratedDishUrl(dish.image_url);
+      const mismatchedAiUrl = !staleAiUrl
+        && !isDishKnowledgeImageUrlCompatible(dish, dish.ai_image_url);
+      const mismatchedImageUrl = !staleImageUrl
+        && !isDishKnowledgeImageUrlCompatible(dish, dish.image_url);
       const nextCategory = correctedCategory(dish);
-      if (!staleAiUrl && !staleImageUrl && !nextCategory) return dish;
+      if (!staleAiUrl && !staleImageUrl && !mismatchedAiUrl && !mismatchedImageUrl && !nextCategory) return dish;
 
       pageChanged = true;
-      removedCount += Number(staleAiUrl) + Number(staleImageUrl);
+      removedCount += Number(staleAiUrl || mismatchedAiUrl) + Number(staleImageUrl || mismatchedImageUrl);
       categoryCorrectedCount += nextCategory ? 1 : 0;
       const nextDish = { ...dish };
       if (nextCategory) nextDish.category = nextCategory;
-      if (staleAiUrl) delete nextDish.ai_image_url;
-      if (staleImageUrl) delete nextDish.image_url;
+      if (staleAiUrl || mismatchedAiUrl) delete nextDish.ai_image_url;
+      if (staleImageUrl || mismatchedImageUrl) delete nextDish.image_url;
       if (!nextDish.ai_image_url && !nextDish.image_url) {
         nextDish.image_status = "failed";
       }
