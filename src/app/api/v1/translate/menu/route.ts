@@ -302,8 +302,16 @@ function resultNeedsImageRefresh(result: Record<string, unknown>): boolean {
   if (Number(metadata.local_generated_images_stripped_count || 0) > 0) return true;
 
   const pages = (result as { pages?: Array<{ dishes?: Array<Record<string, unknown>> }> }).pages || [];
-  return pages
-    .flatMap((page) => page.dishes || [])
+  const dishes = pages.flatMap((page) => page.dishes || []);
+  const hasMissingImage = dishes.some((dish) => !dish.ai_image_url && !dish.image_url);
+  if (!hasMissingImage) return false;
+
+  // A previous provider or persistence outage must not poison this menu's
+  // cache forever. The generator only selects missing dishes, so completed
+  // images remain untouched while failed items get another chance.
+  if (metadata.image_generation_status === "failed") return true;
+
+  return dishes
     .some((dish) => !dish.ai_image_url && !dish.image_url && dish.image_status !== "failed" && dish.image_status !== "deferred");
 }
 
@@ -331,7 +339,7 @@ const OCR_CONCURRENCY = Math.max(
 );
 const FAST_FIRST_PASS_OCR_CONCURRENCY = Math.max(
   1,
-  Math.min(4, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_OCR_CONCURRENCY || "3", 10) || 3),
+  Math.min(4, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_OCR_CONCURRENCY || "4", 10) || 4),
 );
 const FAST_OCR_MODE = process.env.MENU_FAST_OCR_MODE !== "false";
 const FULL_PROMPT_PAGE_LIMIT = FAST_OCR_MODE

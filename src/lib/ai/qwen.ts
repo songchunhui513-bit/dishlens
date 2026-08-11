@@ -21,8 +21,8 @@ function getQwenClient(): OpenAI {
   return qwenClient;
 }
 
-const VL_MODEL = process.env.QWEN_VL_MODEL || "qwen-vl-max";
-const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || "qwen-vl-plus";
+const VL_MODEL = process.env.QWEN_VL_MODEL || "qwen3-vl-plus";
+const FAST_VL_MODEL = process.env.QWEN_FAST_VL_MODEL || "qwen3-vl-flash";
 const TEXT_MODEL = process.env.QWEN_TEXT_MODEL || "qwen-plus";
 function parseFastFirstPassModels(): string[] {
   const configuredModels = (process.env.QWEN_FAST_FIRST_PASS_MODELS || "")
@@ -38,7 +38,7 @@ const FAST_FIRST_PASS_MAX_TOKENS = Math.max(
 );
 const FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS = Math.max(
   5_000,
-  Math.min(API_TIMEOUT, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS || "30000", 10) || 30000),
+  Math.min(API_TIMEOUT, Number.parseInt(process.env.MENU_FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS || "20000", 10) || 20000),
 );
 
 interface MenuDishAnalysis {

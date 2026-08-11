@@ -1801,6 +1801,19 @@ test("cache-miss menu uploads return a task id before server-side normalization"
   assert.doesNotMatch(postBody, /const normalizationStart = Date\.now\(\)[\s\S]*return NextResponse\.json\(\s*\{\s*task_id: taskId,\s*status: "processing"\s*\}/);
 });
 
+test("cached image-generation failures are retried without replacing successful dish images", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const refreshBody = route.slice(
+    route.indexOf("function resultNeedsImageRefresh"),
+    route.indexOf("function shouldRefreshCachedResultInBackground"),
+  );
+
+  assert.match(refreshBody, /const hasMissingImage/);
+  assert.match(refreshBody, /metadata\.image_generation_status === "failed"/);
+  assert.match(refreshBody, /if \(!hasMissingImage\) return false/);
+  assert.match(refreshBody, /!dish\.ai_image_url && !dish\.image_url/);
+});
+
 test("multi-page menu OCR uses higher fast first-pass concurrency without changing full pass concurrency", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
 
@@ -1808,7 +1821,7 @@ test("multi-page menu OCR uses higher fast first-pass concurrency without changi
   assert.match(route, /MENU_OCR_CONCURRENCY \|\| "2"/);
   assert.match(route, /Math\.min\(3,\s*Number\.parseInt\(process\.env\.MENU_OCR_CONCURRENCY/);
   assert.match(route, /const FAST_FIRST_PASS_OCR_CONCURRENCY = Math\.max\(/);
-  assert.match(route, /MENU_FAST_FIRST_PASS_OCR_CONCURRENCY \|\| "3"/);
+  assert.match(route, /MENU_FAST_FIRST_PASS_OCR_CONCURRENCY \|\| "4"/);
   assert.match(route, /Math\.min\(4,\s*Number\.parseInt\(process\.env\.MENU_FAST_FIRST_PASS_OCR_CONCURRENCY/);
   assert.match(route, /for \(let batch = 0; batch < imageBuffers\.length; batch \+= FAST_FIRST_PASS_OCR_CONCURRENCY\)/);
   assert.match(route, /const batchItems = firstPassImageBuffers\.slice\(batch,\s*batch \+ FAST_FIRST_PASS_OCR_CONCURRENCY\)/);
@@ -1824,11 +1837,12 @@ test("fast overseas recognition returns a lightweight first result before enrich
 
   assert.match(qwen, /VL_SYSTEM_PROMPT_FAST_FIRST_PASS/);
   assert.match(qwen, /export async function analyzeMenuImageFast/);
-  assert.match(qwen, /const FAST_VL_MODEL = process\.env\.QWEN_FAST_VL_MODEL \|\| "qwen-vl-plus"/);
+  assert.match(qwen, /const VL_MODEL = process\.env\.QWEN_VL_MODEL \|\| "qwen3-vl-plus"/);
+  assert.match(qwen, /const FAST_VL_MODEL = process\.env\.QWEN_FAST_VL_MODEL \|\| "qwen3-vl-flash"/);
   assert.match(qwen, /const fastFirstPassModels = parseFastFirstPassModels\(\)/);
   assert.match(qwen, /process\.env\.QWEN_FAST_FIRST_PASS_MODELS/);
   assert.match(qwen, /MENU_FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS/);
-  assert.match(qwen, /MENU_FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS \|\| "30000"/);
+  assert.match(qwen, /MENU_FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS \|\| "20000"/);
   assert.match(qwen, /FAST_FIRST_PASS_ATTEMPT_TIMEOUT_MS/);
   assert.match(qwen, /function withFastFirstPassAttemptTimeout/);
   assert.match(qwen, /const controller = new AbortController\(\)/);
@@ -2110,7 +2124,7 @@ test("result-page AI fields are requested in fast and enriched menu analysis", a
   const qwen = await readFile(`${ROOT}/src/lib/ai/qwen.ts`, "utf8");
 
   assert.match(qwen, /process\.env\.QWEN_BASE_URL \|\| "https:\/\/dashscope\.aliyuncs\.com\/compatible-mode\/v1"/);
-  assert.match(qwen, /process\.env\.QWEN_VL_MODEL \|\| "qwen-vl-max"/);
+  assert.match(qwen, /process\.env\.QWEN_VL_MODEL \|\| "qwen3-vl-plus"/);
   assert.match(qwen, /process\.env\.QWEN_TEXT_MODEL \|\| "qwen-plus"/);
 
   const fastPrompt = qwen.match(/const VL_SYSTEM_PROMPT_FAST_FIRST_PASS = `([\s\S]*?)`;/)?.[1] || "";
