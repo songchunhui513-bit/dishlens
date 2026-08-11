@@ -64,6 +64,7 @@ TARGET LANGUAGE: ${targetLabel}. All translated fields, including name_translate
 
   const response = await gemini.chat.completions.create({
     model: MODEL,
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
       {
@@ -107,6 +108,7 @@ TARGET LANGUAGE: ${targetLabel}. Translate name_translated, page_label, and page
 
   const response = await gemini.chat.completions.create({
     model: MODEL,
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
       {

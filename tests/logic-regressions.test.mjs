@@ -1897,6 +1897,20 @@ test("fast overseas recognition returns a lightweight first result before enrich
   assert.match(route, /translate:task_first_pass_finished/);
 });
 
+test("background enrichment promotes recovered task state and exposes recovered dishes", async () => {
+  const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
+  const enrichmentStart = route.indexOf("async function enrichResultInBackground(");
+  const enrichmentEnd = route.indexOf("function refreshCachedResultInBackground", enrichmentStart);
+  const enrichment = route.slice(enrichmentStart, enrichmentEnd);
+
+  assert.ok(enrichmentStart >= 0 && enrichmentEnd > enrichmentStart);
+  assert.match(enrichment, /const enrichmentStatus = pages\.length === imageBuffers\.length[\s\S]*\? "done"[\s\S]*\? "partial"[\s\S]*: "failed"/);
+  assert.match(enrichment, /status:\s*enrichmentStatus/);
+  assert.match(enrichment, /failed_pages:\s*remainingFailedPages\.length > 0\s*\? remainingFailedPages\s*:\s*undefined/);
+  assert.match(enrichment, /updateTask\(taskId,\s*\{[\s\S]*status:\s*enrichmentStatus[\s\S]*result:\s*enrichedPayload[\s\S]*failedPages:\s*remainingFailedPages[\s\S]*\}\)/);
+  assert.match(enrichment, /pages,[\s\S]*total_dishes:\s*pages\.reduce/);
+});
+
 test("fast first-pass timing separates model latency from result-building work", async () => {
   const route = await readFile(`${ROOT}/src/app/api/v1/translate/menu/route.ts`, "utf8");
 
@@ -4982,6 +4996,13 @@ test("Gemini vision fallback has a compact first pass and enough output budget f
   assert.match(gemini, /Do NOT output ingredients, allergens, taste_profile, recommendation, good_for, caution, or menu_metadata/);
   assert.match(gemini, /page_type/);
   assert.match(gemini, /page_description/);
+});
+
+test("Gemini menu vision requests structured JSON to prevent malformed fallback payloads", async () => {
+  const gemini = await readFile(`${ROOT}/src/lib/ai/gemini.ts`, "utf8");
+  const menuFunctions = gemini.slice(gemini.indexOf("export async function analyzeMenuImage("), gemini.indexOf("// ── Translation refinement"));
+
+  assert.equal((menuFunctions.match(/response_format:\s*\{\s*type:\s*"json_object"\s*\}/g) || []).length, 2);
 });
 
 test("generated image persistence keeps stable remote URLs and rejects production-local fallbacks", async () => {

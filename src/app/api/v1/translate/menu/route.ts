@@ -1477,47 +1477,105 @@ async function enrichResultInBackground(
   meta?: Record<string, string>,
   timings: TranslationTimings = {},
 ) {
+  const existingPages = Array.isArray(resultPayload.pages)
+    ? resultPayload.pages as Array<Record<string, unknown>>
+    : [];
   const enrichedPages: Array<Record<string, unknown>> = [];
+  for (const page of existingPages) {
+    const pageIndex = page.page_index;
+    if (typeof pageIndex === "number" && pageIndex >= 0 && pageIndex < imageBuffers.length) {
+      enrichedPages[pageIndex] = page;
+    }
+  }
+  const failedPagesByIndex = new Map<number, {
+    page_index: number;
+    error: string;
+    retry_allowed: boolean;
+  }>();
+  if (Array.isArray(resultPayload.failed_pages)) {
+    for (const failedPage of resultPayload.failed_pages) {
+      if (
+        typeof failedPage === "object"
+        && failedPage !== null
+        && typeof (failedPage as { page_index?: unknown }).page_index === "number"
+      ) {
+        const typedFailedPage = failedPage as {
+          page_index: number;
+          error: string;
+          retry_allowed: boolean;
+        };
+        failedPagesByIndex.set(typedFailedPage.page_index, typedFailedPage);
+      }
+    }
+  }
   const usedImageIds = new Set<string>();
 
   for (let i = 0; i < imageBuffers.length; i++) {
     const item = imageBuffers[i];
-    let raw: MenuAnalysisResult;
-    const useRichMode = imageBuffers.length <= FULL_PROMPT_PAGE_LIMIT;
-    if (useRichMode) {
-      try {
-        raw = await analyzeMenuImage(item.base64, true, item.mimeType, targetLang) as MenuAnalysisResult;
-      } catch {
+    try {
+      let raw: MenuAnalysisResult;
+      const useRichMode = imageBuffers.length <= FULL_PROMPT_PAGE_LIMIT;
+      if (useRichMode) {
+        try {
+          raw = await analyzeMenuImage(item.base64, true, item.mimeType, targetLang) as MenuAnalysisResult;
+        } catch {
+          raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
+        }
+      } else {
         raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
       }
-    } else {
-      raw = await analyzeMenuImage(item.base64, false, item.mimeType, targetLang) as MenuAnalysisResult;
+
+      const refinedDishes = await refineDishesForTargetLanguage(
+        raw.dishes,
+        raw.source_language,
+        targetLang,
+      );
+
+      enrichedPages[i] = {
+        page_index: i,
+        page_label: raw.page_label || "未分类",
+        page_type: raw.page_type,
+        page_description: raw.page_description,
+        source_language: raw.source_language,
+        dishes: await buildDishRecords(refinedDishes, raw.page_label, usedImageIds, targetLang),
+        menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
+      };
+      failedPagesByIndex.delete(i);
+    } catch (error) {
+      if (!enrichedPages[i]) {
+        failedPagesByIndex.set(i, {
+          page_index: i,
+          error: error instanceof Error ? error.message : String(error),
+          retry_allowed: true,
+        });
+      }
+      console.warn("translate:background_enrichment_page_failed", {
+        taskId,
+        pageIndex: i,
+        error: error instanceof Error ? error.message : String(error),
+        ...meta,
+      });
     }
-
-    const refinedDishes = await refineDishesForTargetLanguage(
-      raw.dishes,
-      raw.source_language,
-      targetLang,
-    );
-
-    enrichedPages[i] = {
-      page_index: i,
-      page_label: raw.page_label || "未分类",
-      page_type: raw.page_type,
-      page_description: raw.page_description,
-      source_language: raw.source_language,
-      dishes: await buildDishRecords(refinedDishes, raw.page_label, usedImageIds, targetLang),
-      menu_metadata: (raw as unknown as Record<string, unknown>).menu_metadata,
-    };
   }
 
   const pages = enrichedPages.filter(Boolean).sort(
     (a, b) => (a as { page_index: number }).page_index - (b as { page_index: number }).page_index
   );
+  const recoveredPageIndexes = new Set(
+    pages.map((page) => (page as { page_index: number }).page_index),
+  );
+  const remainingFailedPages = [...failedPagesByIndex.values()]
+    .filter((failedPage) => !recoveredPageIndexes.has(failedPage.page_index))
+    .sort((a, b) => a.page_index - b.page_index);
+  const enrichmentStatus = pages.length === imageBuffers.length
+    ? "done"
+    : pages.length > 0 ? "partial" : "failed";
   if (startTime) timings.enrichmentMs = Date.now() - startTime;
   const enrichedPayload = {
     ...resultPayload,
+    status: enrichmentStatus,
     pages,
+    failed_pages: remainingFailedPages.length > 0 ? remainingFailedPages : undefined,
     metadata: {
       ...((resultPayload.metadata as Record<string, unknown>) || {}),
       source_language: (pages[0] as { source_language?: string })?.source_language || "unknown",
@@ -1525,7 +1583,7 @@ async function enrichResultInBackground(
       total_dishes: pages.reduce(
         (sum, p) => sum + (((p as { dishes?: unknown[] }).dishes)?.length || 0), 0
       ),
-      enrichment_status: "done",
+      enrichment_status: enrichmentStatus,
       enrichment_time_ms: startTime ? Date.now() - startTime : undefined,
       restaurant: extractRestaurantMeta(pages),
       insight: extractMenuInsight(pages),
@@ -1540,7 +1598,18 @@ async function enrichResultInBackground(
   const currentTaskBeforeEnrichment = await import("@/lib/cache/task-store").then((m) => m.getTask(taskId));
   mergeGeneratedDishImagesFromExistingResult(enrichedPayload, currentTaskBeforeEnrichment?.result as Record<string, unknown> | undefined);
 
-  await updateTask(taskId, { result: enrichedPayload });
+  const perPageStatus = imageBuffers.map((_, pageIndex) => ({
+    page_index: pageIndex,
+    status: recoveredPageIndexes.has(pageIndex) ? "done" : "failed",
+  }));
+  await updateTask(taskId, {
+    status: enrichmentStatus,
+    result: enrichedPayload,
+    failedPages: remainingFailedPages,
+    perPageStatus,
+    progress: { current: imageBuffers.length, total: imageBuffers.length },
+    estimatedRemaining: 0,
+  });
   await rememberTranslation(cacheKeys, enrichedPayload);
   console.info("translate:task_enriched", {
     taskId,
