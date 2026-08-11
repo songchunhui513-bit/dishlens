@@ -267,8 +267,8 @@ export default function DishImageWithLoading({
   const pending = isDishImagePending(dish) || imageFailed;
   const showIllustration = pending || imageUnavailable;
   const hasWaitedLong = stalePending?.key === pendingKey && stalePending.stale;
-  const width = compact ? 96 : "100%";
-  const height = compact ? 96 : 220;
+  const width = compact ? 120 : "100%";
+  const height = compact ? 120 : 200;
   const radius = compact ? "var(--radius)" : "var(--radius-lg)";
   const pendingPercent =
     !hasWaitedLong && pendingDone !== undefined && pendingTotal !== undefined && pendingTotal > 0
@@ -309,32 +309,6 @@ export default function DishImageWithLoading({
           style={{ position: "relative" }}
         >
           <LoadingIcon kind={kind} compact={compact} />
-          {compact && pendingQueueLabel ? (
-            <span
-              style={{
-                position: "absolute",
-                left: 8,
-                right: 8,
-                bottom: 7,
-                padding: "3px 6px",
-                borderRadius: 999,
-                background: "rgba(255,250,242,0.78)",
-                border: "1px solid rgba(212,165,116,0.28)",
-                color: "var(--muted)",
-                fontFamily: "var(--font-ui)",
-                fontSize: 10,
-                fontWeight: 800,
-                lineHeight: 1.1,
-                textAlign: "center",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                backdropFilter: "blur(6px)",
-              }}
-            >
-              {pendingQueueLabel}
-            </span>
-          ) : null}
           {!compact ? (
               <span>{unavailableLabel}</span>
             ) : null}
@@ -357,7 +331,7 @@ export default function DishImageWithLoading({
                 background: "rgba(255,159,28,0.12)",
                 color: "var(--accent)",
                 fontFamily: "var(--font-ui)",
-                fontSize: compact ? 11 : 12,
+                fontSize: compact ? 7 : 9,
                 fontWeight: 700,
                 cursor: "pointer",
                 opacity: retrying ? 0.5 : 1,
@@ -375,7 +349,7 @@ export default function DishImageWithLoading({
           fill
           priority={priority}
           loading={priority ? "eager" : "lazy"}
-          sizes={compact ? "96px" : "(max-width: 430px) 100vw, 430px"}
+          sizes={compact ? "120px" : "(max-width: 430px) 100vw, 430px"}
           style={{ objectFit: "cover" }}
           onError={() => setFailedUrl(imageUrl)}
         />

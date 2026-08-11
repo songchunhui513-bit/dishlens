@@ -30,11 +30,11 @@ function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "11px",
+        fontSize: "7.5px",
         fontWeight: type === "allergen" || type === "veg" ? 700 : 600,
-        padding: "5px 10px",
+        padding: "3px 9px",
         borderRadius: 20,
-        letterSpacing: 0,
+        letterSpacing: "0.03em",
         background: bgMap[type],
         color: colorMap[type],
       }}
@@ -113,8 +113,8 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
   if (!dish) {
     return (
       <div className="h-full flex flex-col items-center justify-center" style={{ background: "var(--bg)" }}>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--muted)" }}>暂无菜品数据</div>
-        <button onClick={onBack} style={{ marginTop: 12, fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--primary)", background: "none", border: "none", cursor: "pointer" }}>← 返回</button>
+        <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--muted)" }}>暂无菜品数据</div>
+        <button onClick={onBack} style={{ marginTop: 12, fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--primary)", background: "none", border: "none", cursor: "pointer" }}>← 返回</button>
       </div>
     );
   }
@@ -139,9 +139,9 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
   return (
     <div className="h-full flex flex-col relative" style={{ background: "var(--bg)" }}>
       {/* Top bar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ background: "rgba(255,250,242,0.9)", borderBottom: "1px solid rgba(232,213,192,0.72)", backdropFilter: "blur(16px)" }}>
+      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0">
         <button onClick={onBack} className="text-[11px] cursor-pointer transition-opacity hover:opacity-50" style={{ minWidth: 44, minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "flex-start", color: "var(--ink)", background: "none", border: "none" }}>←</button>
-        <span className="font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)", fontSize: 16, lineHeight: 1.25 }}>菜品详情</span>
+        <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>菜品详情</span>
         {onShare ? (
           <button
             onClick={onShare}
@@ -164,7 +164,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
               setFaved(next);
               if (dish?.id) onToggleFavorite?.(dish.id, next);
             }}
-          className="flex items-center gap-0.5 text-[12px] font-bold transition-all duration-200"
+          className="flex items-center gap-0.5 text-[9px] font-bold transition-all duration-200"
           style={{ minHeight: 44, padding: "0 2px 0 6px", fontFamily: "var(--font-body)", color: faved ? "var(--accent)" : "var(--primary)", background: "none", border: "none", cursor: "pointer" }}
         >
           <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, stroke: faved ? "var(--accent)" : "var(--primary)", fill: faved ? "var(--accent)" : "none", strokeWidth: 2, strokeLinecap: "round", animation: faved ? "heartbeat 0.6s ease-out" : "none" }}>
@@ -204,8 +204,8 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
           </div>
 
           {/* Title + sub */}
-          <div className="flex items-start gap-2" style={{ marginBottom: 3 }}>
-            <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.18, textWrap: "pretty" }}>
+          <div className="flex items-start gap-2" style={{ marginBottom: 2 }}>
+            <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.01em" }}>
               {dishText.translatedName}
             </div>
             {dishPriceLabel ? (
@@ -214,7 +214,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                   flexShrink: 0,
                   paddingTop: 4,
                   fontFamily: "var(--font-body)",
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 800,
                   color: "var(--ink)",
                   lineHeight: 1.2,
@@ -224,7 +224,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
               </span>
             ) : null}
           </div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--muted)", fontStyle: "italic", marginBottom: 10, lineHeight: 1.4 }}>
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--muted)", fontStyle: "italic", marginBottom: 8 }}>
             {originalNameLabel}
             {dish.rating_avg ? (
               <span> &nbsp;·&nbsp; <span style={{ color: "var(--accent)", fontWeight: 700, fontStyle: "normal" }}>★ {dish.rating_avg}</span></span>
@@ -240,8 +240,8 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                 padding: "10px 12px",
                 margin: "10px 0 14px",
                 borderRadius: "var(--radius-sm)",
-                border: "1px solid rgba(232,213,192,0.78)",
-                background: "rgba(255,250,242,0.9)",
+                border: "1px solid var(--rule)",
+                background: "rgba(255,250,242,0.72)",
               }}
             >
               <RestaurantSourceIcon />
@@ -249,7 +249,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                 <div
                   style={{
                     fontFamily: "var(--font-body)",
-                    fontSize: 13,
+                    fontSize: 10,
                     fontWeight: 800,
                     color: "var(--ink)",
                     overflow: "hidden",
@@ -259,7 +259,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                 >
                   {restaurantSource.localizedName || restaurantSource.name}
                 </div>
-                <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)", marginTop: 2, lineHeight: 1.45 }}>
+                <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", marginTop: 2 }}>
                   {[restaurantSource.distanceLabel, restaurantSource.rating ? `餐馆 ${restaurantSource.rating}` : null, restaurantSource.address].filter(Boolean).join(" · ")}
                 </div>
               </div>
@@ -280,7 +280,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                   background: "rgba(76,175,80,0.08)",
                   color: "var(--primary)",
                   fontFamily: "var(--font-body)",
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: 800,
                   textDecoration: "none",
                 }}
@@ -292,14 +292,14 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
 
           {/* Allergen row */}
           {allergenRow && (
-            <div className="flex flex-wrap items-center gap-1.5" style={{ padding: "10px 14px", marginBottom: 12, background: "var(--allergen-bg)", borderRadius: "var(--radius-sm)", fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 700, color: "var(--accent)", lineHeight: 1.45 }}>
+            <div className="flex flex-wrap items-center gap-1.5" style={{ padding: "10px 14px", marginBottom: 12, background: "var(--allergen-bg)", borderRadius: "var(--radius-sm)", fontFamily: "var(--font-ui)", fontSize: 8, fontWeight: 600, color: "var(--accent)" }}>
               {allergenRow}
             </div>
           )}
 
           {/* Meta row */}
           {cuisine ? (
-            <div className="flex gap-3.5 flex-wrap" style={{ marginBottom: 12, fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", lineHeight: 1.45 }}>
+            <div className="flex gap-3.5" style={{ marginBottom: 12, fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)" }}>
               <span>菜系 <span style={{ fontWeight: 600, color: "var(--ink-soft)" }}>{cuisine}</span></span>
               {tasteStr ? <span>风味 <span style={{ fontWeight: 600, color: "var(--ink-soft)" }}>{tasteStr}</span></span> : null}
             </div>
@@ -308,14 +308,14 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
           {/* Ingredients */}
           {ingredients ? (
             <>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 6, letterSpacing: 0, marginTop: 4 }}>食材</div>
-              <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{ingredients}</div>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>食材</div>
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{ingredients}</div>
             </>
           ) : null}
 
           {includedItems.length > 0 ? (
             <>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 6, letterSpacing: 0, marginTop: 4 }}>套餐包含</div>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>套餐包含</div>
               <div className="flex gap-1.5 flex-wrap" style={{ marginBottom: 12 }}>
                 {includedItems.map((item) => (
                   <span
@@ -323,13 +323,13 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
-                      minHeight: 24,
-                      padding: "4px 10px",
+                      minHeight: 22,
+                      padding: "3px 10px",
                       borderRadius: 18,
                       background: "rgba(76,175,80,0.10)",
                       color: "var(--primary)",
                       fontFamily: "var(--font-ui)",
-                      fontSize: 11,
+                      fontSize: 8,
                       fontWeight: 700,
                     }}
                   >
@@ -348,37 +348,35 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
           )}
 
           {/* Flavor description */}
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 6, letterSpacing: 0, marginTop: 4 }}>风味特征</div>
-          <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{insight.summary}</div>
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>风味特征</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 12 }}>{insight.summary}</div>
 
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 6, letterSpacing: 0, marginTop: 4 }}>点单建议</div>
-          <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--primary)", lineHeight: 1.65, fontWeight: 700, marginBottom: 6 }}>
-            {insight.recommendation}
-          </div>
-          <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>点单建议</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--ink-soft)", lineHeight: 1.65, marginBottom: 8 }}>{insight.recommendation}</div>
+          <div style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
             {insight.goodFor} {insight.caution}
           </div>
 
           {/* Reviews section */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 6, letterSpacing: 0, marginTop: 4 }}>食客评价</div>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--ink)", marginBottom: 6, letterSpacing: "0.02em", marginTop: 4 }}>食客评价</div>
             {reviews.length > 0 ? (
               <>
                 <div className="flex items-center gap-2.5" style={{ marginBottom: 10 }}>
-                  <span style={{ fontSize: 15, color: "var(--accent)", letterSpacing: 1 }}>★★★★★</span>
-                  <span style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)" }}>{dish.review_count || reviews.length} 条评价</span>
+                  <span style={{ fontSize: 14, color: "var(--accent)", letterSpacing: 1 }}>★★★★★</span>
+                  <span style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)" }}>{dish.review_count || reviews.length} 条评价</span>
                 </div>
                 <div className="flex flex-col gap-2">
                   {reviews.map((r, i) => (
-                    <div key={i} style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", fontStyle: "italic", lineHeight: 1.58, paddingLeft: 10, borderLeft: "2px solid var(--rule)" }}>
+                    <div key={i} style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--ink-soft)", fontStyle: "italic", lineHeight: 1.5, paddingLeft: 8, borderLeft: "2px solid var(--rule)" }}>
                       「{r.text}」
-                      <span style={{ display: "block", fontSize: 11, color: "var(--muted)", fontStyle: "normal", marginTop: 3 }}>— {r.author}{r.time ? ` · ${r.time}` : ""}</span>
+                      <span style={{ display: "block", fontSize: 7, color: "var(--muted)", fontStyle: "normal", marginTop: 2 }}>— {r.author}{r.time ? ` · ${r.time}` : ""}</span>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", fontStyle: "italic", padding: "12px 0" }}>
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", padding: "12px 0" }}>
                 暂无评价，成为第一个评价的人
               </div>
             )}
@@ -386,7 +384,7 @@ export default function DishDetailPage({ dish, onBack, onReview, showAllergens, 
               <button
                 onClick={onReview}
                 className="flex items-center justify-center gap-1 w-full py-2 transition-opacity hover:opacity-70"
-                style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 800, color: "var(--primary)", background: "none", border: "none", cursor: "pointer" }}
+                style={{ fontFamily: "var(--font-body)", fontSize: 9, fontWeight: 700, color: "var(--primary)", background: "none", border: "none", cursor: "pointer" }}
               >
                 我吃过这道菜，去评价 →
               </button>

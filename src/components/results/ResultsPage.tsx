@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dish, TranslationResult } from "@/types";
 import { getDishIncludedItems, getDishInsight, getDishText, isVegetarianDish } from "@/lib/dish-presentation";
 import { buildDishDisplayTags, type DishDisplayTagType } from "@/lib/dish-display-tags";
@@ -65,11 +65,11 @@ function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "11px",
+        fontSize: "7.5px",
         fontWeight: type === "allergen" || type === "veg" ? 700 : 600,
-        padding: "5px 10px",
+        padding: "3px 9px",
         borderRadius: 20,
-        letterSpacing: 0,
+        letterSpacing: "0.03em",
         background: bgMap[type],
         color: colorMap[type],
       }}
@@ -78,44 +78,6 @@ function Pill({ label, type }: { label: string; type: DishDisplayTagType }) {
     </span>
   );
 }
-
-const resultsDishCardStyles = {
-  cardSurface: {
-    position: "relative",
-    overflow: "hidden",
-    background: "var(--card)",
-    borderRadius: 28,
-    padding: 18,
-    boxShadow: "0 14px 34px rgba(69,48,30,0.08)",
-    cursor: "pointer",
-    border: "1px solid rgba(231,205,174,0.42)",
-    fontFamily: "inherit",
-  },
-  imageColumn: {
-    position: "relative",
-    flexShrink: 0,
-    display: "flex",
-  },
-  cardImageRail: {
-    display: "none",
-  },
-  dishNumberBadge: {
-    fontFamily: "var(--font-body)",
-    fontSize: 12,
-    fontWeight: 800,
-    color: "var(--primary)",
-    letterSpacing: 0,
-    marginBottom: 5,
-  },
-  recommendationCallout: {
-    fontFamily: "var(--font-ui)",
-    fontSize: 13,
-    color: "var(--primary)",
-    marginBottom: 10,
-    lineHeight: 1.55,
-    fontWeight: 700,
-  },
-} satisfies Record<string, CSSProperties>;
 
 // ── Skeleton ──────────────────────────────────────────────────────────
 
@@ -130,11 +92,11 @@ function SkeletonRow() {
         marginBottom: 10,
       }}
     >
-      <div className="skeleton-shimmer flex-shrink-0" style={{ width: 96, height: 96, borderRadius: "var(--radius)" }} />
+      <div className="skeleton-shimmer flex-shrink-0" style={{ width: 68, height: 68, borderRadius: "var(--radius)" }} />
       <div className="flex-1 flex flex-col gap-1.5" style={{ paddingTop: 4 }}>
-        <div className="skeleton-shimmer" style={{ height: 12, borderRadius: 6, width: "62%" }} />
-        <div className="skeleton-shimmer" style={{ height: 10, borderRadius: 5, width: "48%" }} />
-        <div className="skeleton-shimmer" style={{ height: 10, borderRadius: 5, width: "72%" }} />
+        <div className="skeleton-shimmer" style={{ height: 8, borderRadius: 4, width: "55%" }} />
+        <div className="skeleton-shimmer" style={{ height: 8, borderRadius: 4, width: "38%" }} />
+        <div className="skeleton-shimmer" style={{ height: 8, borderRadius: 4, width: "25%" }} />
       </div>
     </div>
   );
@@ -317,10 +279,10 @@ export default function ResultsPage({
   if (loading) {
     return (
       <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
-        <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)", background: "rgba(255,250,242,0.86)", backdropFilter: "blur(16px)" }}>
-          <button onClick={onBack} className="text-sm cursor-pointer" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
-          <span className="font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)", fontSize: 17 }}>加载中...</span>
-          <span className="text-[10px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>AI 识别</span>
+        <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
+          <button onClick={onBack} className="text-[11px] cursor-pointer" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
+          <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>加载中...</span>
+          <span className="text-[7px] font-bold px-2 py-1 rounded-xl" style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}>AI 识别</span>
         </div>
         <div className="flex-1 overflow-auto" style={{ padding: "8px 16px 12px" }}>
           <SkeletonRow />
@@ -373,31 +335,28 @@ export default function ResultsPage({
     imageGenerationQueue.deferredTotal > 0 &&
     result?.metadata?.image_generation_status === "partial"
   );
-  const largeMenuBackfillNote = imageGenerationQueue.deferredTotal > 0
-    ? `这份菜单较长，先生成 ${imageGenerationQueue.batchLimit || imageGenerationQueue.queueTotal} 张重点图，其余按需补图。`
-    : "";
-  const imageBackfillMessage = hasDeferredImageBackfill && !isImageBackfillActive
-    ? `${imageGenerationQueue.deferredTotal} 张稍后按需补图，菜单可以先看。`
-    : imageGenerationQueue.queuedTotal > 0
-      ? `${imageGenerationQueue.activeTotal || 1} 张正在生成 · ${imageGenerationQueue.queuedTotal} 张排队${largeMenuBackfillNote ? ` · ${largeMenuBackfillNote}` : "，先看翻译和推荐。"}`
-      : largeMenuBackfillNote || "先看翻译和推荐，菜品图会自动换成高清版本。";
 
   return (
-    <div className="h-full flex flex-col" style={{ position: "relative", background: "var(--bg)" }}>
+    <div
+      className="h-full flex flex-col"
+      data-image-backfill-active={isImageBackfillActive || undefined}
+      data-image-backfill-deferred={hasDeferredImageBackfill || undefined}
+      style={{ position: "relative", background: "var(--bg)" }}
+    >
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)", background: "rgba(255,250,242,0.9)", backdropFilter: "blur(16px)" }}>
+      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--rule)" }}>
         <button
           onClick={onBack}
-          className="text-sm cursor-pointer transition-opacity hover:opacity-50"
+          className="text-[11px] cursor-pointer transition-opacity hover:opacity-50"
           style={{ minWidth: 44, minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "flex-start", color: "var(--ink)", background: "none", border: "none" }}
         >
           ←
         </button>
-        <span className="font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)", fontSize: 18, lineHeight: 1.25 }}>
+        <span className="text-xs font-bold flex-1" style={{ fontFamily: "var(--font-body)", color: "var(--ink)" }}>
           {isReal ? titleText : pageLabel}
         </span>
         <span
-          className="text-[10px] font-bold px-2 py-1 rounded-xl"
+          className="text-[7px] font-bold px-2 py-1 rounded-xl"
           style={{ fontFamily: "var(--font-ui)", color: "var(--primary)", background: "rgba(76,175,80,0.1)" }}
         >
           {sourceLang} → {targetLangLabel}
@@ -437,77 +396,6 @@ export default function ResultsPage({
           />
         )}
 
-        {isReal && (isImageBackfillActive || hasDeferredImageBackfill) && imageGenProgress ? (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              margin: "10px 16px 8px",
-              padding: "12px 14px",
-              borderRadius: 18,
-              border: "1px solid rgba(231,205,174,0.72)",
-              background: "linear-gradient(135deg, rgba(255,250,242,0.92), rgba(255,238,210,0.72))",
-              boxShadow: "0 10px 24px rgba(69,48,30,0.06)",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                background: "rgba(76,175,80,0.12)",
-                color: "var(--primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, stroke: "currentColor", fill: "none", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
-                <path d="M4 15c2.4-1.4 4.8-1.4 7.2 0s4.8 1.4 7.2 0" />
-                <path d="M5 11c2-1.2 4-1.2 6 0s4 1.2 6 0" />
-                <path d="M8 7c1.3-.7 2.7-.7 4 0s2.7.7 4 0" />
-              </svg>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  marginBottom: 5,
-                }}
-              >
-                <span style={{ font: "900 12px var(--font-body)", color: "var(--ink)" }}>
-                  {hasDeferredImageBackfill && !isImageBackfillActive ? "首批图片已完成" : "图片正在后台补齐"}
-                </span>
-                <span style={{ font: "800 11px var(--font-ui)", color: "var(--primary)", whiteSpace: "nowrap" }}>
-                  {imageGenProgress.done}/{imageGenProgress.total}
-                </span>
-              </div>
-              <div style={{ font: "600 11px/1.5 var(--font-ui)", color: "var(--muted)" }}>
-                {imageBackfillMessage}
-              </div>
-              <div style={{ height: 4, marginTop: 8, borderRadius: 999, background: "rgba(45,45,45,0.08)", overflow: "hidden" }}>
-                <div
-                  style={{
-                    width: `${Math.max(8, Math.min(100, Math.round((imageGenProgress.done / imageGenProgress.total) * 100)))}%`,
-                    height: "100%",
-                    borderRadius: 999,
-                    background: "var(--primary)",
-                    transition: "width 0.35s ease",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         {isReal && categories.length > 0 && (
           <CategoryTabs
             categories={categories}
@@ -518,12 +406,9 @@ export default function ResultsPage({
 
         {/* Section label */}
         {isReal && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "12px 16px 7px" }}>
-            <span style={{ font: "900 13px/1.2 var(--font-body)", color: "var(--ink)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "10px 16px 6px" }}>
+            <span style={{ font: "900 11px var(--font-body)", color: "var(--ink)" }}>
               {categories.find((c) => c.key === selectedCategory)?.label || "全部菜品"}
-            </span>
-            <span style={{ font: "800 11px/1 var(--font-ui)", color: "var(--muted)" }}>
-              {hiddenDishCount > 0 ? `${visibleDishes.length}/${displayedDishes.length}` : displayedDishes.length} 道
             </span>
           </div>
         )}
@@ -539,7 +424,7 @@ export default function ResultsPage({
               background: "var(--allergen-bg)",
               borderRadius: "var(--radius-sm)",
               fontFamily: "var(--font-ui)",
-              fontSize: 11,
+              fontSize: 8,
               fontWeight: 600,
               color: "var(--accent)",
               animation: "fadeSlideUp 0.3s ease-out",
@@ -587,68 +472,66 @@ export default function ResultsPage({
                 }}
                 data-deferred-dish-id={dish.image_status === "deferred" ? dish.id : undefined}
                 className="relative"
-                style={{ marginBottom: 14, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
+                style={{ marginBottom: 10, animation: `fadeSlideUp 0.35s ease-out ${i * 60}ms both` }}
               >
                 <button
                   onClick={() => onDishDetail(dish)}
-                  className="flex items-start gap-4 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="flex items-start gap-3.5 w-full text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
                   style={{
-                    ...resultsDishCardStyles.cardSurface,
-                    paddingRight: 18 + orderControlOffset,
+                    background: "var(--card)",
+                    borderRadius: "var(--radius-lg)",
+                    padding: 14,
+                    paddingRight: 14 + orderControlOffset,
+                    boxShadow: "var(--shadow)",
+                    cursor: "pointer",
+                    border: "none",
+                    fontFamily: "inherit",
                   }}
                 >
                   {/* Image */}
-                  <div style={resultsDishCardStyles.imageColumn}>
-                    <span aria-hidden="true" style={resultsDishCardStyles.cardImageRail} />
-                    <DishImageWithLoading
-                      dish={dish}
-                      size="card"
-                      alt={dishText.originalName}
-                      pendingDone={imageGenProgress?.done}
-                      pendingTotal={imageGenProgress?.total}
-                      pendingActiveTotal={imageGenerationQueue.activeTotal}
-                      pendingQueuedTotal={imageGenerationQueue.queuedTotal}
-                      retrying={generatingDishIds?.has(dish.id) || false}
-                      priority={i === 0}
-                    >
-                      {showVeg && isVeg && (
-                        <div
-                          className="absolute flex items-center justify-center"
-                          style={{
-                            bottom: 3, right: 3,
-                            width: 18, height: 18,
-                            background: "var(--primary)",
-                            borderRadius: "50%",
-                            animation: "popIn 0.3s ease-out",
-                            boxShadow: "0 1px 4px rgba(76,175,80,0.3)",
-                          }}
-                        >
-                          <svg viewBox="0 0 12 12" style={{ width: 11, height: 11, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
-                            <path d="M8 4C4 5 3 8 3.5 10c.5 1.8 2 2.5 3 1 .7-1.1.5-2.7-.5-4" />
-                            <path d="M6 2c0 0 1-1.5 3-1s2 2.5 0 4" />
-                          </svg>
-                        </div>
-                      )}
-                    </DishImageWithLoading>
-                  </div>
+                  <DishImageWithLoading
+                    dish={dish}
+                    size="card"
+                    alt={dishText.originalName}
+                    pendingDone={imageGenProgress?.done}
+                    pendingTotal={imageGenProgress?.total}
+                    pendingActiveTotal={imageGenerationQueue.activeTotal}
+                    pendingQueuedTotal={imageGenerationQueue.queuedTotal}
+                    retrying={generatingDishIds?.has(dish.id) || false}
+                    priority={i === 0}
+                  >
+                    {showVeg && isVeg && (
+                      <div
+                        className="absolute flex items-center justify-center"
+                        style={{
+                          bottom: 3, right: 3,
+                          width: 18, height: 18,
+                          background: "var(--primary)",
+                          borderRadius: "50%",
+                          animation: "popIn 0.3s ease-out",
+                          boxShadow: "0 1px 4px rgba(76,175,80,0.3)",
+                        }}
+                      >
+                        <svg viewBox="0 0 12 12" style={{ width: 11, height: 11, stroke: "#FFF", fill: "none", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                          <path d="M8 4C4 5 3 8 3.5 10c.5 1.8 2 2.5 3 1 .7-1.1.5-2.7-.5-4" />
+                          <path d="M6 2c0 0 1-1.5 3-1s2 2.5 0 4" />
+                        </svg>
+                      </div>
+                    )}
+                  </DishImageWithLoading>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div style={resultsDishCardStyles.dishNumberBadge}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.04em", marginBottom: 2 }}>
                       {String(i + 1).padStart(2, "0")}
                       {dish.rating_avg ? (
-                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 12, color: "var(--accent)", fontWeight: 800 }}>
+                        <span className="inline-flex items-center gap-0.5 ml-1.5" style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>
                           ★ {dish.rating_avg}
                         </span>
                       ) : null}
                     </div>
-                    <div
-                      className="flex items-start gap-2"
-                      style={{
-                        marginBottom: 5,
-                      }}
-                    >
-                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--ink)", letterSpacing: 0, lineHeight: 1.2, textWrap: "pretty" }}>
+                    <div className="flex items-start gap-2" style={{ marginBottom: 2 }}>
+                      <div className="min-w-0 flex-1" style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.01em" }}>
                         {dishText.translatedName}
                       </div>
                       {dishPriceLabel ? (
@@ -657,7 +540,7 @@ export default function ResultsPage({
                             flexShrink: 0,
                             paddingTop: 1,
                             fontFamily: "var(--font-body)",
-                            fontSize: 15,
+                            fontSize: 11,
                             fontWeight: 800,
                             color: "var(--ink)",
                             lineHeight: 1.2,
@@ -667,13 +550,13 @@ export default function ResultsPage({
                         </span>
                       ) : null}
                     </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--muted)", fontStyle: "italic", marginBottom: 7, lineHeight: 1.3 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--muted)", fontStyle: "italic", marginBottom: 2 }}>
                       {originalNameLabel}
                     </div>
-                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--ink-soft)", marginBottom: 7, lineHeight: 1.55, textWrap: "pretty" }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--ink-soft)", marginBottom: 4, lineHeight: 1.4 }}>
                       {insight.summary}
                     </div>
-                    <div style={{ ...resultsDishCardStyles.recommendationCallout }}>
+                    <div style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--primary)", marginBottom: 5, lineHeight: 1.4, fontWeight: 600 }}>
                       {insight.recommendation}
                     </div>
                     {includedItems.length > 0 ? (
@@ -686,10 +569,10 @@ export default function ResultsPage({
                           padding: "4px 8px",
                           borderRadius: 10,
                           background: "rgba(76,175,80,0.07)",
-                          marginBottom: 8,
+                          marginBottom: 5,
                           fontFamily: "var(--font-ui)",
-                          fontSize: 12,
-                          lineHeight: 1.45,
+                          fontSize: 7.5,
+                          lineHeight: 1.35,
                           color: "var(--primary)",
                           fontWeight: 700,
                         }}
@@ -726,16 +609,15 @@ export default function ResultsPage({
               }))}
               className="w-full transition-all duration-150 active:scale-[0.985]"
               style={{
-                minHeight: 48,
-                margin: "4px 0 16px",
-                border: "1px solid rgba(231,205,174,0.86)",
-                borderRadius: 18,
-                background: "linear-gradient(180deg, rgba(255,250,242,0.94), rgba(255,238,210,0.78))",
-                color: "var(--ink)",
+                minHeight: 44,
+                margin: "0 0 10px",
+                border: "1px solid var(--rule)",
+                borderRadius: "var(--radius-lg)",
+                background: "var(--card-alt)",
+                color: "var(--ink-soft)",
                 fontFamily: "var(--font-ui)",
-                fontSize: 14,
-                fontWeight: 850,
-                boxShadow: "0 10px 24px rgba(69,48,30,0.06)",
+                fontSize: 9,
+                fontWeight: 700,
               }}
             >
               再显示 {Math.min(RESULTS_VISIBLE_DISH_INCREMENT, hiddenDishCount)} 道 · 还剩 {hiddenDishCount} 道
@@ -750,25 +632,25 @@ export default function ResultsPage({
                 <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
               </svg>
             </div>
-            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 800, color: "var(--ink)", marginBottom: 7 }}>
+            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
               非菜单页面
             </h4>
-            <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--ink-soft)", lineHeight: 1.65, maxWidth: 300 }}>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "var(--ink-soft)", lineHeight: 1.6, maxWidth: 260 }}>
               {infoDescription || "这是餐厅的品牌介绍或食材理念页，不包含可点单的菜品。请翻到带价格和菜品名的菜单页再拍摄。"}
             </p>
           </div>
         ) : (
           /* Empty state — genuine recognition failure */
-          <div className="flex flex-col items-center justify-center text-center" style={{ padding: "44px 20px" }}>
+          <div className="flex flex-col items-center justify-center text-center" style={{ padding: "40px 20px", opacity: 0.45 }}>
             <div className="flex items-center justify-center" style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--card)", marginBottom: 10 }}>
               <svg viewBox="0 0 24 24" style={{ width: 24, height: 24, stroke: "var(--muted)", fill: "none", strokeWidth: 1.5, strokeLinecap: "round" }}>
                 <circle cx="12" cy="12" r="9" /><path d="M8 12h8" />
               </svg>
             </div>
-            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 800, color: "var(--ink)", marginBottom: 5 }}>
+            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 600, color: "var(--muted)", marginBottom: 2 }}>
               没有识别到菜品
             </h4>
-            <p style={{ fontFamily: "var(--font-ui)", fontSize: 14, color: "var(--muted)", opacity: 0.82 }}>
+            <p style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", opacity: 0.7 }}>
               请重新拍摄清晰的菜单照片
             </p>
           </div>
@@ -783,7 +665,7 @@ export default function ResultsPage({
               background: "var(--allergen-bg)",
               borderRadius: "var(--radius-sm)",
               fontFamily: "var(--font-ui)",
-              fontSize: 12,
+              fontSize: 8,
               color: "var(--accent)",
               fontWeight: 600,
             }}

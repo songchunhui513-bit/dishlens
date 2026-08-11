@@ -103,7 +103,7 @@ body {
   border: 1px solid rgba(212, 165, 116, 0.34);
   color: var(--muted);
   font-family: var(--font-ui);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0;
   animation: fadeIn var(--dur-normal) ease-out both;
@@ -265,15 +265,4 @@ body {
 .food-character svg {
   width: 120px;
   height: 120px;
-}
-
-.loading-food-stage .food-character-stage {
-  width: 150px;
-  height: 132px;
-  margin-bottom: 0;
-}
-
-.loading-food-stage .food-character svg {
-  width: 112px;
-  height: 112px;
 }

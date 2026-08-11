@@ -19,7 +19,7 @@ export default function OrderedPage({ visits, onBack, onSelect, onReviewRestaura
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
       <div className="flex items-center gap-2 flex-shrink-0" style={{ padding: "48px 20px 10px", borderBottom: "1px solid var(--rule)" }}>
         <button onClick={onBack} className="text-[11px] cursor-pointer transition-opacity hover:opacity-50" style={{ color: "var(--ink)", background: "none", border: "none" }}>←</button>
-        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>点过</h2>
+        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>点过</h2>
       </div>
 
       <div className="flex-1 overflow-auto" style={{ padding: "14px 16px" }}>
@@ -30,8 +30,8 @@ export default function OrderedPage({ visits, onBack, onSelect, onReviewRestaura
                 <path d="M5 12l4 4L19 6" />
               </svg>
             </div>
-            <h3 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 800, color: "var(--ink)", marginBottom: 6 }}>还没有点过记录</h3>
-            <p style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", lineHeight: 1.55, maxWidth: 250 }}>翻译菜单后选择菜品，确认已点就会保存在这里。</p>
+            <h3 style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>还没有点过记录</h3>
+            <p style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", lineHeight: 1.5 }}>翻译菜单后选择菜品，确认已点就会保存在这里。</p>
           </div>
         ) : visits.map((visit) => {
           const summary = summarizeOrder(visit.items);
@@ -71,7 +71,7 @@ export default function OrderedPage({ visits, onBack, onSelect, onReviewRestaura
               onClick={() => onSelect(visit)}
               className="w-full text-left transition-all duration-150 active:scale-[0.99]"
               style={{
-                padding: 16,
+                padding: 13,
                 borderRadius: 22,
                 border: "1px solid var(--rule)",
                 background: "rgba(254,230,203,0.72)",
@@ -80,27 +80,27 @@ export default function OrderedPage({ visits, onBack, onSelect, onReviewRestaura
                 cursor: "pointer",
               }}
             >
-              <div style={{ display: "grid", gridTemplateColumns: "48px 1fr auto", gap: 12, alignItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "42px 1fr auto", gap: 10, alignItems: "center" }}>
                 <CuisineIllustration lang={visit.source_lang} size={42} />
                 <div className="min-w-0">
-                  <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--ink)", margin: "0 0 5px", lineHeight: 1.18 }}>
+                  <h3 style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 800, color: "var(--ink)", margin: "0 0 3px", lineHeight: 1.15 }}>
                     {restaurantName}
                   </h3>
-                  <div style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", fontWeight: 650, lineHeight: 1.35 }}>
+                  <div style={{ fontFamily: "var(--font-ui)", fontSize: 8.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.35 }}>
                     {locationMeta}
                   </div>
                 </div>
-                <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 850, color: "var(--ink)", whiteSpace: "nowrap" }}>
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 800, color: "var(--ink)", whiteSpace: "nowrap" }}>
                   {formatOrderPrice(summary)}
                 </div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
                 {flavorTags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center" style={{ height: 26, padding: "0 10px", borderRadius: 999, background: "rgba(76,175,80,0.12)", color: "var(--primary)", fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 750 }}>
+                  <span key={tag} className="inline-flex items-center" style={{ height: 20, padding: "0 8px", borderRadius: 999, background: "rgba(76,175,80,0.12)", color: "var(--primary)", fontFamily: "var(--font-ui)", fontSize: 7.5, fontWeight: 700 }}>
                     {tag}
                   </span>
                 ))}
-                <span className="inline-flex items-center" style={{ height: 26, padding: "0 10px", borderRadius: 999, background: "rgba(45,45,45,0.06)", color: "var(--muted)", fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 750 }}>
+                <span className="inline-flex items-center" style={{ height: 20, padding: "0 8px", borderRadius: 999, background: "rgba(45,45,45,0.06)", color: "var(--muted)", fontFamily: "var(--font-ui)", fontSize: 7.5, fontWeight: 700 }}>
                   {visit.restaurant_rating ? `餐厅 ${visit.restaurant_rating}` : "待评价餐厅"}
                 </span>
               </div>
@@ -114,14 +114,14 @@ export default function OrderedPage({ visits, onBack, onSelect, onReviewRestaura
                       onReviewRestaurant(visit);
                     }}
                     style={{
-                      height: 34,
-                      padding: "0 14px",
+                      height: 30,
+                      padding: "0 11px",
                       border: "1px solid rgba(232,213,192,0.88)",
                       borderRadius: 999,
                       background: "rgba(255,255,255,0.3)",
                       color: "var(--ink-soft)",
                       fontFamily: "var(--font-ui)",
-                      fontSize: 13,
+                      fontSize: 8.5,
                       fontWeight: 800,
                       cursor: "pointer",
                     }}

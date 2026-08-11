@@ -165,13 +165,12 @@ export default function HomePage({
 
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
-      <div className="home-content-scroll flex-1 overflow-y-auto" style={{ minHeight: 0, paddingBottom: 10 }}>
-        {/* ── Header ────────────────────────────────────────── */}
-        <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "44px 20px 8px" }}>
+      {/* ── Header ────────────────────────────────────────── */}
+      <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "44px 20px 8px" }}>
         <span
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: 700,
             letterSpacing: "0.06em",
             color: "var(--ink)",
@@ -212,10 +211,10 @@ export default function HomePage({
         style={{
           alignSelf: "flex-start",
           fontFamily: "var(--font-ui)",
-          fontSize: 10,
+          fontSize: 8,
           fontWeight: 600,
           color: "var(--ink-soft)",
-          padding: "5px 10px",
+          padding: "4px 10px",
           borderRadius: 20,
           background: "var(--card-alt)",
           margin: "0 20px 4px",
@@ -241,7 +240,7 @@ export default function HomePage({
           background: "var(--card-alt)",
           borderRadius: "var(--radius-sm)",
           fontFamily: "var(--font-body)",
-          fontSize: 11,
+          fontSize: 9,
           color: "var(--ink-soft)",
           lineHeight: 1.5,
         }}
@@ -258,7 +257,7 @@ export default function HomePage({
           style={{
             background: "var(--card)",
             borderRadius: "var(--radius-xl)",
-            padding: "18px",
+            padding: "18px 18px 18px 20px",
             boxShadow: "var(--shadow-lg)",
             display: "grid",
             gridTemplateColumns: "minmax(0,1fr) 112px",
@@ -274,12 +273,12 @@ export default function HomePage({
               className="inline-flex items-center"
               style={{
                 fontFamily: "var(--font-ui)",
-                fontSize: 10,
+                fontSize: 7,
                 fontWeight: 700,
                 letterSpacing: "0.05em",
                 color: "#FFF",
                 background: "var(--accent)",
-                padding: "3px 9px",
+                padding: "4px 10px",
                 borderRadius: 14,
                 marginBottom: 8,
               }}
@@ -289,7 +288,7 @@ export default function HomePage({
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 10,
+                fontSize: 8,
                 fontWeight: 600,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -307,7 +306,7 @@ export default function HomePage({
                   marginBottom: 8,
                   color: "var(--ink-soft)",
                   fontFamily: "var(--font-body)",
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: 700,
                   minWidth: 0,
                 }}
@@ -325,7 +324,7 @@ export default function HomePage({
                       background: "rgba(76,175,80,0.10)",
                       color: "var(--primary)",
                       fontFamily: "var(--font-ui)",
-                      fontSize: 10,
+                      fontSize: 7,
                       fontWeight: 800,
                     }}
                   >
@@ -350,7 +349,7 @@ export default function HomePage({
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 12,
+                fontSize: 9,
                 color: "var(--muted)",
                 marginBottom: 10,
                 fontStyle: "italic",
@@ -396,13 +395,13 @@ export default function HomePage({
         onClick={onCapture}
         className="flex items-center justify-center gap-2.5 mx-5 my-1.5 transition-all duration-150 active:scale-[0.97] active:opacity-90"
         style={{
-          padding: "16px 18px",
+          padding: 16,
           background: "var(--primary)",
           color: "#FFF",
           border: "none",
           borderRadius: "var(--radius)",
           fontFamily: "var(--font-body)",
-          fontSize: 15,
+          fontSize: 13,
           fontWeight: 700,
           letterSpacing: "0.03em",
           cursor: "pointer",
@@ -424,8 +423,8 @@ export default function HomePage({
         className="flex items-center justify-center gap-1 mx-auto py-1 transition-opacity hover:opacity-70"
         style={{
           fontFamily: "var(--font-body)",
-          fontSize: 11,
-          fontWeight: 700,
+          fontSize: 10,
+          fontWeight: 500,
           color: "var(--muted)",
           background: "none",
           border: "none",
@@ -436,12 +435,12 @@ export default function HomePage({
       </button>
 
       {/* ── Recent Translations ───────────────────────────── */}
-      <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "10px 20px 8px" }}>
+      <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "8px 20px 6px" }}>
         <h3
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: 13,
-            fontWeight: 850,
+            fontSize: 11,
+            fontWeight: 700,
             letterSpacing: "0.02em",
             color: "var(--ink)",
           }}
@@ -449,17 +448,13 @@ export default function HomePage({
           {copy.recentTitle}
         </h3>
         <span
-          aria-hidden={isEmpty}
-          onClick={() => {
-            if (!isEmpty) onNavigate?.("history");
-          }}
+          onClick={() => onNavigate?.("history")}
           style={{
             fontFamily: "var(--font-ui)",
-            fontSize: 11,
-            fontWeight: 800,
+            fontSize: 9,
+            fontWeight: 600,
             color: "var(--primary)",
-            cursor: isEmpty ? "default" : "pointer",
-            pointerEvents: isEmpty ? "none" : "auto",
+            cursor: "pointer",
             visibility: isEmpty ? "hidden" : "visible",
           }}
         >
@@ -488,10 +483,10 @@ export default function HomePage({
               <path d="M8 12h8" />
             </svg>
           </div>
-          <h4 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 750, color: "var(--muted)", marginBottom: 2 }}>
+          <h4 style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 600, color: "var(--muted)", marginBottom: 2 }}>
             {copy.emptyTitle}
           </h4>
-          <p style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--muted)", opacity: 0.7 }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", opacity: 0.7 }}>
             {copy.emptySubtitle}
           </p>
         </div>
@@ -520,7 +515,7 @@ export default function HomePage({
                 <div
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: i === 0 ? 15 : 13,
+                    fontSize: i === 0 ? 13.5 : 11.5,
                     fontWeight: 800,
                     color: "var(--ink)",
                     overflow: "hidden",
@@ -534,7 +529,7 @@ export default function HomePage({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <RecentPill>{item.sourceLabel} → {item.targetLabel}</RecentPill>
-                  <span style={{ font: "750 10px var(--font-ui)", color: "var(--muted)" }}>
+                  <span style={{ font: "700 8px var(--font-ui)", color: "var(--muted)" }}>
                     {item.dishCount} 道菜 · {item.timeLabel}
                   </span>
                 </div>
@@ -546,7 +541,7 @@ export default function HomePage({
                         return <FoodThumbnailFallback key={`fallback-${index}`} label={`${item.restaurantName} 菜单暂无缩略图`} size={26} compact />;
                       }
                       return (
-                        <span key={`${src}-${index}`} className="relative overflow-hidden" style={{ width: 26, height: 26, borderRadius: 9, border: "1px solid rgba(255,255,255,0.65)", flexShrink: 0, background: "rgba(255,247,235,0.72)" }}>
+                        <span key={`${src}-${index}`} className="relative overflow-hidden" style={{ width: 26, height: 26, borderRadius: 9, border: "1px solid rgba(255,255,255,0.65)", flexShrink: 0 }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={src}
@@ -573,7 +568,7 @@ export default function HomePage({
                         </span>
                       );
                     })}
-                    <span style={{ font: "700 10px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ font: "650 8px/1.35 var(--font-ui)", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.summary}
                     </span>
                   </div>
@@ -584,7 +579,7 @@ export default function HomePage({
         </div>
       )}
 
-      </div>
+      <div style={{ flex: 1 }} />
 
       {/* ── Bottom Nav ────────────────────────────────────── */}
       <nav
@@ -653,8 +648,8 @@ export default function HomePage({
               minWidth: 56,
               minHeight: 44,
               fontFamily: "var(--font-body)",
-              fontSize: 10,
-              fontWeight: 750,
+              fontSize: 8,
+              fontWeight: 500,
               color: "var(--muted)",
               background: "none",
               border: "none",
@@ -699,9 +694,9 @@ function Pill({ type, children }: { type: "green" | "orange" | "warm"; children:
       className="inline-flex items-center gap-0.5"
       style={{
         fontFamily: "var(--font-ui)",
-        fontSize: "10px",
-        fontWeight: 750,
-        padding: "4px 9px",
+        fontSize: "7.5px",
+        fontWeight: 600,
+        padding: "3px 9px",
         borderRadius: 20,
         letterSpacing: "0.03em",
         background: bgMap[type],
@@ -719,13 +714,13 @@ function RecentPill({ children }: { children: ReactNode }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        height: 24,
-        padding: "0 10px",
+        height: 18,
+        padding: "0 7px",
         borderRadius: 999,
         background: "rgba(76,175,80,0.10)",
         color: "var(--primary)",
         fontFamily: "var(--font-ui)",
-        fontSize: 10,
+        fontSize: 7,
         fontWeight: 800,
         lineHeight: 1,
         whiteSpace: "nowrap",

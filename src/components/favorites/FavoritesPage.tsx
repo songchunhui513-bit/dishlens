@@ -36,7 +36,7 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
         >
           ←
         </button>
-        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>
+        <h2 style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
           我的收藏
         </h2>
         {!isEmpty && (
@@ -44,14 +44,14 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
             className="ml-auto font-semibold"
             style={{
               fontFamily: "var(--font-ui)",
-              fontSize: 12,
+              fontSize: 9,
               color: "var(--muted)",
             }}
           >
             {items.length} 道
           </span>
         )}
-        <span style={{ fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 750, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "4px 10px", borderRadius: 999 }}>
+        <span style={{ fontFamily: "var(--font-ui)", fontSize: 7, fontWeight: 600, color: "var(--primary)", background: "rgba(76,175,80,0.08)", padding: "2px 8px", borderRadius: 10 }}>
           本地
         </span>
       </div>
@@ -73,10 +73,10 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
               <path d="M24 36C14 28 8 22 8 14C8 8 14 4 19 4C22 4 26 6 28 9C30 6 34 4 37 4C42 4 48 8 48 14C48 22 38 28 24 36Z" />
             </svg>
           </div>
-          <h3 style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 800, color: "var(--muted)", marginBottom: 6 }}>
+          <h3 style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 }}>
             还没有收藏
           </h3>
-          <p style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--muted)", opacity: 0.76, marginBottom: 22, maxWidth: 250, lineHeight: 1.55 }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 9, color: "var(--muted)", opacity: 0.7, marginBottom: 20, maxWidth: 200, lineHeight: 1.5 }}>
             浏览翻译结果时，点击心形图标即可收藏喜欢的菜品
           </p>
           <button
@@ -84,13 +84,13 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
             className="transition-all duration-150 active:scale-[0.96]"
             style={{
               fontFamily: "var(--font-body)",
-              fontSize: 14,
+              fontSize: 10,
               fontWeight: 700,
               color: "#FFF",
               background: "var(--primary)",
               border: "none",
               borderRadius: "var(--radius)",
-              padding: "13px 30px",
+              padding: "10px 28px",
               cursor: "pointer",
               boxShadow: "0 4px 16px rgba(76,175,80,0.2)",
             }}
@@ -109,9 +109,9 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
               <button
                 key={dish.id}
                 onClick={() => onDishDetail?.(dish.id)}
-                className="flex items-center gap-3 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
+                className="flex items-center gap-2.5 w-full text-left transition-all duration-150 hover:pl-1 active:opacity-50"
                 style={{
-                  padding: "13px 0",
+                  padding: "10px 0",
                   borderBottom: i < items.length - 1 ? "1px solid var(--rule)" : "none",
                   cursor: "pointer",
                   background: "none",
@@ -138,10 +138,10 @@ export default function FavoritesPage({ onBack, onDishDetail, favorites, onRemov
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 750, color: "var(--ink)", marginBottom: 4, lineHeight: 1.25 }}>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>
                     {dish.name_zh}
                   </div>
-                  <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--muted)", fontWeight: 650, lineHeight: 1.35 }}>
+                  <div className="flex gap-2.5" style={{ fontFamily: "var(--font-ui)", fontSize: 8, color: "var(--muted)", fontWeight: 500 }}>
                     <span>{dish.name_original}</span>
                     <span>· {dish.cuisine}</span>
                   </div>

@@ -67,7 +67,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
         {sourceLang ? (
           <span
             className="inline-flex items-center h-[27px] px-[10px] rounded-full"
-            style={{ background: "rgba(76,175,80,0.08)", color: "var(--primary)", fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 900 }}
+            style={{ background: "rgba(76,175,80,0.08)", color: "var(--primary)", fontFamily: "var(--font-ui)", fontSize: 9, fontWeight: 900 }}
           >
             {sourceLang.toUpperCase()} → 中文
           </span>
@@ -89,7 +89,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.1 }}>
             给店员核对
           </h2>
-          <p style={{ fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 12px", lineHeight: 1.62 }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 10, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 12px", lineHeight: 1.62 }}>
             把这一页给店员看。菜名使用菜单原文；若价格未识别，请以店内菜单为准。
           </p>
           <div
@@ -99,14 +99,14 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
               background: "rgba(255,245,233,0.72)",
               border: "1px solid rgba(232,213,192,0.58)",
               fontFamily: "var(--font-ui)",
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: 700,
               color: "var(--ink)",
               lineHeight: 1.45,
             }}
           >
             {greeting.phrase}
-            <span style={{ display: "block", marginTop: 5, color: "var(--muted)", fontSize: 12, fontWeight: 700 }}>
+            <span style={{ display: "block", marginTop: 5, color: "var(--muted)", fontSize: 9, fontWeight: 700 }}>
               {greeting.zh}
             </span>
           </div>
@@ -130,7 +130,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                 key={item.dish_id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "56px minmax(0, 1fr) 46px auto",
+                  gridTemplateColumns: "42px minmax(0, 1fr) 34px auto",
                   gap: 10,
                   alignItems: "center",
                   padding: "11px 0",
@@ -144,9 +144,9 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                   onClick={() => setPreviewDish(item.dish)}
                   style={{
                     position: "relative",
-                    width: 56,
-                    height: 56,
-                    borderRadius: 16,
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
                     overflow: "hidden",
                     border: "1px solid rgba(232,213,192,0.68)",
                     background: "rgba(255,245,233,0.68)",
@@ -158,7 +158,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                     style={{
                       position: "absolute",
                       inset: 0,
-                      transform: "scale(0.59)",
+                      transform: "scale(0.35)",
                       transformOrigin: "top left",
                     }}
                   >
@@ -166,10 +166,10 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                   </div>
                 </button>
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ display: "block", fontFamily: "var(--font-ui)", fontSize: 14, fontWeight: 800, color: "var(--ink)", lineHeight: 1.25 }}>
+                  <strong style={{ display: "block", fontFamily: "var(--font-ui)", fontSize: 11, fontWeight: 800, color: "var(--ink)", lineHeight: 1.25 }}>
                     {item.dish.name_original}
                   </strong>
-                  <span style={{ fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 700, color: "var(--muted)", lineHeight: 1.35 }}>
+                  <span style={{ fontFamily: "var(--font-ui)", fontSize: 8.5, fontWeight: 700, color: "var(--muted)", lineHeight: 1.35 }}>
                     {item.dish.name_translated?.zh || item.dish.name_original}
                     {menuIdx ? ` · 原菜单第 ${String(menuIdx).padStart(2, "0")} 项` : ""}
                   </span>
@@ -178,7 +178,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                   style={{
                     justifySelf: "end",
                     fontFamily: "var(--font-ui)",
-                    fontSize: 13,
+                    fontSize: 9.5,
                     fontWeight: 900,
                     color: "var(--muted)",
                     whiteSpace: "nowrap",
@@ -189,7 +189,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                 <div
                   style={{
                     fontFamily: "var(--font-ui)",
-                    fontSize: 14,
+                    fontSize: 11,
                     fontWeight: 900,
                     color: item.unitPrice ? "var(--ink)" : "var(--muted)",
                     whiteSpace: "nowrap",
@@ -210,7 +210,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
               background: "rgba(255,245,233,0.68)",
               border: "1px solid rgba(232,213,192,0.42)",
               fontFamily: "var(--font-ui)",
-              fontSize: 12,
+              fontSize: 9.5,
               fontWeight: 700,
               color: "var(--ink-soft)",
               lineHeight: 1.52,
@@ -234,7 +234,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--ink)", margin: "0 0 6px" }}>
             备注
           </h2>
-          <p style={{ fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 11px", lineHeight: 1.62 }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 10, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 11px", lineHeight: 1.62 }}>
             选择后自动翻译给店员，可多选。
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
@@ -246,14 +246,14 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                   type="button"
                   onClick={() => onToggleNote(note.id)}
                   style={{
-                    height: 36,
-                    padding: "0 12px",
+                    height: 28,
+                    padding: "0 10px",
                     borderRadius: 999,
                     border: active ? "1px solid rgba(76,175,80,0.22)" : "1px solid rgba(232,213,192,0.7)",
                     background: active ? "rgba(76,175,80,0.08)" : "rgba(255,245,233,0.58)",
                     color: active ? "var(--primary)" : "var(--ink-soft)",
                     fontFamily: "var(--font-ui)",
-                    fontSize: 12,
+                    fontSize: 8.5,
                     fontWeight: 700,
                     cursor: "pointer",
                   }}
@@ -272,7 +272,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                 background: "rgba(255,245,233,0.68)",
                 border: "1px solid rgba(232,213,192,0.42)",
                 fontFamily: "var(--font-ui)",
-                fontSize: 12,
+                fontSize: 9.5,
                 fontWeight: 700,
                 color: "var(--ink-soft)",
                 lineHeight: 1.52,
@@ -290,7 +290,7 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
                     <span style={{ display: "block", color: "var(--ink-soft)", fontWeight: 800, lineHeight: 1.45 }}>
                       {note.original}
                     </span>
-                    <span style={{ display: "block", marginTop: 2, color: "var(--muted)", fontSize: 12, fontWeight: 700, lineHeight: 1.45 }}>
+                    <span style={{ display: "block", marginTop: 2, color: "var(--muted)", fontSize: 8.5, fontWeight: 700, lineHeight: 1.45 }}>
                       {note.zh}
                     </span>
                   </div>
@@ -304,14 +304,14 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
             disabled={items.length === 0}
             className="w-full transition-all duration-150 active:scale-[0.98] disabled:opacity-45"
             style={{
-              height: 44,
+              height: 42,
               marginTop: 12,
               border: "1px solid rgba(76,175,80,0.28)",
               borderRadius: 17,
               background: "rgba(76,175,80,0.1)",
               color: "var(--primary)",
               fontFamily: "var(--font-ui)",
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: 800,
               cursor: items.length > 0 ? "pointer" : "default",
             }}
@@ -324,14 +324,14 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
               onClick={onBackToResults}
               className="w-full transition-all duration-150 active:scale-[0.98]"
               style={{
-                height: 44,
+                height: 42,
                 marginTop: 9,
                 border: "1px solid rgba(232,213,192,0.88)",
                 borderRadius: 17,
                 background: "rgba(255,255,255,0.28)",
                 color: "var(--ink)",
                 fontFamily: "var(--font-ui)",
-                fontSize: 13,
+                fontSize: 10,
                 fontWeight: 800,
                 cursor: "pointer",
               }}
@@ -373,10 +373,10 @@ export default function OrderConfirmPage({ items, sourceLang, result, notes, sel
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div className="min-w-0 flex-1">
-                <div style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 900, color: "var(--ink)", lineHeight: 1.25 }}>
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 900, color: "var(--ink)", lineHeight: 1.25 }}>
                   {previewDish.name_original}
                 </div>
-                <div style={{ marginTop: 3, fontFamily: "var(--font-ui)", fontSize: 12, fontWeight: 700, color: "var(--muted)", lineHeight: 1.35 }}>
+                <div style={{ marginTop: 3, fontFamily: "var(--font-ui)", fontSize: 9, fontWeight: 700, color: "var(--muted)", lineHeight: 1.35 }}>
                   {previewDish.name_translated?.zh || previewDish.name_original}
                 </div>
               </div>
