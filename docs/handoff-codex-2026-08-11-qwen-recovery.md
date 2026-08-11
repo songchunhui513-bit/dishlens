@@ -93,7 +93,15 @@ Qwen3 热切换备份：生产 `.env.production.bak-<UTC>-qwen3-vl-flash`。
 3. 线上供应商顺序未优先使用 Qwen 的问题。
 4. 新菜单冷启动返回 0 道菜的问题。
 5. Qwen3 Flash 首轮模型选型和四页并发参数。
-6. 失败图片缓存永不重试的问题。
+6. 失败图片缓存永不重试的问题，包括整体 `failed` 和部分成功 `partial` 两种终态。
+
+## 2026-08-11 图片重试补充修复
+
+- 生产复核发现：首轮 15 张缺图中 5 张生成成功、10 张超时后，缓存状态变成 `partial`；旧判断只对整体 `failed` 开放重试，因此后续重复上传不会再补剩余图片。
+- `resultNeedsImageRefresh` 现同时识别 `failed` 与 `partial`，仍只选择没有 URL 的菜品，已有图片不会被替换。
+- 万相异步任务轮询由固定 60 秒改为 `MENU_IMAGE_GENERATION_POLL_TIMEOUT_MS`，默认 120 秒，符合官方生产建议的两分钟最终超时。
+- 生产图片队列使用单并发、提交间隔 1500ms，避免恢复一份旧菜单时同时提交大量任务触发 429。
+- Supabase 任务写入在上传关键路径的等待上限降为 200ms；实测服务端 intake 从约 849ms 降至 232ms。数据库不可用时继续使用内存任务状态，但正式根治仍是迁移到新加坡 Cloud SQL、Redis 和 Cloud Tasks。
 
 ## 遗留事项
 
@@ -106,7 +114,7 @@ Qwen3 热切换备份：生产 `.env.production.bak-<UTC>-qwen3-vl-flash`。
 
 ## 下一步执行顺序
 
-1. 发布失败图片缓存重试修复，重传原始法国菜单验证旧缓存从 34/49 修复到 49/49。
+1. 重传原始法国菜单，验证 `partial` 缓存继续补齐剩余 10 张缺图；如果旧万相模型仍超时，切换新加坡 `wan2.6-t2i` 或 `z-image-turbo` 并继续使用自有对象存储持久化。
 2. 将上传接口目标压到 1s 内，只负责存图、哈希、建任务和入队；Supabase task write 不再进入请求关键路径。
 3. 失败页不在首轮串行等待 Plus + Gemini，先返回成功页面，失败页进入后台重试队列。
 4. 完成 Cloud SQL、Redis、Cloud Tasks、GCS + CDN 的新加坡迁移，并使用新加坡 Model Studio Workspace 对应端点和 Key。
@@ -114,7 +122,7 @@ Qwen3 热切换备份：生产 `.env.production.bak-<UTC>-qwen3-vl-flash`。
 
 ## 验证记录
 
-- 定向回归：3/3 通过。
+- 定向回归：缓存失败重试与万相轮询超时配置 2/2 通过；前序定向回归 3/3 通过。
 - ESLint：通过。
 - Next.js 生产构建：通过。
 - 图片发布诊断：`local_image_assets_missing=0`、`untracked=0`、`deploy_ready=true`。

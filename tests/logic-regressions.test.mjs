@@ -1810,6 +1810,7 @@ test("cached image-generation failures are retried without replacing successful 
 
   assert.match(refreshBody, /const hasMissingImage/);
   assert.match(refreshBody, /metadata\.image_generation_status === "failed"/);
+  assert.match(refreshBody, /metadata\.image_generation_status === "partial"/);
   assert.match(refreshBody, /if \(!hasMissingImage\) return false/);
   assert.match(refreshBody, /!dish\.ai_image_url && !dish\.image_url/);
 
@@ -1826,6 +1827,14 @@ test("cached image-generation failures are retried without replacing successful 
     cachedBranch.indexOf("const refreshPlan") < cachedBranch.indexOf("markCachedResultRefreshPending"),
     "refresh eligibility must be captured before failed state becomes processing",
   );
+});
+
+test("Wan image polling allows slow tasks to finish without hard-coding a 60 second cutoff", async () => {
+  const imageGen = await readFile(`${ROOT}/src/lib/ai/image-gen.ts`, "utf8");
+
+  assert.match(imageGen, /MENU_IMAGE_GENERATION_POLL_TIMEOUT_MS/);
+  assert.match(imageGen, /120_000/);
+  assert.match(imageGen, /const deadline = Date\.now\(\) \+ POLL_TIMEOUT/);
 });
 
 test("multi-page menu OCR uses higher fast first-pass concurrency without changing full pass concurrency", async () => {

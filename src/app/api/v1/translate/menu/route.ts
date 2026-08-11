@@ -309,7 +309,10 @@ function resultNeedsImageRefresh(result: Record<string, unknown>): boolean {
   // A previous provider or persistence outage must not poison this menu's
   // cache forever. The generator only selects missing dishes, so completed
   // images remain untouched while failed items get another chance.
-  if (metadata.image_generation_status === "failed") return true;
+  if (
+    metadata.image_generation_status === "failed"
+    || metadata.image_generation_status === "partial"
+  ) return true;
 
   return dishes
     .some((dish) => !dish.ai_image_url && !dish.image_url && dish.image_status !== "failed" && dish.image_status !== "deferred");

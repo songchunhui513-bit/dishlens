@@ -5,7 +5,6 @@ const MODEL_STUDIO_FAST_MODEL = process.env.ALIBABA_IMAGE_FAST_MODEL || "z-image
 const MODEL_STUDIO_QUALITY_MODEL = process.env.ALIBABA_IMAGE_FALLBACK_MODEL || "wan2.7-image";
 const DEFAULT_POLL_INTERVAL_MS = 1500;
 const DEFAULT_REQUEST_INTERVAL_MS = 1200;
-const POLL_TIMEOUT = 60_000;
 
 function envInt(name: string, fallback: number, min: number, max: number): number {
   const value = Number.parseInt(process.env[name] || "", 10);
@@ -18,6 +17,12 @@ const POLL_INTERVAL = envInt(
   DEFAULT_POLL_INTERVAL_MS,
   800,
   5000,
+);
+const POLL_TIMEOUT = envInt(
+  "MENU_IMAGE_GENERATION_POLL_TIMEOUT_MS",
+  120_000,
+  30_000,
+  180_000,
 );
 const IMAGE_GENERATION_RETRIES = Math.max(
   1,
